@@ -17,12 +17,16 @@ import (
 	"time"
 )
 
-var debug bool
-var verbose bool
-var config ConfigSettings
-var wg sync.WaitGroup
-var uniqueGitModules map[string]struct{}
-var empty struct{}
+var (
+	debug              bool
+	verbose            bool
+	config             ConfigSettings
+	wg                 sync.WaitGroup
+	wgGit              sync.WaitGroup
+	uniqueGitModules   map[string]struct{}
+	uniqueGitModulesMU sync.Mutex
+	empty              struct{}
+)
 
 // ConfigSettings contains the key value pairs from the g10k config file
 type ConfigSettings struct {
@@ -245,9 +249,11 @@ func executeCommand(command string) string {
 
 	before := time.Now()
 	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
-	Verbosef("Executing " + cmd + strings.Join(cmdArgs, " ") + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
+	Verbosef("Executing " + command + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
 	if err != nil {
-		log.Print("git command failed: "+cmd, err)
+		log.Print("git command failed: "+command, err)
+		log.Print("Output: " + string(out))
+		os.Exit(1)
 	}
 	return string(out)
 }
@@ -285,7 +291,7 @@ func executeCommand(command string) string {
 //	return <-remoteChan != <-localChan
 //}
 
-func doMirrorOrUpdate(gitName string, workDir string, url string, sshPrivateKey string) {
+func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) {
 	dirExists := false
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
 		dirExists = false
@@ -293,15 +299,30 @@ func doMirrorOrUpdate(gitName string, workDir string, url string, sshPrivateKey 
 		dirExists = true
 		//doCheckout = compareGitVersions(workDir, url, branch)
 	}
-	if dirExists {
-		executeCommand("ssh-agent bash -c 'ssh-add " + sshPrivateKey + "; git --git-dir " + workDir + " remote update'")
 
+	needSshKey := true
+	if strings.Contains(url, "github.com") {
+		needSshKey = false
 	} else {
-		executeCommand("ssh-agent bash -c 'ssh-add " + sshPrivateKey + "; git clone --mirror " + url + " " + workDir + "'")
+		needSshKey = true
+		//doCheckout = compareGitVersions(workDir, url, branch)
+	}
+
+	gitCmd := "git clone --mirror " + url + " " + workDir
+	if dirExists {
+		gitCmd = "git --git-dir " + workDir + " remote update"
+	}
+
+	if needSshKey {
+		executeCommand("ssh-agent bash -c 'ssh-add " + sshPrivateKey + "; " + gitCmd + "'")
+	} else {
+		executeCommand(gitCmd)
 	}
 }
 
 func resolvePuppetEnvironment() {
+	uniqueGitModules = make(map[string]struct{})
+	var gitKey string
 	for source, sa := range config.Sources {
 		wg.Add(1)
 		go func(source string, sa Source) {
@@ -311,13 +332,15 @@ func resolvePuppetEnvironment() {
 			// check if sa.Basedir exists
 			checkDirAndCreate(sa.Basedir, "basedir")
 
-			doMirrorOrUpdate(source, workDir, sa.Remote, sa.PrivateKey)
+			if !strings.Contains(source, "hiera") && !strings.Contains(source, "files") {
+				gitKey = sa.PrivateKey
+			}
+			doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey)
 
 			// get all branches
 			out := executeCommand("git --git-dir " + workDir + " for-each-ref --sort=-committerdate --format=%(refname:short)")
 			//log.Print(branches)
 			branches := strings.Split(out, "\n")
-
 			for _, branch := range branches {
 				wg.Add(1)
 				go func(branch string) {
@@ -329,52 +352,60 @@ func resolvePuppetEnvironment() {
 						syncToModuleDir(workDir, targetDir, branch)
 						if !strings.Contains(source, "hiera") && !strings.Contains(source, "files") {
 							puppetfile := readPuppetfile(targetDir)
-							log.Println(targetDir, puppetfile)
+							createOrPurgeDir(puppetfile.moduleDir)
+							//log.Println(targetDir, puppetfile)
 							for _, git := range puppetfile.gitModules {
-								if _, ok := uniqueGitModules[git.git]; !ok {
-									log.Println("inspecting", git.git)
-									uniqueGitModules[git.git] = empty
+								//log.Println("inspecting", git.git)
+								// collect unique git modules here over all branches
+								if !containUniqeGitModule(git.git) {
+									registerUniqeGitModule(git.git)
 								}
 							}
 						}
-						//resolveGitRepositories(puppetfile, sa.PrivateKey)
 					}
 				}(branch)
 
 			}
-			log.Println(uniqueGitModules)
 		}(source, sa)
 	}
 
 	wg.Wait()
+	resolveGitRepositories(uniqueGitModules, gitKey)
+	wgGit.Wait()
 }
 
-func resolveGitRepositories(pf PuppetfileSettings, sshPrivateKey string) {
-	//type empty struct{}
-	//sem := make(chan empty, len(repos))
+func registerUniqeGitModule(url string) {
+	uniqueGitModulesMU.Lock()
+	defer uniqueGitModulesMU.Unlock()
+	uniqueGitModules[url] = empty
+}
+
+func containUniqeGitModule(url string) bool {
+	uniqueGitModulesMU.Lock()
+	defer uniqueGitModulesMU.Unlock()
+	if _, ok := uniqueGitModules[url]; ok {
+		return true
+	} else {
+		return false
+	}
+}
+
+func resolveGitRepositories(uniqueGitModules map[string]struct{}, sshPrivateKey string) {
 	//for n := range repos {
-	for gitName, git := range pf.gitModules {
-		//wg.Add(1)
-		//go func(gitName string, git GitModule) {
-		//	defer wg.Done()
-		Debugf("git repo: " + gitName + " (url=" + git.git + ", branch=" + git.branch + ", tag=" + git.tag + ", commit=" + git.commit + ")")
-		branch := "master"
-		if len(git.branch) != 0 {
-			branch = git.branch
-		}
-		url := git.git
+	for url, _ := range uniqueGitModules {
+		wgGit.Add(1)
+		go func(url string) {
+			defer wgGit.Done()
+			Debugf("git repo url " + url)
 
-		Debugf("Using branch: " + branch)
-		Debugf("Using url: " + url)
+			// create save directory name from Git repo name
+			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
+			workDir := config.CacheDir + repoDir
 
-		// create save directory name from Git repo name
-		repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
-		workDir := config.CacheDir + repoDir
+			doMirrorOrUpdate(url, workDir, sshPrivateKey)
+			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 
-		doMirrorOrUpdate(gitName, workDir, git.git, sshPrivateKey)
-		//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
-
-		//}(gitName, git)
+		}(url)
 	}
 	// wait for goroutines to finish
 	//for i := 0; i < len(repos); i++ {
@@ -382,20 +413,24 @@ func resolveGitRepositories(pf PuppetfileSettings, sshPrivateKey string) {
 	//}
 }
 
-func syncToModuleDir(srcDir string, targetDir string, branch string) {
-	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		Debugf("trying to create targetDir: " + targetDir)
-		os.Mkdir(targetDir, 0777)
+func createOrPurgeDir(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		Debugf("trying to create dir: " + dir)
+		os.Mkdir(dir, 0777)
 	} else {
-		Debugf("Trying to remove: " + targetDir)
-		errr := os.RemoveAll(targetDir)
+		Debugf("Trying to remove: " + dir)
+		errr := os.RemoveAll(dir)
 		if errr != nil {
-			log.Print("error: removing targetDir failed", errr)
+			log.Print("error: removing dir failed", errr)
 		}
-		Debugf("trying to create targetDir: " + targetDir)
-		os.Mkdir(targetDir, 0777)
+		Debugf("trying to create dir: " + dir)
+		os.Mkdir(dir, 0777)
 	}
-	cmd := "git --git-dir " + srcDir + " archive " + branch + " | tar -x -C " + targetDir
+}
+
+func syncToModuleDir(srcDir string, targetDir string, tree string) {
+	createOrPurgeDir(targetDir)
+	cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
 	before := time.Now()
 	_, err := exec.Command("bash", "-c", cmd).Output()
 	Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
