@@ -30,7 +30,8 @@ var (
 	empty          struct{}
 	syncGitCount   int
 	syncForgeCount int
-	syncTime       float64
+	syncGitTime    float64
+	syncForgeTime  float64
 )
 
 // ConfigSettings contains the key value pairs from the g10k config file
@@ -280,7 +281,7 @@ func executeCommand(command string, timeout int) string {
 	before := time.Now()
 	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
-	syncTime += duration
+	syncGitTime += duration
 	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	if err != nil {
 		log.Print("git command failed: "+command, err)
@@ -416,7 +417,9 @@ func queryForgeApi(name string) string {
 	client := &http.Client{}
 	before := time.Now()
 	resp, err := client.Do(req)
-	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
+	duration := time.Since(before).Seconds()
+	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	syncForgeTime += duration
 	if err != nil {
 		panic(err)
 	}
@@ -463,7 +466,9 @@ func downloadForgeModule(name string, version string) {
 		client := &http.Client{}
 		before := time.Now()
 		resp, err := client.Do(req)
-		Verbosef("GETing " + url + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
+		duration := time.Since(before).Seconds()
+		Verbosef("GETing " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		syncForgeTime += duration
 		if err != nil {
 			panic(err)
 		}
@@ -756,7 +761,7 @@ func main() {
 	var (
 		configFile  = flag.String("config", "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/core_envs.yaml", "which config file to use")
 		puppetFile  = flag.String("puppetfile", "Puppetfile", "what is the Puppetfile name")
-		debugFlag   = flag.Bool("debug", true, "log debug output, defaults to false")
+		debugFlag   = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag = flag.Bool("verbose", false, "log verbose output, defaults to false")
 	)
 	flag.Parse()
@@ -786,5 +791,5 @@ func main() {
 	//resolveForgeModules(configSettings.forge)
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
 	//doModuleInstallOrNothing("camptocamp-postfix-latest")
-	fmt.Println("Synced", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", syncTime, "s done in", threads, "threads parallel")
+	fmt.Println("Synced", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", syncGitTime, "s and Forge query + download in", syncForgeTime, "s done in", threads, "threads parallel")
 }
