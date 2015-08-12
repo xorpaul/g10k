@@ -4,10 +4,10 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"flag"
 	"fmt"
 	"github.com/kballard/go-shellquote"
+	"github.com/klauspost/pgzip"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -271,6 +271,10 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 		}
 
 	}
+	// check if we need to set defaults
+	if len(puppetFile.moduleDir) == 0 {
+		puppetFile.moduleDir = "modules"
+	}
 	//fmt.Println(puppetFile)
 	return puppetFile
 }
@@ -492,7 +496,8 @@ func downloadForgeModule(name string, version string) {
 		Verbosef("GETing " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 		syncForgeTime += duration
 		if err != nil {
-			panic(err)
+			log.Print("downloadForgeModule(): Error while GETing Forge module ", name, " from ", url, ": ", err)
+			os.Exit(1)
 		}
 		defer resp.Body.Close()
 
@@ -500,7 +505,6 @@ func downloadForgeModule(name string, version string) {
 			Debugf("downloadForgeModule(): Trying to create " + config.ForgeCacheDir + fileName)
 			out, err := os.Create(config.ForgeCacheDir + fileName)
 			if err != nil {
-				// panic?
 				log.Print("downloadForgeModule(): Error while creating file for Forge module "+config.ForgeCacheDir+fileName, err)
 				os.Exit(1)
 			}
@@ -509,7 +513,7 @@ func downloadForgeModule(name string, version string) {
 			file, err := os.Open(config.ForgeCacheDir + fileName)
 
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("downloadForgeModule(): Error while opening file", file, err)
 				os.Exit(1)
 			}
 
@@ -517,9 +521,9 @@ func downloadForgeModule(name string, version string) {
 
 			var fileReader io.ReadCloser = resp.Body
 			if strings.HasSuffix(fileName, ".gz") {
-				if fileReader, err = gzip.NewReader(file); err != nil {
+				if fileReader, err = pgzip.NewReader(file); err != nil {
 
-					fmt.Println(err)
+					fmt.Println("downloadForgeModule(): pgzip reader error:", err)
 					os.Exit(1)
 				}
 				defer fileReader.Close()
@@ -528,7 +532,7 @@ func downloadForgeModule(name string, version string) {
 			tarBallReader := tar.NewReader(fileReader)
 			if err = os.Chdir(config.ForgeCacheDir); err != nil {
 
-				fmt.Println(err)
+				fmt.Println("downloadForgeModule(): error while chdir to", config.ForgeCacheDir, err)
 				os.Exit(1)
 			}
 			for {
@@ -537,21 +541,23 @@ func downloadForgeModule(name string, version string) {
 					if err == io.EOF {
 						break
 					}
-					fmt.Println(err)
+					fmt.Println("downloadForgeModule(): error while tar reader.Next() for ", fileName, err)
 					os.Exit(1)
 				}
 
 				// get the individual filename and extract to the current directory
 				filename := header.Name
+				//Debugf("downloadForgeModule(): Trying to extract file" + filename)
 
 				switch header.Typeflag {
 				case tar.TypeDir:
 					// handle directory
 					//fmt.Println("Creating directory :", filename)
-					err = os.MkdirAll(filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+					//err = os.MkdirAll(filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+					err = os.MkdirAll(filename, os.FileMode(0755)) // or use 0755 if you prefer
 
 					if err != nil {
-						fmt.Println(err)
+						fmt.Println("downloadForgeModule(): error while MkdirAll()", filename, err)
 						os.Exit(1)
 					}
 
@@ -561,7 +567,7 @@ func downloadForgeModule(name string, version string) {
 					writer, err := os.Create(filename)
 
 					if err != nil {
-						fmt.Println(err)
+						fmt.Println("downloadForgeModule(): error while Create()", filename, err)
 						os.Exit(1)
 					}
 
@@ -570,7 +576,7 @@ func downloadForgeModule(name string, version string) {
 					err = os.Chmod(filename, os.FileMode(header.Mode))
 
 					if err != nil {
-						fmt.Println(err)
+						fmt.Println("downloadForgeModule(): error while Chmod()", filename, err)
 						os.Exit(1)
 					}
 
@@ -836,7 +842,7 @@ func main() {
 	// Limit the number of spare OS threads to the number of logical CPUs on the local machine
 	threads := runtime.NumCPU()
 	if debug {
-		threads = 4
+		threads = 1
 	}
 
 	runtime.GOMAXPROCS(threads)
@@ -858,7 +864,7 @@ func main() {
 	//resolveGitRepositories(config)
 	//resolveForgeModules(configSettings.forge)
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
-	//doModuleInstallOrNothing("camptocamp-postfix-latest")
+	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 
 	fmt.Println("Synced", envText, ":", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", syncGitTime, "s and Forge query + download in", syncForgeTime, "s done in", threads, "threads parallel")
 }
