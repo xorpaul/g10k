@@ -24,16 +24,17 @@ import (
 )
 
 var (
-	debug          bool
-	verbose        bool
-	config         ConfigSettings
-	wg             sync.WaitGroup
-	empty          struct{}
-	syncGitCount   int
-	syncForgeCount int
-	syncGitTime    float64
-	syncForgeTime  float64
-	buildtime      string
+	debug              bool
+	verbose            bool
+	config             ConfigSettings
+	wg                 sync.WaitGroup
+	empty              struct{}
+	syncGitCount       int
+	syncForgeCount     int
+	syncGitTime        float64
+	syncForgeTime      float64
+	buildtime          string
+	uniqueForgeModules map[string]struct{}
 )
 
 // ConfigSettings contains the key value pairs from the g10k config file
@@ -74,6 +75,11 @@ type GitModule struct {
 	branch string
 	tag    string
 	commit string
+}
+
+type ForgeResult struct {
+	needToGet     bool
+	versionNumber string
 }
 
 // Debugf is a helper function for debug logging if mainCfgSection["debug"] is set
@@ -372,52 +378,62 @@ func doModuleInstallOrNothing(m string) {
 	ma := strings.Split(m, "-")
 	moduleName := ma[0] + "-" + ma[1]
 	moduleVersion := ma[2]
-	needToGet := "false"
 	workDir := config.ForgeCacheDir + m
+	fr := ForgeResult{false, ma[2]}
 	if moduleVersion == "latest" {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			Debugf("doModuleInstallOrNothing(): " + workDir + " did not exists, fetching module")
 			// check forge API what the latest version is
-			needToGet = queryForgeApi(moduleName, "false")
-			//fmt.Println(needToGet)
+			fr = queryForgeApi(moduleName, "false")
+			if fr.needToGet {
+				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
+					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
+					fr.needToGet = false
+					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
+					fmt.Println("trying to symlink " + versionDir + " -> " + workDir)
+					if err := os.Symlink(versionDir, workDir); err != nil {
+						Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
+						os.Exit(1)
+					}
+					//} else {
+					//Debugf("doModuleInstallOrNothing(): need to fetch Forge module " + moduleName + " in latest, because version " + fr.versionNumber + " will not be fetched already")
+
+					//fmt.Println(needToGet)
+				}
+			}
 		} else {
 			// check forge API if latest version of this module has been updated
-			needToGet = queryForgeApi(moduleName, workDir)
+			fr = queryForgeApi(moduleName, workDir)
 			//fmt.Println(needToGet)
 		}
-	}
-	if needToGet == "false" {
+		latestForgeVersion[moduleName] = fr.versionNumber
+
+	} else {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
-			needToGet = "true"
+			fr.needToGet = true
 		} else {
 			Debugf("doModuleInstallOrNothing(): Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
 		}
 	}
-	if needToGet != "false" {
-		if needToGet != "true" {
-			moduleVersion = needToGet
-		}
 
-		//fmt.Println("moduleVersion:", moduleVersion)
-		//fmt.Println("ma[2]:", ma[2])
+	fmt.Println("fr.needToGet for ", m, fr.needToGet)
+
+	if fr.needToGet {
 		if ma[2] != "latest" {
 			createOrPurgeDir(workDir)
 		} else {
-			if err := os.RemoveAll(workDir); err != nil {
-				log.Print("doModuleInstallOrNothing(): error: removing dir failed", err)
-			}
-			versionDir := strings.Replace(workDir, "latest", moduleVersion, -1)
+			versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
+			fmt.Println("trying to symlink " + versionDir + " -> " + workDir)
 			if err := os.Symlink(versionDir, workDir); err != nil {
-				log.Print("doModuleInstallOrNothing(): Error while trying to symlink ", versionDir, " to ", workDir, " :", err)
+				Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
 				os.Exit(1)
 			}
 		}
-
-		downloadForgeModule(moduleName, moduleVersion)
+		downloadForgeModule(moduleName, fr.versionNumber)
 	}
 }
 
-func queryForgeApi(name string, file string) string {
+func queryForgeApi(name string, file string) ForgeResult {
 	//url := "https://forgeapi.puppetlabs.com:443/v3/modules/" + strings.Replace(name, "/", "-", -1)
 	url := "https://forgeapi.puppetlabs.com:443/v3/modules?query=" + name
 	req, err := http.NewRequest("GET", url, nil)
@@ -459,22 +475,22 @@ func queryForgeApi(name string, file string) string {
 				os.Exit(1)
 			} else {
 				Debugf("queryForgeApi(): found current version " + strings.Split(m[1], "-")[2])
-				return strings.Split(m[1], "-")[2]
+				return ForgeResult{true, strings.Split(m[1], "-")[2]}
 			}
 		}
 
 		if err != nil {
 			panic(err)
 		}
-		return "false"
+		return ForgeResult{false, ""}
 	} else if resp.Status == "304 Not Modified" {
-		Debugf("doModuleInstallOrNothing(): Got 304 nothing to do for module" + name)
-		return "false"
+		Debugf("queryForgeApi(): Got 304 nothing to do for module" + name)
+		return ForgeResult{false, ""}
 	} else {
-		Debugf("doModuleInstallOrNothing(): Unexpected response code" + resp.Status)
-		return "false"
+		Debugf("queryForgeApi(): Unexpected response code" + resp.Status)
+		return ForgeResult{false, ""}
 	}
-	return "false"
+	return ForgeResult{false, ""}
 }
 
 func downloadForgeModule(name string, version string) {
@@ -486,7 +502,7 @@ func downloadForgeModule(name string, version string) {
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		proxyUrl, err := http.ProxyFromEnvironment(req)
 		if err != nil {
-			log.Fatal("queryForgeApi(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
+			log.Fatal("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
 			os.Exit(1)
 		}
 		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
@@ -597,6 +613,7 @@ func downloadForgeModule(name string, version string) {
 
 func resolvePuppetEnvironment(envBranch string) {
 	allPuppetfiles := make(map[string]Puppetfile)
+	var mutex = &sync.Mutex{}
 	for source, sa := range config.Sources {
 		wg.Add(1)
 		go func(source string, sa Source) {
@@ -634,6 +651,7 @@ func resolvePuppetEnvironment(envBranch string) {
 					}
 				}
 				wg.Add(1)
+
 				go func(branch string) {
 					defer wg.Done()
 					if len(branch) != 0 {
@@ -645,7 +663,11 @@ func resolvePuppetEnvironment(envBranch string) {
 							Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 						} else {
 							puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
+							mutex.Lock()
+
 							allPuppetfiles[source+"_"+branch] = puppetfile
+							mutex.Unlock()
+
 						}
 					}
 				}(branch)
@@ -673,7 +695,7 @@ func resolvePuppetEnvironment(envBranch string) {
 
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	uniqueGitModules := make(map[string]string)
-	uniqueForgeModules := make(map[string]struct{})
+	uniqueForgeModules = make(map[string]struct{})
 	for env, pf := range allPuppetfiles {
 		Debugf("Resolving " + env)
 		//fmt.Println(pf)
@@ -758,11 +780,12 @@ func createOrPurgeDir(dir string) {
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	syncForgeCount++
 	comp := strings.Split(name, "/")
+	moduleName := strings.Replace(name, "/", "-", -1)
 	if len(comp) != 2 {
 		log.Print("syncForgeToModuleDir(): forgeModuleName invalid, should be like puppetlabs/apt, but is:", name)
 		os.Exit(1)
 	} else {
-		workDir := config.ForgeCacheDir + strings.Replace(name, "/", "-", -1) + "-" + m.version + "/"
+		workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 		targetDir := moduleDir + "/" + comp[1]
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
@@ -796,6 +819,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 
 func resolveForgeModules(modules map[string]struct{}) {
 	var wgForge sync.WaitGroup
+	latestForgeVersion = make(map[string]string)
 	for m := range modules {
 		wgForge.Add(1)
 		go func(m string) {
