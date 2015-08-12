@@ -390,7 +390,7 @@ func doModuleInstallOrNothing(m string) {
 					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
 					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-					fmt.Println("trying to symlink " + versionDir + " -> " + workDir)
+					Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
 					if err := os.Symlink(versionDir, workDir); err != nil {
 						Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
 						os.Exit(1)
@@ -406,7 +406,6 @@ func doModuleInstallOrNothing(m string) {
 			fr = queryForgeApi(moduleName, workDir)
 			//fmt.Println(needToGet)
 		}
-		latestForgeVersion[moduleName] = fr.versionNumber
 
 	} else {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
@@ -416,14 +415,14 @@ func doModuleInstallOrNothing(m string) {
 		}
 	}
 
-	fmt.Println("fr.needToGet for ", m, fr.needToGet)
+	//fmt.Println("fr.needToGet for ", m, fr.needToGet)
 
 	if fr.needToGet {
 		if ma[2] != "latest" {
 			createOrPurgeDir(workDir)
 		} else {
 			versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-			fmt.Println("trying to symlink " + versionDir + " -> " + workDir)
+			Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
 			if err := os.Symlink(versionDir, workDir); err != nil {
 				Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
 				os.Exit(1)
@@ -819,7 +818,6 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 
 func resolveForgeModules(modules map[string]struct{}) {
 	var wgForge sync.WaitGroup
-	latestForgeVersion = make(map[string]string)
 	for m := range modules {
 		wgForge.Add(1)
 		go func(m string) {
