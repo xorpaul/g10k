@@ -75,6 +75,7 @@ type GitModule struct {
 	branch string
 	tag    string
 	commit string
+	ref    string
 }
 
 type ForgeResult struct {
@@ -194,13 +195,13 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 		reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]")
 		reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 		reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-		reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch)\\s*=>\\s*['\"]?([^'\"]+)['\"]")
+		reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref)\\s*=>\\s*['\"]?([^'\"]+)['\"]")
 		//moduleName := ""
 		//nextLineAttr := false
 
 		for _, line := range strings.Split(n, "\n") {
 			//fmt.Println(line)
-			if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 {
+			if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 {
 				log.Fatal("Error: trailing comma found in ", pf, " somewhere here: ", line)
 				os.Exit(1)
 			}
@@ -253,6 +254,8 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 							gm.tag = a[2]
 						} else if a[1] == "commit" {
 							gm.commit = a[2]
+						} else if a[1] == "ref" {
+							gm.ref = a[2]
 						}
 						if strings.Contains(gitModuleAttributes, ",") {
 							if a := reGitAttribute.FindStringSubmatch(strings.SplitN(gitModuleAttributes, ",", 2)[1]); len(a) > 1 {
@@ -264,6 +267,8 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 									gm.tag = a[2]
 								} else if a[1] == "commit" {
 									gm.commit = a[2]
+								} else if a[1] == "ref" {
+									gm.ref = a[2]
 								}
 								//puppetFile.gitModules[m[1]] = GitModule{a[1]: a[2]}
 								//fmt.Println("found for git mod ", m[1], " attribute ", a[1], " with value ", a[2])
@@ -707,6 +712,7 @@ func resolvePuppetEnvironment(envBranch string) {
 }
 
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
+	var wg sync.WaitGroup
 	uniqueGitModules := make(map[string]string)
 	uniqueForgeModules = make(map[string]struct{})
 	for env, pf := range allPuppetfiles {
@@ -736,24 +742,35 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		moduleDir := basedir + env + "/" + pf.moduleDir
 		createOrPurgeDir(moduleDir)
 		for gitName, gitModule := range pf.gitModules {
-			//fmt.Println(gitModule)
-			//fmt.Println("source: " + source)
-			targetDir := moduleDir + "/" + gitName
-			//fmt.Println("targetDir: " + targetDir)
-			tree := "master"
-			if len(gitModule.branch) > 0 {
-				tree = gitModule.branch
-			} else if len(gitModule.commit) > 0 {
-				tree = gitModule.commit
-			} else if len(gitModule.tag) > 0 {
-				tree = gitModule.tag
-			}
-			syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
+			wg.Add(1)
+			go func(gitName string, gitModule GitModule) {
+				defer wg.Done()
+				//fmt.Println(gitModule)
+				//fmt.Println("source: " + source)
+				targetDir := moduleDir + "/" + gitName
+				//fmt.Println("targetDir: " + targetDir)
+				tree := "master"
+				if len(gitModule.branch) > 0 {
+					tree = gitModule.branch
+				} else if len(gitModule.commit) > 0 {
+					tree = gitModule.commit
+				} else if len(gitModule.tag) > 0 {
+					tree = gitModule.tag
+				} else if len(gitModule.ref) > 0 {
+					tree = gitModule.ref
+				}
+				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
+			}(gitName, gitModule)
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
-			syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
+			wg.Add(1)
+			go func(forgeModuleName string, fm ForgeModule) {
+				defer wg.Done()
+				syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
+			}(forgeModuleName, fm)
 		}
 	}
+	wg.Wait()
 }
 
 func resolveGitRepositories(uniqueGitModules map[string]string) {
@@ -816,10 +833,10 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		} else {
 			cmd := "cp --link --archive " + workDir + " " + targetDir
 			before := time.Now()
-			_, err := exec.Command("bash", "-c", cmd).Output()
+			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
 			if err != nil {
-				log.Printf("Failed to execute command: %s", cmd)
+				log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
 				log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
 				os.Exit(1)
 			}
@@ -832,10 +849,10 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 	createOrPurgeDir(targetDir)
 	cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
 	before := time.Now()
-	_, err := exec.Command("bash", "-c", cmd).Output()
+	out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 	Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
 	if err != nil {
-		log.Printf("syncToModuleDir(): Failed to execute command: %s", cmd)
+		log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
 		os.Exit(1)
 	}
 }
