@@ -222,7 +222,7 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 					//fmt.Println("found forge mod attribute ---> ", m[3])
 				} else {
 					//puppetFile.forgeModules[m[1]] = ForgeModule{}
-					puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest"}
+					puppetFile.forgeModules[m[1]] = ForgeModule{version: "present"}
 				}
 			} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found git mod name ---> ", m[1])
@@ -392,7 +392,7 @@ func doModuleInstallOrNothing(m string) {
 					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
 					Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
 					if err := os.Symlink(versionDir, workDir); err != nil {
-						Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
+						log.Println("doModuleInstallOrNothing(): 1 Error while trying to symlink "+versionDir+" -> "+workDir, err)
 						os.Exit(1)
 					}
 					//} else {
@@ -403,15 +403,27 @@ func doModuleInstallOrNothing(m string) {
 			}
 		} else {
 			// check forge API if latest version of this module has been updated
+			Debugf("doModuleInstallOrNothing(): check forge API if latest version of module " + moduleName + " has been updated")
 			fr = queryForgeApi(moduleName, workDir)
 			//fmt.Println(needToGet)
 		}
 
+	} else if moduleVersion == "present" {
+		// ensure that a latest version this module exists
+		latestDir := config.ForgeCacheDir + moduleName + "-latest"
+		if _, err := os.Stat(latestDir); os.IsNotExist(err) {
+			Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
+			doModuleInstallOrNothing(moduleName + "-latest")
+			return
+		} else {
+			Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
+		}
 	} else {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			fr.needToGet = true
 		} else {
 			Debugf("doModuleInstallOrNothing(): Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
+			return
 		}
 	}
 
@@ -421,10 +433,12 @@ func doModuleInstallOrNothing(m string) {
 		if ma[2] != "latest" {
 			createOrPurgeDir(workDir)
 		} else {
+			Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
+			_ = os.Remove(workDir)
 			versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
 			Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
 			if err := os.Symlink(versionDir, workDir); err != nil {
-				Debugf("doModuleInstallOrNothing(): Error while trying to symlink " + versionDir + " -> " + workDir)
+				log.Println("doModuleInstallOrNothing(): 2 Error while trying to symlink "+versionDir+" -> "+workDir, err)
 				os.Exit(1)
 			}
 		}
@@ -440,8 +454,8 @@ func queryForgeApi(name string, file string) ForgeResult {
 		log.Fatal("queryForgeApi(): Error creating GET request for Puppetlabs forge API", err)
 		os.Exit(1)
 	}
-	if fileInfo, err := os.Stat(file); !os.IsNotExist(err) {
-		Debugf("adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
+	if fileInfo, err := os.Stat(file); err == nil {
+		Debugf("queryForgeApi(): adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
 		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
@@ -784,8 +798,18 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		log.Print("syncForgeToModuleDir(): forgeModuleName invalid, should be like puppetlabs/apt, but is:", name)
 		os.Exit(1)
 	} else {
-		workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 		targetDir := moduleDir + "/" + comp[1]
+		if m.version == "present" {
+			if _, err := os.Stat(targetDir); err == nil {
+				log.Print("syncForgeToModuleDir(): Nothing to do, found existing Forge module: ", targetDir)
+				return
+			} else {
+				// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
+				m.version = "latest"
+			}
+
+		}
+		workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
 			os.Exit(1)
@@ -850,7 +874,7 @@ func main() {
 
 	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
 		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
-		*envBranchFlag = "fullmanaged"
+		//*envBranchFlag = "fullmanaged"
 	}
 
 	if len(*configFile) > 0 {
@@ -888,5 +912,5 @@ func main() {
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 
-	fmt.Println("Synced", envText, ":", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", syncGitTime, "s and Forge query + download in", syncForgeTime, "s done in", threads, "threads parallel")
+	fmt.Println("Synced", envText, ":", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s and Forge query + download in", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s done in", threads, "threads parallel")
 }
