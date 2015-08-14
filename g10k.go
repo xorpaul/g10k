@@ -97,6 +97,15 @@ func Verbosef(s string) {
 	}
 }
 
+// fileExists checks if the given file exists and return a bool
+func fileExists(file string) bool {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return false
+	} else {
+		return true
+	}
+}
+
 // checkDirAndCreate tests if the given directory exists and tries to create it
 func checkDirAndCreate(dir string, name string) string {
 	if len(dir) != 0 {
@@ -436,15 +445,21 @@ func doModuleInstallOrNothing(m string) {
 
 	if fr.needToGet {
 		if ma[2] != "latest" {
+			Debugf("doModuleInstallOrNothing(): Trying to remove: " + workDir)
 			createOrPurgeDir(workDir)
 		} else {
-			Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
-			_ = os.Remove(workDir)
-			versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-			Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
-			if err := os.Symlink(versionDir, workDir); err != nil {
-				log.Println("doModuleInstallOrNothing(): 2 Error while trying to symlink "+versionDir+" -> "+workDir, err)
-				os.Exit(1)
+			versionDir, _ := os.Readlink(workDir)
+			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
+				Debugf("doModuleInstallOrNothing(): No reason to re-symlink again")
+			} else {
+				Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
+				_ = os.Remove(workDir)
+				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
+				Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
+				if err := os.Symlink(versionDir, workDir); err != nil {
+					log.Println("doModuleInstallOrNothing(): 2 Error while trying to symlink "+versionDir+" -> "+workDir, err)
+					os.Exit(1)
+				}
 			}
 		}
 		downloadForgeModule(moduleName, fr.versionNumber)
@@ -514,7 +529,7 @@ func queryForgeApi(name string, file string) ForgeResult {
 func downloadForgeModule(name string, version string) {
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
-	if _, err := os.Stat(config.ForgeCacheDir + fileName); os.IsNotExist(err) {
+	if _, err := os.Stat(config.ForgeCacheDir + name + "-" + version); os.IsNotExist(err) {
 		url := "https://forgeapi.puppetlabs.com/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
@@ -636,7 +651,7 @@ func resolvePuppetEnvironment(envBranch string) {
 		wg.Add(1)
 		go func(source string, sa Source) {
 			defer wg.Done()
-			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source"+source)
+			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
 			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + strconv.FormatBool(sa.Prefix) + ")")
 			if len(sa.PrivateKey) > 0 {
 				if _, err := os.Stat(sa.PrivateKey); err != nil {
@@ -659,14 +674,12 @@ func resolvePuppetEnvironment(envBranch string) {
 
 			// get all branches
 			out := executeCommand("git --git-dir "+workDir+" for-each-ref --sort=-committerdate --format=%(refname:short)", config.Timeout)
-			//log.Print(branches)
-			branches := strings.Split(out, "\n")
+			branches := strings.Split(strings.TrimSpace(out), "\n")
+
 			for _, branch := range branches {
-				if len(envBranch) != 0 {
-					if branch != envBranch {
-						Debugf("Skipping branch" + branch)
-						continue
-					}
+				if branch != envBranch || len(branch) == 0 {
+					Debugf("Skipping branch " + branch)
+					continue
 				}
 				wg.Add(1)
 
@@ -779,7 +792,11 @@ func resolveGitRepositories(uniqueGitModules map[string]string) {
 		wgGit.Add(1)
 		go func(url string, sshPrivateKey string) {
 			defer wgGit.Done()
-			Debugf("git repo url " + url + " with ssh key " + sshPrivateKey)
+			if len(sshPrivateKey) > 0 {
+				Debugf("git repo url " + url + " with ssh key " + sshPrivateKey)
+			} else {
+				Debugf("git repo url " + url + " without ssh key")
+			}
 
 			// create save directory name from Git repo name
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
@@ -795,14 +812,14 @@ func resolveGitRepositories(uniqueGitModules map[string]string) {
 
 func createOrPurgeDir(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		Debugf("createOrPurgeDir(): trying to create dir: " + dir)
+		Debugf("createOrPurgeDir(): Trying to create dir: " + dir)
 		os.Mkdir(dir, 0777)
 	} else {
 		Debugf("createOrPurgeDir(): Trying to remove: " + dir)
 		if err := os.RemoveAll(dir); err != nil {
 			log.Print("createOrPurgeDir(): error: removing dir failed", err)
 		}
-		Debugf("createOrPurgeDir(): trying to create dir: " + dir)
+		Debugf("createOrPurgeDir(): Trying to create dir: " + dir)
 		os.Mkdir(dir, 0777)
 	}
 }
