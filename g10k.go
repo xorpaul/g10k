@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -81,6 +82,11 @@ type GitModule struct {
 type ForgeResult struct {
 	needToGet     bool
 	versionNumber string
+}
+
+type ExecResult struct {
+	returnCode int
+	output     string
 }
 
 // Debugf is a helper function for debug logging if mainCfgSection["debug"] is set
@@ -299,7 +305,7 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 	return puppetFile
 }
 
-func executeCommand(command string, timeout int) string {
+func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	Debugf("Executing " + command)
 	parts := strings.SplitN(command, " ", 2)
 	cmd := parts[0]
@@ -307,7 +313,7 @@ func executeCommand(command string, timeout int) string {
 	if len(parts) > 1 {
 		args, err := shellquote.Split(parts[1])
 		if err != nil {
-			Debugf("err: " + fmt.Sprint(err))
+			Debugf("executeCommand(): err: " + fmt.Sprint(err))
 		} else {
 			cmdArgs = args
 		}
@@ -316,14 +322,18 @@ func executeCommand(command string, timeout int) string {
 	before := time.Now()
 	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
+	er := ExecResult{0, string(out)}
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
 	syncGitTime += duration
 	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-	if err != nil {
-		log.Print("git command failed: "+command, err)
-		log.Print("Output: " + string(out))
+	if err != nil && !allowFail {
+		log.Print("executeCommand(): git command failed: "+command, err)
+		log.Print("executeCommand(): Output: " + string(out))
 		os.Exit(1)
 	}
-	return string(out)
+	return er
 }
 
 //func compareGitVersions(targetDir string, url string, branch string) bool {
@@ -359,7 +369,7 @@ func executeCommand(command string, timeout int) string {
 //	return <-remoteChan != <-localChan
 //}
 
-func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) {
+func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) bool {
 	dirExists := false
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
 		dirExists = false
@@ -376,16 +386,30 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) {
 		//doCheckout = compareGitVersions(workDir, url, branch)
 	}
 
-	gitCmd := "git clone --mirror " + url + " " + workDir
-	if dirExists {
-		gitCmd = "git --git-dir " + workDir + " remote update"
+	er := ExecResult{}
+	gitCmd := "git ls-remote " + url
+	if needSshKey {
+		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, true)
+	} else {
+		er = executeCommand(gitCmd, config.Timeout, true)
 	}
 
-	if needSshKey {
-		executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout)
+	if er.returnCode == 0 {
+		gitCmd = "git clone --mirror " + url + " " + workDir
+		if dirExists {
+			gitCmd = "git --git-dir " + workDir + " remote update"
+		}
+
+		if needSshKey {
+			executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, false)
+		} else {
+			executeCommand(gitCmd, config.Timeout, false)
+		}
 	} else {
-		executeCommand(gitCmd, config.Timeout)
+		fmt.Println("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
+		return false
 	}
+	return true
 }
 
 func doModuleInstallOrNothing(m string) {
@@ -670,39 +694,40 @@ func resolvePuppetEnvironment(envBranch string) {
 			//if !strings.Contains(source, "hiera") && !strings.Contains(source, "files") {
 			//	gitKey = sa.PrivateKey
 			//}
-			doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey)
+			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey); success {
 
-			// get all branches
-			out := executeCommand("git --git-dir "+workDir+" for-each-ref --sort=-committerdate --format=%(refname:short)", config.Timeout)
-			branches := strings.Split(strings.TrimSpace(out), "\n")
+				// get all branches
+				er := executeCommand("git --git-dir "+workDir+" for-each-ref --sort=-committerdate --format=%(refname:short)", config.Timeout, false)
+				branches := strings.Split(strings.TrimSpace(er.output), "\n")
 
-			for _, branch := range branches {
-				if len(envBranch) > 0 && branch != envBranch {
-					Debugf("Skipping branch " + branch)
-					continue
-				}
-				wg.Add(1)
-
-				go func(branch string) {
-					defer wg.Done()
-					if len(branch) != 0 {
-						Debugf("Resolving branch: " + branch)
-						// TODO if sa.Prefix != true
-						targetDir := sa.Basedir + source + "_" + branch + "/"
-						syncToModuleDir(workDir, targetDir, branch)
-						if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
-							Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
-						} else {
-							puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
-							mutex.Lock()
-
-							allPuppetfiles[source+"_"+branch] = puppetfile
-							mutex.Unlock()
-
-						}
+				for _, branch := range branches {
+					if len(envBranch) > 0 && branch != envBranch {
+						Debugf("Skipping branch " + branch)
+						continue
 					}
-				}(branch)
+					wg.Add(1)
 
+					go func(branch string) {
+						defer wg.Done()
+						if len(branch) != 0 {
+							Debugf("Resolving branch: " + branch)
+							// TODO if sa.Prefix != true
+							targetDir := sa.Basedir + source + "_" + branch + "/"
+							syncToModuleDir(workDir, targetDir, branch)
+							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
+								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
+							} else {
+								puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
+								mutex.Lock()
+
+								allPuppetfiles[source+"_"+branch] = puppetfile
+								mutex.Unlock()
+
+							}
+						}
+					}(branch)
+
+				}
 			}
 		}(source, sa)
 	}
@@ -907,7 +932,7 @@ func main() {
 	}
 
 	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
-		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
+		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/maps.yaml"
 		//*envBranchFlag = "fullmanaged"
 	}
 
