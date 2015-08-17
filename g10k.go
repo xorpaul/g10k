@@ -34,6 +34,8 @@ var (
 	syncForgeCount     int
 	syncGitTime        float64
 	syncForgeTime      float64
+	cpGitTime          float64
+	cpForgeTime        float64
 	buildtime          string
 	uniqueForgeModules map[string]struct{}
 )
@@ -116,7 +118,7 @@ func fileExists(file string) bool {
 func checkDirAndCreate(dir string, name string) string {
 	if len(dir) != 0 {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			log.Printf("checkDirAndCreate(): trying to create dir '%s'", dir)
+			log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
 			if err := os.MkdirAll(dir, 0777); err != nil {
 				log.Print("checkDirAndCreate(): Error: failed to create directory: ", dir)
 				os.Exit(1)
@@ -387,7 +389,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) bool {
 	}
 
 	er := ExecResult{}
-	gitCmd := "git ls-remote " + url
+	gitCmd := "git ls-remote --heads " + url
 	if needSshKey {
 		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, true)
 	} else {
@@ -876,7 +878,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			cmd := "cp --link --archive " + workDir + " " + targetDir
 			before := time.Now()
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
+			duration := time.Since(before).Seconds()
+			cpForgeTime += duration
+			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 			if err != nil {
 				log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
 				log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
@@ -892,7 +896,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 	cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
 	before := time.Now()
 	out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-	Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(time.Since(before).Seconds(), 'f', 5, 64) + "s")
+	duration := time.Since(before).Seconds()
+	cpGitTime += duration
+	Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	if err != nil {
 		log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
 		os.Exit(1)
@@ -932,7 +938,7 @@ func main() {
 	}
 
 	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
-		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/maps.yaml"
+		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/itodsi.yaml"
 		//*envBranchFlag = "fullmanaged"
 	}
 
@@ -971,5 +977,5 @@ func main() {
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 
-	fmt.Println("Synced", envText, ":", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git sync time of", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s and Forge query + download in", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s done in", threads, "threads parallel")
+	fmt.Println("Synced", envText, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git (", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64), "s) and Forge (", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64), "s) done in", threads, "threads parallel")
 }
