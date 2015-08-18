@@ -451,9 +451,9 @@ func doModuleInstallOrNothing(m string) {
 					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
 					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-					Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
+					Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + versionDir)
 					if err := os.Symlink(versionDir, workDir); err != nil {
-						log.Println("doModuleInstallOrNothing(): 1 Error while trying to symlink "+versionDir+" -> "+workDir, err)
+						log.Println("doModuleInstallOrNothing(): 1 Error while create symlink "+workDir+" pointing to "+versionDir, err)
 						os.Exit(1)
 					}
 					//} else {
@@ -473,8 +473,13 @@ func doModuleInstallOrNothing(m string) {
 		// ensure that a latest version this module exists
 		latestDir := config.ForgeCacheDir + moduleName + "-latest"
 		if _, err := os.Stat(latestDir); os.IsNotExist(err) {
-			Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
-			doModuleInstallOrNothing(moduleName + "-latest")
+			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
+				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
+				return
+			} else {
+				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
+				doModuleInstallOrNothing(moduleName + "-latest")
+			}
 			return
 		} else {
 			Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
@@ -493,7 +498,7 @@ func doModuleInstallOrNothing(m string) {
 	if fr.needToGet {
 		if ma[2] != "latest" {
 			Debugf("doModuleInstallOrNothing(): Trying to remove: " + workDir)
-			createOrPurgeDir(workDir, "doModuleInstallOrNothing()")
+			_ = os.Remove(workDir)
 		} else {
 			versionDir, _ := os.Readlink(workDir)
 			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
@@ -502,9 +507,9 @@ func doModuleInstallOrNothing(m string) {
 				Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
 				_ = os.Remove(workDir)
 				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-				Debugf("doModuleInstallOrNothing(): trying to symlink " + versionDir + " -> " + workDir)
+				Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + versionDir)
 				if err := os.Symlink(versionDir, workDir); err != nil {
-					log.Println("doModuleInstallOrNothing(): 2 Error while trying to symlink "+versionDir+" -> "+workDir, err)
+					log.Println("doModuleInstallOrNothing(): 2 Error while create symlink "+workDir+" pointing to "+versionDir, err)
 					os.Exit(1)
 				}
 			}
@@ -623,7 +628,7 @@ func downloadForgeModule(name string, version string) {
 			if strings.HasSuffix(fileName, ".gz") {
 				if fileReader, err = pgzip.NewReader(file); err != nil {
 
-					fmt.Println("downloadForgeModule(): pgzip reader error:", err)
+					fmt.Println("downloadForgeModule(): pgzip reader error for module ", fileName, " error:", err)
 					os.Exit(1)
 				}
 				defer fileReader.Close()
@@ -786,16 +791,20 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		Debugf("Resolving " + env)
 		//fmt.Println(pf)
 		for _, gitModule := range pf.gitModules {
+			mutex.Lock()
 			if _, ok := uniqueGitModules[gitModule.git]; !ok {
 				uniqueGitModules[gitModule.git] = pf.privateKey
 			}
+			mutex.Unlock()
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			//fmt.Println("Found Forge module ", forgeModuleName, " with version", fm.version)
+			mutex.Lock()
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			if _, ok := uniqueForgeModules[forgeModuleName+"-"+fm.version]; !ok {
 				uniqueForgeModules[forgeModuleName+"-"+fm.version] = empty
 			}
+			mutex.Unlock()
 		}
 	}
 	//fmt.Println(uniqueGitModules)
@@ -862,6 +871,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		}
 	}
 	wg.Wait()
+	//fmt.Println(uniqueForgeModules)
 	if len(exisitingModuleDirs) > 0 {
 		for d, _ := range exisitingModuleDirs {
 			Debugf("resolvePuppetfile(): Removing unmanaged file " + d)
