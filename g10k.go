@@ -977,7 +977,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 		targetHash, _ := ioutil.ReadFile(hashFile)
 		if string(targetHash) == er.output {
 			needToSync = false
-			Debugf("syncToModuleDir(): Skipping, because no diff found between " + srcDir + " and " + targetDir)
+			//Debugf("syncToModuleDir(): Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
 		}
 
 	}
