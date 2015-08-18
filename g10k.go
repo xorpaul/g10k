@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/kballard/go-shellquote"
@@ -30,6 +31,7 @@ var (
 	force              bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
+	mutex              sync.Mutex
 	empty              struct{}
 	syncGitCount       int
 	syncForgeCount     int
@@ -73,7 +75,7 @@ type Puppetfile struct {
 type ForgeModule struct {
 	version string
 	name    string
-	owner   string
+	author  string
 }
 
 type GitModule struct {
@@ -240,15 +242,15 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 				}
 				if len(m[3]) > 1 {
 					if m[3] == ":latest" {
-						puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest", name: comp[1], owner: comp[0]}
+						puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest", name: comp[1], author: comp[0]}
 					} else {
-						puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3], name: comp[1], owner: comp[0]}
+						puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3], name: comp[1], author: comp[0]}
 					}
 					//fmt.Println("found m[1] ---> '", m[1], "'")
 					//fmt.Println("found forge mod attribute ---> ", m[3])
 				} else {
 					//puppetFile.forgeModules[m[1]] = ForgeModule{}
-					puppetFile.forgeModules[m[1]] = ForgeModule{version: "present", name: comp[1], owner: comp[0]}
+					puppetFile.forgeModules[m[1]] = ForgeModule{version: "present", name: comp[1], author: comp[0]}
 				}
 			} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found git mod name ---> ", m[1])
@@ -315,6 +317,22 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 	return puppetFile
 }
 
+// readModuleMetadata returns the Forgemodule struct of the given module file path
+func readModuleMetadata(file string) ForgeModule {
+	content, _ := ioutil.ReadFile(file)
+	var f interface{}
+	if err := json.Unmarshal(content, &f); err != nil {
+		Debugf("readModuleMetadata(): err: " + fmt.Sprint(err))
+		return ForgeModule{}
+	}
+	m := f.(map[string]interface{})
+	if !strings.Contains(m["name"].(string), "-") {
+		return ForgeModule{}
+	} else {
+		return ForgeModule{name: strings.Split(m["name"].(string), "-")[1], version: m["version"].(string), author: strings.ToLower(m["author"].(string))}
+	}
+}
+
 func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	Debugf("Executing " + command)
 	parts := strings.SplitN(command, " ", 2)
@@ -336,7 +354,9 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
+	mutex.Lock()
 	syncGitTime += duration
+	mutex.Unlock()
 	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	if err != nil && !allowFail {
 		log.Print("executeCommand(): git command failed: "+command, err)
@@ -516,7 +536,9 @@ func queryForgeApi(name string, file string) ForgeResult {
 	resp, err := client.Do(req)
 	duration := time.Since(before).Seconds()
 	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	mutex.Lock()
 	syncForgeTime += duration
+	mutex.Unlock()
 	if err != nil {
 		panic(err)
 	}
@@ -570,7 +592,9 @@ func downloadForgeModule(name string, version string) {
 		resp, err := client.Do(req)
 		duration := time.Since(before).Seconds()
 		Verbosef("GETing " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		mutex.Lock()
 		syncForgeTime += duration
+		mutex.Unlock()
 		if err != nil {
 			log.Print("downloadForgeModule(): Error while GETing Forge module ", name, " from ", url, ": ", err)
 			os.Exit(1)
@@ -673,7 +697,6 @@ func downloadForgeModule(name string, version string) {
 
 func resolvePuppetEnvironment(envBranch string) {
 	allPuppetfiles := make(map[string]Puppetfile)
-	var mutex = &sync.Mutex{}
 	for source, sa := range config.Sources {
 		wg.Add(1)
 		go func(source string, sa Source) {
@@ -725,7 +748,6 @@ func resolvePuppetEnvironment(envBranch string) {
 							} else {
 								puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
 								mutex.Lock()
-
 								allPuppetfiles[source+"_"+branch] = puppetfile
 								mutex.Unlock()
 
@@ -787,12 +809,15 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		moduleDir := basedir + env + "/" + pf.moduleDir
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
+			moduleDir = checkDirAndCreate(moduleDir, "moduledir for source "+source)
 		} else {
 			moduleDir = checkDirAndCreate(moduleDir, " as moduleDir for "+source)
 			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
+			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
-				exisitingModuleDirs[exisitingModuleDir.Name()] = empty
+				exisitingModuleDirs[moduleDir+exisitingModuleDir.Name()] = empty
 			}
+			mutex.Unlock()
 		}
 		for gitName, gitModule := range pf.gitModules {
 			wg.Add(1)
@@ -815,9 +840,11 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
 
 				// remove this module from the exisitingModuleDirs map
-				if _, ok := exisitingModuleDirs[gitName]; ok {
-					delete(exisitingModuleDirs, gitName)
+				mutex.Lock()
+				if _, ok := exisitingModuleDirs[moduleDir+gitName]; ok {
+					delete(exisitingModuleDirs, moduleDir+gitName)
 				}
+				mutex.Unlock()
 			}(gitName, gitModule)
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
@@ -826,15 +853,22 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				defer wg.Done()
 				syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
 				// remove this module from the exisitingModuleDirs map
-				if _, ok := exisitingModuleDirs[fm.name]; ok {
-					delete(exisitingModuleDirs, fm.name)
+				mutex.Lock()
+				if _, ok := exisitingModuleDirs[moduleDir+fm.name]; ok {
+					delete(exisitingModuleDirs, moduleDir+fm.name)
 				}
+				mutex.Unlock()
 			}(forgeModuleName, fm)
 		}
 	}
 	wg.Wait()
 	if len(exisitingModuleDirs) > 0 {
-		fmt.Println("resolvePuppetfile(): Found unmanaged module directory ", exisitingModuleDirs)
+		for d, _ := range exisitingModuleDirs {
+			Debugf("resolvePuppetfile(): Removing unmanaged file " + d)
+			if err := os.RemoveAll(d); err != nil {
+				Debugf("resolvePuppetfile(): Error while trying to remove unmanaged file " + d)
+			}
+		}
 	}
 }
 
@@ -877,46 +911,54 @@ func createOrPurgeDir(dir string, callingFunction string) {
 }
 
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
+	mutex.Lock()
 	syncForgeCount++
-	comp := strings.Split(name, "/")
+	mutex.Unlock()
 	moduleName := strings.Replace(name, "/", "-", -1)
-	if len(comp) != 2 {
-		log.Print("syncForgeToModuleDir(): forgeModuleName invalid, should be like puppetlabs/apt, but is:", name)
+	targetDir := moduleDir + m.name
+	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
+	if m.version == "present" {
+		if _, err := os.Stat(targetDir); err == nil {
+			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir)
+			return
+		} else {
+			// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
+			m.version = "latest"
+		}
+
+	}
+	if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
+		me := readModuleMetadata(targetDir + "metadata.json")
+		if me.version == m.version {
+			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
+			return
+		}
+	}
+	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
+	if _, err := os.Stat(workDir); os.IsNotExist(err) {
+		log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
 		os.Exit(1)
 	} else {
-		targetDir := moduleDir + "/" + comp[1]
-		if m.version == "present" {
-			if _, err := os.Stat(targetDir); err == nil {
-				Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir)
-				return
-			} else {
-				// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
-				m.version = "latest"
-			}
-
-		}
-		workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
-		if _, err := os.Stat(workDir); os.IsNotExist(err) {
-			log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
+		cmd := "cp --link --archive " + workDir + "* " + targetDir
+		before := time.Now()
+		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+		duration := time.Since(before).Seconds()
+		mutex.Lock()
+		cpForgeTime += duration
+		mutex.Unlock()
+		Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		if err != nil {
+			log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
+			log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
 			os.Exit(1)
-		} else {
-			cmd := "cp --link --archive " + workDir + " " + targetDir
-			before := time.Now()
-			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-			duration := time.Since(before).Seconds()
-			cpForgeTime += duration
-			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-			if err != nil {
-				log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
-				log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
-				os.Exit(1)
-			}
 		}
 	}
 }
 
 func syncToModuleDir(srcDir string, targetDir string, tree string) {
+	mutex.Lock()
 	syncGitCount++
+	mutex.Unlock()
 	logCmd := "git --git-dir " + srcDir + " log -n1 --pretty=format:%H " + tree
 	er := executeCommand(logCmd, config.Timeout, false)
 	hashFile := targetDir + "/.latest_commit"
@@ -935,7 +977,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 		before := time.Now()
 		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 		duration := time.Since(before).Seconds()
+		mutex.Lock()
 		cpGitTime += duration
+		mutex.Unlock()
 		Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 		if err != nil {
 			log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
@@ -1026,6 +1070,7 @@ func main() {
 	//resolveForgeModules(configSettings.forge)
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
+	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
 
 	fmt.Println("Synced", envText, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git (", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64), "s) and Forge (", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64), "s) done in", threads, "threads parallel")
 }
