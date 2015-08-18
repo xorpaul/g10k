@@ -27,6 +27,7 @@ import (
 var (
 	debug              bool
 	verbose            bool
+	force              bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
 	empty              struct{}
@@ -71,6 +72,8 @@ type Puppetfile struct {
 
 type ForgeModule struct {
 	version string
+	name    string
+	owner   string
 }
 
 type GitModule struct {
@@ -226,21 +229,26 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 				puppetFile.moduleDir = m[1]
 			} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found forge mod name ---> ", m[1])
+				comp := strings.Split(m[1], "/")
+				if len(comp) != 2 {
+					log.Print("Forge module name is invalid, should be like puppetlabs/apt, but is:", m[3], " line: ", line)
+					os.Exit(1)
+				}
 				if _, ok := puppetFile.forgeModules[m[1]]; ok {
 					log.Fatal("Error: Duplicate forge module found in ", pf, " for module ", m[1], " line: ", line)
 					os.Exit(1)
 				}
 				if len(m[3]) > 1 {
 					if m[3] == ":latest" {
-						puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest"}
+						puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest", name: comp[1], owner: comp[0]}
 					} else {
-						puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3]}
+						puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3], name: comp[1], owner: comp[0]}
 					}
 					//fmt.Println("found m[1] ---> '", m[1], "'")
 					//fmt.Println("found forge mod attribute ---> ", m[3])
 				} else {
 					//puppetFile.forgeModules[m[1]] = ForgeModule{}
-					puppetFile.forgeModules[m[1]] = ForgeModule{version: "present"}
+					puppetFile.forgeModules[m[1]] = ForgeModule{version: "present", name: comp[1], owner: comp[0]}
 				}
 			} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found git mod name ---> ", m[1])
@@ -371,7 +379,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 //	return <-remoteChan != <-localChan
 //}
 
-func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) bool {
+func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool) bool {
 	dirExists := false
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
 		dirExists = false
@@ -389,25 +397,18 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string) bool {
 	}
 
 	er := ExecResult{}
-	gitCmd := "git ls-remote --heads " + url
-	if needSshKey {
-		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, true)
-	} else {
-		er = executeCommand(gitCmd, config.Timeout, true)
+	gitCmd := "git clone --mirror " + url + " " + workDir
+	if dirExists {
+		gitCmd = "git --git-dir " + workDir + " remote update"
 	}
 
-	if er.returnCode == 0 {
-		gitCmd = "git clone --mirror " + url + " " + workDir
-		if dirExists {
-			gitCmd = "git --git-dir " + workDir + " remote update"
-		}
-
-		if needSshKey {
-			executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, false)
-		} else {
-			executeCommand(gitCmd, config.Timeout, false)
-		}
+	if needSshKey {
+		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, false)
 	} else {
+		er = executeCommand(gitCmd, config.Timeout, false)
+	}
+
+	if er.returnCode != 0 {
 		fmt.Println("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		return false
 	}
@@ -472,7 +473,7 @@ func doModuleInstallOrNothing(m string) {
 	if fr.needToGet {
 		if ma[2] != "latest" {
 			Debugf("doModuleInstallOrNothing(): Trying to remove: " + workDir)
-			createOrPurgeDir(workDir)
+			createOrPurgeDir(workDir, "doModuleInstallOrNothing()")
 		} else {
 			versionDir, _ := os.Readlink(workDir)
 			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
@@ -677,6 +678,9 @@ func resolvePuppetEnvironment(envBranch string) {
 		wg.Add(1)
 		go func(source string, sa Source) {
 			defer wg.Done()
+			if force {
+				createOrPurgeDir(sa.Basedir, "resolvePuppetEnvironment()")
+			}
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
 			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + strconv.FormatBool(sa.Prefix) + ")")
 			if len(sa.PrivateKey) > 0 {
@@ -696,7 +700,7 @@ func resolvePuppetEnvironment(envBranch string) {
 			//if !strings.Contains(source, "hiera") && !strings.Contains(source, "files") {
 			//	gitKey = sa.PrivateKey
 			//}
-			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey); success {
+			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true); success {
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" for-each-ref --sort=-committerdate --format=%(refname:short)", config.Timeout, false)
@@ -755,6 +759,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	var wg sync.WaitGroup
 	uniqueGitModules := make(map[string]string)
 	uniqueForgeModules = make(map[string]struct{})
+	exisitingModuleDirs := make(map[string]struct{})
 	for env, pf := range allPuppetfiles {
 		Debugf("Resolving " + env)
 		//fmt.Println(pf)
@@ -780,7 +785,14 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		source := strings.Split(env, "_")[0]
 		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source"+source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
-		createOrPurgeDir(moduleDir)
+		if force {
+			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
+		} else {
+			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
+			for _, exisitingModuleDir := range exisitingModuleDirsFI {
+				exisitingModuleDirs[exisitingModuleDir.Name()] = empty
+			}
+		}
 		for gitName, gitModule := range pf.gitModules {
 			wg.Add(1)
 			go func(gitName string, gitModule GitModule) {
@@ -800,6 +812,11 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					tree = gitModule.ref
 				}
 				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
+
+				// remove this module from the exisitingModuleDirs map
+				if _, ok := exisitingModuleDirs[gitName]; ok {
+					delete(exisitingModuleDirs, gitName)
+				}
 			}(gitName, gitModule)
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
@@ -807,10 +824,17 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			go func(forgeModuleName string, fm ForgeModule) {
 				defer wg.Done()
 				syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
+				// remove this module from the exisitingModuleDirs map
+				if _, ok := exisitingModuleDirs[fm.name]; ok {
+					delete(exisitingModuleDirs, fm.name)
+				}
 			}(forgeModuleName, fm)
 		}
 	}
 	wg.Wait()
+	if len(exisitingModuleDirs) > 0 {
+		fmt.Println("resolvePuppetfile(): Found unmanaged module directory ", exisitingModuleDirs)
+	}
 }
 
 func resolveGitRepositories(uniqueGitModules map[string]string) {
@@ -829,7 +853,7 @@ func resolveGitRepositories(uniqueGitModules map[string]string) {
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := config.ModulesCacheDir + repoDir
 
-			doMirrorOrUpdate(url, workDir, sshPrivateKey)
+			doMirrorOrUpdate(url, workDir, sshPrivateKey, false)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 
 		}(url, sshPrivateKey)
@@ -837,16 +861,16 @@ func resolveGitRepositories(uniqueGitModules map[string]string) {
 	wgGit.Wait()
 }
 
-func createOrPurgeDir(dir string) {
+func createOrPurgeDir(dir string, callingFunction string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		Debugf("createOrPurgeDir(): Trying to create dir: " + dir)
+		Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
 		os.Mkdir(dir, 0777)
 	} else {
-		Debugf("createOrPurgeDir(): Trying to remove: " + dir)
+		Debugf("createOrPurgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
 		if err := os.RemoveAll(dir); err != nil {
 			log.Print("createOrPurgeDir(): error: removing dir failed", err)
 		}
-		Debugf("createOrPurgeDir(): Trying to create dir: " + dir)
+		Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
 		os.Mkdir(dir, 0777)
 	}
 }
@@ -862,7 +886,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		targetDir := moduleDir + "/" + comp[1]
 		if m.version == "present" {
 			if _, err := os.Stat(targetDir); err == nil {
-				log.Print("syncForgeToModuleDir(): Nothing to do, found existing Forge module: ", targetDir)
+				Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir)
 				return
 			} else {
 				// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
@@ -892,16 +916,39 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 
 func syncToModuleDir(srcDir string, targetDir string, tree string) {
 	syncGitCount++
-	createOrPurgeDir(targetDir)
-	cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
-	before := time.Now()
-	out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-	duration := time.Since(before).Seconds()
-	cpGitTime += duration
-	Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-	if err != nil {
-		log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
-		os.Exit(1)
+	logCmd := "git --git-dir " + srcDir + " log -n1 --pretty=format:%H " + tree
+	er := executeCommand(logCmd, config.Timeout, false)
+	hashFile := targetDir + "/.latest_commit"
+	needToSync := true
+	if len(er.output) > 0 {
+		targetHash, _ := ioutil.ReadFile(hashFile)
+		if string(targetHash) == er.output {
+			needToSync = false
+			Debugf("syncToModuleDir(): Skipping, because no diff found between " + srcDir + " and " + targetDir)
+		}
+
+	}
+	if needToSync {
+		createOrPurgeDir(targetDir, "syncToModuleDir()")
+		cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
+		before := time.Now()
+		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+		duration := time.Since(before).Seconds()
+		cpGitTime += duration
+		Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		if err != nil {
+			log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
+			os.Exit(1)
+		}
+
+		er = executeCommand(logCmd, config.Timeout, false)
+		if len(er.output) > 0 {
+			fmt.Println("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
+			f, _ := os.Create(hashFile)
+			defer f.Close()
+			f.WriteString(er.output)
+			f.Sync()
+		}
 	}
 }
 
@@ -923,6 +970,7 @@ func main() {
 	var (
 		configFile    = flag.String("config", "", "which config file to use")
 		envBranchFlag = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
 		versionFlag   = flag.Bool("version", false, "show build time and version number")
@@ -931,6 +979,7 @@ func main() {
 
 	debug = *debugFlag
 	verbose = *verboseFlag
+	force = *forceFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 0.9 Build time:", buildtime, "UTC")
@@ -938,7 +987,7 @@ func main() {
 	}
 
 	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
-		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/itodsi.yaml"
+		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
 		//*envBranchFlag = "fullmanaged"
 	}
 
