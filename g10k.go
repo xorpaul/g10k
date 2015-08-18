@@ -788,6 +788,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
 		} else {
+			moduleDir = checkDirAndCreate(moduleDir, " as moduleDir for "+source)
 			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
 				exisitingModuleDirs[exisitingModuleDir.Name()] = empty
@@ -943,7 +944,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 
 		er = executeCommand(logCmd, config.Timeout, false)
 		if len(er.output) > 0 {
-			fmt.Println("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
+			Debugf("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
 			f, _ := os.Create(hashFile)
 			defer f.Close()
 			f.WriteString(er.output)
