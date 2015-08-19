@@ -123,7 +123,7 @@ func fileExists(file string) bool {
 func checkDirAndCreate(dir string, name string) string {
 	if len(dir) != 0 {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
+			//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
 			if err := os.MkdirAll(dir, 0777); err != nil {
 				log.Print("checkDirAndCreate(): Error: failed to create directory: ", dir)
 				os.Exit(1)
@@ -943,6 +943,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
 			return
 		}
+		Debugf("syncForgeToModuleDir(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
+		createOrPurgeDir(targetDir, " as targetDir for module "+me.name)
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
