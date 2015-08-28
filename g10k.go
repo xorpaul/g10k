@@ -423,9 +423,9 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	}
 
 	if needSshKey {
-		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, false)
+		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, allowFail)
 	} else {
-		er = executeCommand(gitCmd, config.Timeout, false)
+		er = executeCommand(gitCmd, config.Timeout, allowFail)
 	}
 
 	if er.returnCode != 0 {
@@ -928,8 +928,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	targetDir := moduleDir + m.name
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	if m.version == "present" {
-		if _, err := os.Stat(targetDir); err == nil {
-			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir)
+		if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
+			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
 			return
 		} else {
 			// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
