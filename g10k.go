@@ -28,6 +28,7 @@ import (
 var (
 	debug              bool
 	verbose            bool
+	info               bool
 	force              bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
@@ -41,6 +42,7 @@ var (
 	cpForgeTime        float64
 	buildtime          string
 	uniqueForgeModules map[string]struct{}
+	latestForgeModules map[string]string
 )
 
 // ConfigSettings contains the key value pairs from the g10k config file
@@ -96,17 +98,24 @@ type ExecResult struct {
 	output     string
 }
 
-// Debugf is a helper function for debug logging if mainCfgSection["debug"] is set
+// Debugf is a helper function for debug logging if global variable debug is set to true
 func Debugf(s string) {
 	if debug != false {
 		log.Print("DEBUG " + fmt.Sprint(s))
 	}
 }
 
-// Verbosef is a helper function for debug logging if mainCfgSection["debug"] is set
+// Verbosef is a helper function for debug logging if global variable verbose is set to true
 func Verbosef(s string) {
 	if debug != false || verbose != false {
 		log.Print(fmt.Sprint(s))
+	}
+}
+
+// Infof is a helper function for debug logging if global variable info is set to true
+func Infof(s string) {
+	if debug != false || verbose != false || info != false {
+		fmt.Println(s)
 	}
 }
 
@@ -465,7 +474,10 @@ func doModuleInstallOrNothing(m string) {
 		} else {
 			// check forge API if latest version of this module has been updated
 			Debugf("doModuleInstallOrNothing(): check forge API if latest version of module " + moduleName + " has been updated")
-			fr = queryForgeApi(moduleName, workDir)
+			// XXX: disable adding If-Modified-Since head for now
+			// because then the latestForgeModules does not get set with the actual module version for latest
+			// maybe if received 304 get the actual version from the -latest symlink
+			fr = queryForgeApi(moduleName, "false")
 			//fmt.Println(needToGet)
 		}
 
@@ -561,8 +573,12 @@ func queryForgeApi(name string, file string) ForgeResult {
 				log.Fatal("queryForgeApi(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", m[1], " should contain three '-' characters")
 				os.Exit(1)
 			} else {
-				Debugf("queryForgeApi(): found current version " + strings.Split(m[1], "-")[2])
-				return ForgeResult{true, strings.Split(m[1], "-")[2]}
+				version := strings.Split(m[1], "-")[2]
+				Debugf("queryForgeApi(): found version " + version + " for " + name + "-latest")
+				mutex.Lock()
+				latestForgeModules[name] = version
+				mutex.Unlock()
+				return ForgeResult{true, version}
 			}
 		}
 
@@ -571,10 +587,10 @@ func queryForgeApi(name string, file string) ForgeResult {
 		}
 		return ForgeResult{false, ""}
 	} else if resp.Status == "304 Not Modified" {
-		Debugf("queryForgeApi(): Got 304 nothing to do for module" + name)
+		Debugf("queryForgeApi(): Got 304 nothing to do for module " + name)
 		return ForgeResult{false, ""}
 	} else {
-		Debugf("queryForgeApi(): Unexpected response code" + resp.Status)
+		Debugf("queryForgeApi(): Unexpected response code " + resp.Status)
 		return ForgeResult{false, ""}
 	}
 	return ForgeResult{false, ""}
@@ -786,6 +802,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	var wg sync.WaitGroup
 	uniqueGitModules := make(map[string]string)
 	uniqueForgeModules = make(map[string]struct{})
+	latestForgeModules = make(map[string]string)
 	exisitingModuleDirs := make(map[string]struct{})
 	for env, pf := range allPuppetfiles {
 		Debugf("Resolving " + env)
@@ -814,13 +831,13 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env)
 		source := strings.Split(env, "_")[0]
-		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source"+source)
+		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source "+source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
-			moduleDir = checkDirAndCreate(moduleDir, "moduledir for source "+source)
+			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+source)
 		} else {
-			moduleDir = checkDirAndCreate(moduleDir, " as moduleDir for "+source)
+			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for "+source)
 			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
@@ -925,6 +942,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	syncForgeCount++
 	mutex.Unlock()
 	moduleName := strings.Replace(name, "/", "-", -1)
+	//Debugf("syncForgeToModuleDir(): m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
 	targetDir := moduleDir + m.name
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	if m.version == "present" {
@@ -939,18 +957,26 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 	if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
 		me := readModuleMetadata(targetDir + "metadata.json")
+		if m.version == "latest" {
+			//log.Println(latestForgeModules)
+			if _, ok := latestForgeModules[moduleName]; ok {
+				Debugf("syncForgeToModuleDir(): using version " + latestForgeModules[moduleName] + " for " + moduleName + "-" + m.version)
+				m.version = latestForgeModules[moduleName]
+			}
+		}
 		if me.version == m.version {
 			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
 			return
 		}
-		Debugf("syncForgeToModuleDir(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
-		createOrPurgeDir(targetDir, " as targetDir for module "+me.name)
+		log.Println("syncForgeToModuleDir(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
+		createOrPurgeDir(targetDir, " targetDir for module "+me.name)
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
 		log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
 		os.Exit(1)
 	} else {
+		Infof("Need to sync " + strings.Join(strings.Split(targetDir, "/")[2:], "/"))
 		cmd := "cp --link --archive " + workDir + "* " + targetDir
 		before := time.Now()
 		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
@@ -984,6 +1010,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 
 	}
 	if needToSync {
+		Infof("Need to sync " + targetDir)
 		createOrPurgeDir(targetDir, "syncToModuleDir()")
 		cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
 		before := time.Now()
@@ -1030,12 +1057,14 @@ func main() {
 		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
+		infoFlag      = flag.Bool("info", false, "log info output, defaults to false")
 		versionFlag   = flag.Bool("version", false, "show build time and version number")
 	)
 	flag.Parse()
 
 	debug = *debugFlag
 	verbose = *verboseFlag
+	info = *infoFlag
 	force = *forceFlag
 
 	if *versionFlag {
@@ -1045,7 +1074,8 @@ func main() {
 
 	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
 		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
-		//*envBranchFlag = "fullmanaged"
+		*envBranchFlag = "single"
+		debug = true
 	}
 
 	if len(*configFile) > 0 {
