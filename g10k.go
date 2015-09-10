@@ -17,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -976,7 +975,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
 		os.Exit(1)
 	} else {
-		Infof("Need to sync " + strings.Join(strings.Split(targetDir, "/")[2:], "/"))
+		Infof("Need to sync " + targetDir)
 		cmd := "cp --link --archive " + workDir + "* " + targetDir
 		before := time.Now()
 		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
@@ -1068,11 +1067,11 @@ func main() {
 	force = *forceFlag
 
 	if *versionFlag {
-		fmt.Println("g10k Version 0.9 Build time:", buildtime, "UTC")
+		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
-	if t := os.Getenv("VIMRUNTIME"); len(t) > 0 {
+	if len(os.Getenv("VIMRUNTIME")) > 0 {
 		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
 		*envBranchFlag = "single"
 		debug = true
@@ -1086,13 +1085,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Limit the number of spare OS threads to the number of logical CPUs on the local machine
-	threads := runtime.NumCPU()
-	if debug {
-		threads = 1
-	}
-
-	runtime.GOMAXPROCS(threads)
 	config = readConfigfile(*configFile)
 	before := time.Now()
 	envText := *configFile
@@ -1114,5 +1106,5 @@ func main() {
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
 
-	fmt.Println("Synced", envText, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git (", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64), "s) and Forge (", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64), "s) done in", threads, "threads parallel")
+	fmt.Println("Synced", envText, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in", strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64), "s with git (", strconv.FormatFloat(syncGitTime, 'f', 1, 64), "s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64), "s) and Forge (", strconv.FormatFloat(syncForgeTime, 'f', 1, 64), "s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64), "s)")
 }
