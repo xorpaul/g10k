@@ -262,6 +262,9 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 				}
 			} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found git mod name ---> ", m[1])
+				if strings.Contains(m[1], "-") {
+					fmt.Println("Warning: Found invalid character '-' in Puppet module name", m[1], " line:", line)
+				}
 				if len(m[2]) > 1 {
 					gitModuleAttributes := m[2]
 					if strings.Count(gitModuleAttributes, ":git") < 1 {
@@ -1073,7 +1076,7 @@ func main() {
 
 	if len(os.Getenv("VIMRUNTIME")) > 0 {
 		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
-		*envBranchFlag = "single"
+		*envBranchFlag = "invalid_modulename"
 		debug = true
 	}
 
