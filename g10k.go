@@ -696,7 +696,7 @@ func downloadForgeModule(name string, version string) {
 
 					io.Copy(writer, tarBallReader)
 
-					err = os.Chmod(filename, os.FileMode(header.Mode))
+					err = os.Chmod(filename, os.FileMode(0644))
 
 					if err != nil {
 						fmt.Println("downloadForgeModule(): error while Chmod()", filename, err)
