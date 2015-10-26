@@ -370,7 +370,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	mutex.Unlock()
 	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	if err != nil && !allowFail {
-		log.Print("executeCommand(): git command failed: "+command, err)
+		log.Print("executeCommand(): git command failed: " + command + " " + fmt.Sprint(err))
 		log.Print("executeCommand(): Output: " + string(out))
 		os.Exit(1)
 	}
@@ -545,6 +545,8 @@ func queryForgeApi(name string, file string) ForgeResult {
 		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
+	req.Header.Set("Connection", "close")
+
 	proxyUrl, err := http.ProxyFromEnvironment(req)
 	if err != nil {
 		log.Fatal("queryForgeApi(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
@@ -605,6 +607,7 @@ func downloadForgeModule(name string, version string) {
 		url := "https://forgeapi.puppetlabs.com/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
+		req.Header.Set("Connection", "close")
 		proxyUrl, err := http.ProxyFromEnvironment(req)
 		if err != nil {
 			log.Fatal("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
