@@ -55,7 +55,7 @@ func resolvePuppetEnvironment(envBranch string) {
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
 							// TODO if sa.Prefix != true
-							targetDir := sa.Basedir + source + "_" + branch + "/"
+							targetDir := sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
 							syncToModuleDir(workDir, targetDir, branch)
 							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
