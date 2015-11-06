@@ -93,9 +93,9 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 		//nextLineAttr := false
 
 		for _, line := range strings.Split(n, "\n") {
-			//fmt.Println(line)
+			//fmt.Println("found line ---> ", line)
 			if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 {
-				log.Fatal("Error: trailing comma found in ", pf, " somewhere here: ", line)
+				log.Fatal("Error: trailing comma found in", pf, "somewhere here: ", line)
 				os.Exit(1)
 			}
 			if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
@@ -104,7 +104,7 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 				//fmt.Println("found forge mod name ---> ", m[1])
 				comp := strings.Split(m[1], "/")
 				if len(comp) != 2 {
-					log.Print("Forge module name is invalid, should be like puppetlabs/apt, but is:", m[3], " line: ", line)
+					log.Print("Forge module name is invalid, should be like puppetlabs/apt, but is:", m[3], "in", pf, "line: ", line)
 					os.Exit(1)
 				}
 				if _, ok := puppetFile.forgeModules[m[1]]; ok {
@@ -126,7 +126,7 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 			} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 				//fmt.Println("found git mod name ---> ", m[1])
 				if strings.Contains(m[1], "-") {
-					fmt.Println("Warning: Found invalid character '-' in Puppet module name", m[1], " line:", line)
+					fmt.Println("Warning: Found invalid character '-' in Puppet module name", m[1], "in", pf, "line:", line)
 				}
 				if len(m[2]) > 1 {
 					gitModuleAttributes := m[2]
@@ -134,7 +134,7 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 						log.Fatal("Error: Missing :git url in ", pf, " for module ", m[1], " line: ", line)
 						os.Exit(1)
 					}
-					if strings.Count(gitModuleAttributes, ",") > 1 {
+					if strings.Count(gitModuleAttributes, ",") > 2 {
 						log.Fatal("Error: Too many attributes in ", pf, " for module ", m[1], " line: ", line)
 						os.Exit(1)
 					}
