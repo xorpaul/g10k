@@ -56,7 +56,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + url + " " + workDir
 	if dirExists {
-		gitCmd = "git --git-dir " + workDir + " remote update"
+		gitCmd = "git --git-dir " + workDir + " remote update --prune"
 	}
 
 	if needSshKey {
