@@ -1,11 +1,22 @@
 # g10k
-my r10k fork in Go
+My r10k fork written in Go, designed to work as a drop-in replacement* in place of [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
-differences to r10k:
-  - download each Puppet module git repository and Puppetlabs Forge version combination only once
-  - most things (git, forge and copy operations) done in parallel over each branch
-  - support for different ssh keys for each source inside the r10k yaml
-  
+### Why fork?
+  - Lack of caching/version-pre-checking in current r10k implementation hurt perfomance beyond a certain # of Modules per Puppetfile
+  - We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice
+  - Good excuse to try Go ;)
+
+### Changes breaking 'true' drop-in replacement capability
+  - No SVN support
+  - No 'local'-Modules support
+
+### Non-breaking changes to r10k
+  - Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective Version only once
+  - Most things (git, forge, and copy operations) done in parallel over each branch
+  - Optional support for different ssh keys for each source inside the r10k.yaml
+
+## Usage Docs
+Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
   
 # building
 ```
