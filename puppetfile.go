@@ -60,7 +60,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
-								puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey)
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile
 								mutex.Unlock()
@@ -124,8 +124,11 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env)
 		source := strings.Split(env, "_")[0]
-		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source "+source)
+		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir 2 for source "+source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
+		if pfMode {
+			moduleDir = basedir + "/" + pf.moduleDir
+		}
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
 			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+source)
