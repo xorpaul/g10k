@@ -169,7 +169,6 @@ func queryForgeApi(name string, file string) ForgeResult {
 		Debugf("queryForgeApi(): Unexpected response code " + resp.Status)
 		return ForgeResult{false, ""}
 	}
-	return ForgeResult{false, ""}
 }
 
 func downloadForgeModule(name string, version string) {
