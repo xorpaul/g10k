@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"encoding/json"
 	"fmt"
+	"github.com/gosuri/uiprogress"
 	"github.com/klauspost/pgzip"
 	"io"
 	"io/ioutil"
@@ -169,7 +170,6 @@ func queryForgeApi(name string, file string) ForgeResult {
 		Debugf("queryForgeApi(): Unexpected response code " + resp.Status)
 		return ForgeResult{false, ""}
 	}
-	return ForgeResult{false, ""}
 }
 
 func downloadForgeModule(name string, version string) {
@@ -311,15 +311,22 @@ func readModuleMetadata(file string) ForgeModule {
 
 func resolveForgeModules(modules map[string]struct{}) {
 	var wgForge sync.WaitGroup
+	bar := uiprogress.AddBar(len(modules)).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Resolving Forge modules (%d/%d)", b.Current(), len(modules))
+	})
+	uiprogress.Start()
 	for m := range modules {
 		wgForge.Add(1)
 		go func(m string) {
 			defer wgForge.Done()
 			Debugf("Trying to get forge module " + m)
 			doModuleInstallOrNothing(m)
+			bar.Incr()
 		}(m)
 	}
 	wgForge.Wait()
+	uiprogress.Stop()
 }
 
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {

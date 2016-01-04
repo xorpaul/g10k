@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gosuri/uiprogress"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +15,12 @@ import (
 
 func resolveGitRepositories(uniqueGitModules map[string]string) {
 	var wgGit sync.WaitGroup
+	bar := uiprogress.AddBar(len(uniqueGitModules)).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Resolving Git modules (%d/%d)", b.Current(), len(uniqueGitModules))
+	})
+	uiprogress.Start()
+
 	for url, sshPrivateKey := range uniqueGitModules {
 		wgGit.Add(1)
 		go func(url string, sshPrivateKey string) {
@@ -30,10 +37,12 @@ func resolveGitRepositories(uniqueGitModules map[string]string) {
 
 			doMirrorOrUpdate(url, workDir, sshPrivateKey, false)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
+			bar.Incr()
 
 		}(url, sshPrivateKey)
 	}
 	wgGit.Wait()
+	uiprogress.Stop()
 }
 
 func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool) bool {
