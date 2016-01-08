@@ -106,6 +106,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	if err != nil && !allowFail {
 		log.Print("executeCommand(): git command failed: " + command + " " + fmt.Sprint(err))
 		log.Print("executeCommand(): Output: " + string(out))
+		log.Println("If you are using GitLab be sure that you added your deploy key to your repository")
 		os.Exit(1)
 	}
 	return er
