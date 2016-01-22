@@ -126,6 +126,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		source := strings.Split(env, "_")[0]
 		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source "+source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
+		envBranch := strings.Split(env, "_")[1]
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
 			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+source)
@@ -155,6 +156,8 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					tree = gitModule.tag
 				} else if len(gitModule.ref) > 0 {
 					tree = gitModule.ref
+				} else if strings.EqualFold(gitModule.link, "true") {
+					tree = envBranch
 				}
 				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
 

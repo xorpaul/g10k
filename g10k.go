@@ -71,6 +71,7 @@ type GitModule struct {
 	tag    string
 	commit string
 	ref    string
+	link   string
 }
 
 type ForgeResult struct {
