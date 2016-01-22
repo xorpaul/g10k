@@ -88,13 +88,13 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 		reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]")
 		reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 		reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-		reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref)\\s*=>\\s*['\"]?([^'\"]+)['\"]")
+		reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link)\\s*=>\\s*['\"]?([^'\"]+)['\"]")
 		//moduleName := ""
 		//nextLineAttr := false
 
 		for _, line := range strings.Split(n, "\n") {
 			//fmt.Println("found line ---> ", line)
-			if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 {
+			if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
 				log.Fatal("Error: trailing comma found in", pf, "somewhere here: ", line)
 				os.Exit(1)
 			}
@@ -157,6 +157,8 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 							gm.commit = a[2]
 						} else if a[1] == "ref" {
 							gm.ref = a[2]
+						} else if a[1] == "link" {
+							gm.link = a[2]
 						}
 						if strings.Contains(gitModuleAttributes, ",") {
 							if a := reGitAttribute.FindStringSubmatch(strings.SplitN(gitModuleAttributes, ",", 2)[1]); len(a) > 1 {
@@ -170,6 +172,8 @@ func readPuppetfile(targetDir string, sshKey string) Puppetfile {
 									gm.commit = a[2]
 								} else if a[1] == "ref" {
 									gm.ref = a[2]
+								} else if a[1] == "link" {
+									gm.link = a[2]
 								}
 								//puppetFile.gitModules[m[1]] = GitModule{a[1]: a[2]}
 								//fmt.Println("found for git mod ", m[1], " attribute ", a[1], " with value ", a[2])
