@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -60,7 +61,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
-								puppetfile := readPuppetfile(targetDir, sa.PrivateKey)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey)
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile
 								mutex.Unlock()
@@ -120,13 +121,18 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	//fmt.Println(uniqueGitModules)
 	resolveGitRepositories(uniqueGitModules)
 	resolveForgeModules(uniqueForgeModules)
-	//fmt.Println(config.Sources["core"])
+	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env)
 		source := strings.Split(env, "_")[0]
-		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir for source "+source)
+		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir 2 for source "+source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
-		envBranch := strings.Split(env, "_")[1]
+		var envBranch string
+		if pfMode {
+			moduleDir = basedir + "/" + pf.moduleDir
+		} else {
+			envBranch = strings.Split(env, "_")[1]
+		}
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
 			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+source)
@@ -157,7 +163,16 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				} else if len(gitModule.ref) > 0 {
 					tree = gitModule.ref
 				} else if strings.EqualFold(gitModule.link, "true") {
-					tree = envBranch
+					if pfMode {
+						if len(os.Getenv("g10k_branch")) > 0 {
+							tree = os.Getenv("g10k_branch")
+						} else {
+							fmt.Println("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as I can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch'")
+							os.Exit(1)
+						}
+					} else {
+						tree = envBranch
+					}
 				}
 				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree)
 

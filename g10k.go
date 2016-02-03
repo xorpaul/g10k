@@ -15,6 +15,7 @@ var (
 	verbose            bool
 	info               bool
 	force              bool
+	pfMode             bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
 	mutex              sync.Mutex
@@ -89,6 +90,7 @@ func main() {
 	var (
 		configFile    = flag.String("config", "", "which config file to use")
 		envBranchFlag = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+		pfFlag        = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
 		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
@@ -101,6 +103,7 @@ func main() {
 	verbose = *verboseFlag
 	info = *infoFlag
 	force = *forceFlag
+	pfMode = *pfFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
@@ -113,23 +116,37 @@ func main() {
 		debug = true
 	}
 
+	target := ""
 	if len(*configFile) > 0 {
 		Debugf("Using as config file: " + *configFile)
+		config = readConfigfile(*configFile)
+		target = *configFile
+		if len(*envBranchFlag) > 0 {
+			resolvePuppetEnvironment(*envBranchFlag)
+			target += " with branch " + *envBranchFlag
+		} else {
+			resolvePuppetEnvironment("")
+		}
 	} else {
-		log.Println("Error: no config file set")
-		log.Printf("Example call: %s -config test.yaml\n", os.Args[0])
-		os.Exit(1)
+		if pfMode {
+			Debugf("Trying to use as Puppetfile: ./Puppetfile")
+			sm := make(map[string]Source)
+			sm["cmdlineparam"] = Source{Basedir: "."}
+			config = ConfigSettings{CacheDir: "/tmp/", ForgeCacheDir: "/tmp/", ModulesCacheDir: "/tmp/", EnvCacheDir: "/tmp/", Sources: sm}
+			target = "./Puppetfile"
+			puppetfile := readPuppetfile("./Puppetfile", "")
+			pfm := make(map[string]Puppetfile)
+			pfm["cmdlineparam"] = puppetfile
+			resolvePuppetfile(pfm)
+		} else {
+			log.Println("Error: no config file set")
+			log.Printf("Example call: %s -config test.yaml\n", os.Args[0])
+			log.Printf("or: %s -puppetfile\n", os.Args[0])
+			os.Exit(1)
+		}
 	}
 
-	config = readConfigfile(*configFile)
 	before := time.Now()
-	envText := *configFile
-	if len(*envBranchFlag) > 0 {
-		resolvePuppetEnvironment(*envBranchFlag)
-		envText += " with branch " + *envBranchFlag
-	} else {
-		resolvePuppetEnvironment("")
-	}
 
 	// DEBUG
 	//pf := make(map[string]Puppetfile)
@@ -142,5 +159,5 @@ func main() {
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
 
-	fmt.Println("Synced", envText, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
+	fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
 }
