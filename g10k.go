@@ -71,12 +71,14 @@ type ForgeModule struct {
 }
 
 type GitModule struct {
-	git    string
-	branch string
-	tag    string
-	commit string
-	ref    string
-	link   string
+	privateKey        string
+	git               string
+	branch            string
+	tag               string
+	commit            string
+	ref               string
+	link              bool
+	ignoreUnreachable bool
 }
 
 type ForgeResult struct {

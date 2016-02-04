@@ -12,26 +12,28 @@ import (
 	"time"
 )
 
-func resolveGitRepositories(uniqueGitModules map[string]string) {
+func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	var wgGit sync.WaitGroup
-	for url, sshPrivateKey := range uniqueGitModules {
+	for url, gm := range uniqueGitModules {
 		wgGit.Add(1)
-		go func(url string, sshPrivateKey string) {
+		privateKey := gm.privateKey
+		go func(url string, privateKey string) {
 			defer wgGit.Done()
-			if len(sshPrivateKey) > 0 {
-				Debugf("git repo url " + url + " with ssh key " + sshPrivateKey)
+			if len(gm.privateKey) > 0 {
+				Debugf("git repo url " + url + " with ssh key " + privateKey)
 			} else {
 				Debugf("git repo url " + url + " without ssh key")
 			}
 
+			//log.Println(config)
 			// create save directory name from Git repo name
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := config.ModulesCacheDir + repoDir
 
-			doMirrorOrUpdate(url, workDir, sshPrivateKey, false)
+			doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 
-		}(url, sshPrivateKey)
+		}(url, privateKey)
 	}
 	wgGit.Wait()
 }
@@ -72,14 +74,19 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	return true
 }
 
-func syncToModuleDir(srcDir string, targetDir string, tree string) {
+func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool) {
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
 	logCmd := "git --git-dir " + srcDir + " log -n1 --pretty=format:%H " + tree
-	er := executeCommand(logCmd, config.Timeout, false)
+	er := executeCommand(logCmd, config.Timeout, allowFail)
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true
+	if er.returnCode != 0 && allowFail {
+		Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+		return
+	}
+
 	if len(er.output) > 0 {
 		targetHash, _ := ioutil.ReadFile(hashFile)
 		if string(targetHash) == er.output {
@@ -88,7 +95,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 		}
 
 	}
-	if needToSync {
+	if needToSync && er.returnCode == 0 {
 		Infof("Need to sync " + targetDir)
 		mutex.Lock()
 		needSyncGitCount++
@@ -104,8 +111,13 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 			mutex.Unlock()
 			Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 			if err != nil {
-				log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
-				os.Exit(1)
+				if !allowFail {
+					log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
+					os.Exit(1)
+				} else {
+					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+					return
+				}
 			}
 
 			er = executeCommand(logCmd, config.Timeout, false)
