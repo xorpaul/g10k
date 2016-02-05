@@ -41,11 +41,12 @@ func resolvePuppetEnvironment(envBranch string) {
 			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true); success {
 
 				// get all branches
-				er := executeCommand("git --git-dir "+workDir+" for-each-ref --sort=-committerdate --format=%(refname:short)", config.Timeout, false)
+				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
 				branches := strings.Split(strings.TrimSpace(er.output), "\n")
 
 				for _, branch := range branches {
-					if len(envBranch) > 0 && branch != envBranch {
+					branch = strings.TrimLeft(branch, "* ")
+					if strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
 						continue
 					}
