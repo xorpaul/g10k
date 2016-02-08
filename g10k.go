@@ -15,6 +15,7 @@ var (
 	verbose            bool
 	info               bool
 	force              bool
+	docker             bool
 	pfMode             bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
@@ -92,6 +93,7 @@ func main() {
 		envBranchFlag = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
 		pfFlag        = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
 		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
+		dockerFlag    = flag.Bool("docker", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
 		infoFlag      = flag.Bool("info", false, "log info output, defaults to false")
@@ -103,6 +105,7 @@ func main() {
 	verbose = *verboseFlag
 	info = *infoFlag
 	force = *forceFlag
+	docker = *dockerFlag
 	pfMode = *pfFlag
 
 	if *versionFlag {
@@ -132,7 +135,13 @@ func main() {
 			Debugf("Trying to use as Puppetfile: ./Puppetfile")
 			sm := make(map[string]Source)
 			sm["cmdlineparam"] = Source{Basedir: "."}
-			config = ConfigSettings{CacheDir: "/tmp/", ForgeCacheDir: "/tmp/", ModulesCacheDir: "/tmp/", EnvCacheDir: "/tmp/", Sources: sm}
+			cachedir := "/tmp/"
+			if len(os.Getenv("g10k_cachedir")) > 0 {
+				cachedir = os.Getenv("g10k_cachedir")
+				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
+				Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
+			}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm}
 			target = "./Puppetfile"
 			puppetfile := readPuppetfile("./Puppetfile", "")
 			pfm := make(map[string]Puppetfile)
@@ -144,6 +153,11 @@ func main() {
 			log.Printf("or: %s -puppetfile\n", os.Args[0])
 			os.Exit(1)
 		}
+	}
+
+	if docker {
+		// we can not reuse the Forge cache at all when -docker gets used, because we can not delete the -latest link for some reason
+		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -docker parameter")
 	}
 
 	before := time.Now()

@@ -362,6 +362,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	} else {
 		Infof("Need to sync " + targetDir)
 		cmd := "cp --link --archive " + workDir + "* " + targetDir
+		if docker {
+			cmd = "mv " + workDir + "* " + targetDir
+		}
 		before := time.Now()
 		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 		duration := time.Since(before).Seconds()
