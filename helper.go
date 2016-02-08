@@ -71,10 +71,24 @@ func createOrPurgeDir(dir string, callingFunction string) {
 	} else {
 		Debugf("createOrPurgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
 		if err := os.RemoveAll(dir); err != nil {
-			log.Print("createOrPurgeDir(): error: removing dir failed", err)
+			log.Print("createOrPurgeDir(): error: removing dir failed: ", err)
 		}
 		Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
 		os.Mkdir(dir, 0777)
+	}
+}
+
+func purgeDir(dir string, callingFunction string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		Debugf("purgeDir(): Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
+	} else {
+		Debugf("purgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
+		if err := os.RemoveAll(dir); err != nil {
+			log.Print("purgeDir(): os.RemoveAll() error: removing dir failed: ", err)
+			if err = syscall.Unlink(dir); err != nil {
+				log.Print("purgeDir(): syscall.Unlink() error: removing link failed: ", err)
+			}
+		}
 	}
 }
 
