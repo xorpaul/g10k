@@ -44,18 +44,20 @@ func fileExists(file string) bool {
 
 // checkDirAndCreate tests if the given directory exists and tries to create it
 func checkDirAndCreate(dir string, name string) string {
-	if len(dir) != 0 {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
-			if err := os.MkdirAll(dir, 0777); err != nil {
-				log.Print("checkDirAndCreate(): Error: failed to create directory: ", dir)
-				os.Exit(1)
+	if !dryRun {
+		if len(dir) != 0 {
+			if _, err := os.Stat(dir); os.IsNotExist(err) {
+				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
+				if err := os.MkdirAll(dir, 0777); err != nil {
+					log.Print("checkDirAndCreate(): Error: failed to create directory: ", dir)
+					os.Exit(1)
+				}
 			}
+		} else {
+			// TODO make dir optional
+			log.Print("dir setting '" + name + "' missing! Exiting!")
+			os.Exit(1)
 		}
-	} else {
-		// TODO make dir optional
-		log.Print("dir setting '" + name + "' missing! Exiting!")
-		os.Exit(1)
 	}
 	if !strings.HasSuffix(dir, "/") {
 		dir = dir + "/"
@@ -65,16 +67,18 @@ func checkDirAndCreate(dir string, name string) string {
 }
 
 func createOrPurgeDir(dir string, callingFunction string) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
-		os.Mkdir(dir, 0777)
-	} else {
-		Debugf("createOrPurgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
-		if err := os.RemoveAll(dir); err != nil {
-			log.Print("createOrPurgeDir(): error: removing dir failed", err)
+	if !dryRun {
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
+			os.Mkdir(dir, 0777)
+		} else {
+			Debugf("createOrPurgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
+			if err := os.RemoveAll(dir); err != nil {
+				log.Print("createOrPurgeDir(): error: removing dir failed", err)
+			}
+			Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
+			os.Mkdir(dir, 0777)
 		}
-		Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
-		os.Mkdir(dir, 0777)
 	}
 }
 

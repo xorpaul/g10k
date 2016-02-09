@@ -16,12 +16,15 @@ var (
 	info               bool
 	force              bool
 	pfMode             bool
+	dryRun             bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
 	mutex              sync.Mutex
 	empty              struct{}
 	syncGitCount       int
 	syncForgeCount     int
+	needSyncGitCount   int
+	needSyncForgeCount int
 	syncGitTime        float64
 	syncForgeTime      float64
 	cpGitTime          float64
@@ -92,6 +95,7 @@ func main() {
 		envBranchFlag = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
 		pfFlag        = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
 		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
+		dryRunFlag    = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
 		infoFlag      = flag.Bool("info", false, "log info output, defaults to false")
@@ -103,6 +107,7 @@ func main() {
 	verbose = *verboseFlag
 	info = *infoFlag
 	force = *forceFlag
+	dryRun = *dryRunFlag
 	pfMode = *pfFlag
 
 	if *versionFlag {
@@ -160,4 +165,7 @@ func main() {
 	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
 
 	fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
+	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
+		os.Exit(1)
+	}
 }

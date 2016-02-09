@@ -90,27 +90,32 @@ func syncToModuleDir(srcDir string, targetDir string, tree string) {
 	}
 	if needToSync {
 		Infof("Need to sync " + targetDir)
-		createOrPurgeDir(targetDir, "syncToModuleDir()")
-		cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
-		before := time.Now()
-		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-		duration := time.Since(before).Seconds()
 		mutex.Lock()
-		cpGitTime += duration
+		needSyncGitCount++
 		mutex.Unlock()
-		Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-		if err != nil {
-			log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
-			os.Exit(1)
-		}
+		if !dryRun {
+			createOrPurgeDir(targetDir, "syncToModuleDir()")
+			cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
+			before := time.Now()
+			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+			duration := time.Since(before).Seconds()
+			mutex.Lock()
+			cpGitTime += duration
+			mutex.Unlock()
+			Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			if err != nil {
+				log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
+				os.Exit(1)
+			}
 
-		er = executeCommand(logCmd, config.Timeout, false)
-		if len(er.output) > 0 {
-			Debugf("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
-			f, _ := os.Create(hashFile)
-			defer f.Close()
-			f.WriteString(er.output)
-			f.Sync()
+			er = executeCommand(logCmd, config.Timeout, false)
+			if len(er.output) > 0 {
+				Debugf("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
+				f, _ := os.Create(hashFile)
+				defer f.Close()
+				f.WriteString(er.output)
+				f.Sync()
+			}
 		}
 	}
 }
