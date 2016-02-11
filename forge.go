@@ -361,18 +361,23 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		os.Exit(1)
 	} else {
 		Infof("Need to sync " + targetDir)
-		cmd := "cp --link --archive " + workDir + "* " + targetDir
-		before := time.Now()
-		out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-		duration := time.Since(before).Seconds()
 		mutex.Lock()
-		cpForgeTime += duration
+		needSyncForgeCount++
 		mutex.Unlock()
-		Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-		if err != nil {
-			log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
-			log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
-			os.Exit(1)
+		if !dryRun {
+			cmd := "cp --link --archive " + workDir + "* " + targetDir
+			before := time.Now()
+			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+			duration := time.Since(before).Seconds()
+			mutex.Lock()
+			cpForgeTime += duration
+			mutex.Unlock()
+			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			if err != nil {
+				log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
+				log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
+				os.Exit(1)
+			}
 		}
 	}
 }
