@@ -121,11 +121,16 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	syncGitTime += duration
 	mutex.Unlock()
 	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-	if err != nil && !allowFail {
-		log.Print("executeCommand(): git command failed: " + command + " " + fmt.Sprint(err))
-		log.Print("executeCommand(): Output: " + string(out))
-		log.Println("If you are using GitLab be sure that you added your deploy key to your repository")
-		os.Exit(1)
+	if err != nil {
+		if !allowFail {
+			log.Print("executeCommand(): git command failed: " + command + " " + fmt.Sprint(err))
+			log.Print("executeCommand(): Output: " + string(out))
+			log.Println("If you are using GitLab be sure that you added your deploy key to your repository")
+			os.Exit(1)
+		} else {
+			er.returnCode = 1
+			er.output = fmt.Sprint(err)
+		}
 	}
 	return er
 }
