@@ -227,11 +227,6 @@ func downloadForgeModule(name string, version string) {
 			}
 
 			tarBallReader := tar.NewReader(fileReader)
-			if err = os.Chdir(config.ForgeCacheDir); err != nil {
-
-				fmt.Println("downloadForgeModule(): error while chdir to", config.ForgeCacheDir, err)
-				os.Exit(1)
-			}
 			for {
 				header, err := tarBallReader.Next()
 				if err != nil {
@@ -244,14 +239,15 @@ func downloadForgeModule(name string, version string) {
 
 				// get the individual filename and extract to the current directory
 				filename := header.Name
+				targetFilename := config.ForgeCacheDir + "/" + filename
 				//Debugf("downloadForgeModule(): Trying to extract file" + filename)
 
 				switch header.Typeflag {
 				case tar.TypeDir:
 					// handle directory
 					//fmt.Println("Creating directory :", filename)
-					//err = os.MkdirAll(filename, os.FileMode(header.Mode)) // or use 0755 if you prefer
-					err = os.MkdirAll(filename, os.FileMode(0755)) // or use 0755 if you prefer
+					//err = os.MkdirAll(targetFilename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+					err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
 
 					if err != nil {
 						fmt.Println("downloadForgeModule(): error while MkdirAll()", filename, err)
@@ -261,7 +257,7 @@ func downloadForgeModule(name string, version string) {
 				case tar.TypeReg:
 					// handle normal file
 					//fmt.Println("Untarring :", filename)
-					writer, err := os.Create(filename)
+					writer, err := os.Create(targetFilename)
 
 					if err != nil {
 						fmt.Println("downloadForgeModule(): error while Create()", filename, err)
@@ -270,7 +266,7 @@ func downloadForgeModule(name string, version string) {
 
 					io.Copy(writer, tarBallReader)
 
-					err = os.Chmod(filename, os.FileMode(0644))
+					err = os.Chmod(targetFilename, os.FileMode(0644))
 
 					if err != nil {
 						fmt.Println("downloadForgeModule(): error while Chmod()", filename, err)
@@ -361,11 +357,14 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		os.Exit(1)
 	} else {
 		Infof("Need to sync " + targetDir)
+		cmd := "cp --link --archive " + workDir + "* " + targetDir
+		if usemove {
+			cmd = "mv " + workDir + "* " + targetDir
+		}
 		mutex.Lock()
 		needSyncForgeCount++
 		mutex.Unlock()
 		if !dryRun {
-			cmd := "cp --link --archive " + workDir + "* " + targetDir
 			before := time.Now()
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			duration := time.Since(before).Seconds()

@@ -15,6 +15,7 @@ var (
 	verbose            bool
 	info               bool
 	force              bool
+	usemove            bool
 	pfMode             bool
 	dryRun             bool
 	config             ConfigSettings
@@ -96,6 +97,7 @@ func main() {
 		pfFlag        = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
 		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
 		dryRunFlag    = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
+		usemoveFlag   = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!")
 		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
 		infoFlag      = flag.Bool("info", false, "log info output, defaults to false")
@@ -108,6 +110,7 @@ func main() {
 	info = *infoFlag
 	force = *forceFlag
 	dryRun = *dryRunFlag
+	usemove = *usemoveFlag
 	pfMode = *pfFlag
 
 	if *versionFlag {
@@ -122,6 +125,7 @@ func main() {
 	}
 
 	target := ""
+	before := time.Now()
 	if len(*configFile) > 0 {
 		Debugf("Using as config file: " + *configFile)
 		config = readConfigfile(*configFile)
@@ -137,7 +141,15 @@ func main() {
 			Debugf("Trying to use as Puppetfile: ./Puppetfile")
 			sm := make(map[string]Source)
 			sm["cmdlineparam"] = Source{Basedir: "."}
-			config = ConfigSettings{CacheDir: "/tmp/", ForgeCacheDir: "/tmp/", ModulesCacheDir: "/tmp/", EnvCacheDir: "/tmp/", Sources: sm}
+			cachedir := "/tmp/g10k"
+			if len(os.Getenv("g10k_cachedir")) > 0 {
+				cachedir = os.Getenv("g10k_cachedir")
+				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
+				Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
+			} else {
+				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
+			}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm}
 			target = "./Puppetfile"
 			puppetfile := readPuppetfile("./Puppetfile", "")
 			pfm := make(map[string]Puppetfile)
@@ -151,7 +163,10 @@ func main() {
 		}
 	}
 
-	before := time.Now()
+	if usemove {
+		// we can not reuse the Forge cache at all when -usemove gets used, because we can not delete the -latest link for some reason
+		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
+	}
 
 	// DEBUG
 	//pf := make(map[string]Puppetfile)
