@@ -129,6 +129,9 @@ func main() {
 	target := ""
 	before := time.Now()
 	if len(*configFile) > 0 {
+		if usemove {
+			log.Fatalln("Error: -usemove parameter is only allowed in -puppetfile mode!")
+		}
 		Debugf("Using as config file: " + *configFile)
 		config = readConfigfile(*configFile)
 		target = *configFile
