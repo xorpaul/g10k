@@ -121,8 +121,17 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		}
 	}
 	//fmt.Println(uniqueGitModules)
-	resolveGitRepositories(uniqueGitModules)
-	resolveForgeModules(uniqueForgeModules)
+	var wgResolve sync.WaitGroup
+	wgResolve.Add(2)
+	go func() {
+		defer wgResolve.Done()
+		resolveGitRepositories(uniqueGitModules)
+	}()
+	go func() {
+		defer wgResolve.Done()
+		resolveForgeModules(uniqueForgeModules)
+	}()
+	wgResolve.Wait()
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env)

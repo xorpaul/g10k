@@ -26,7 +26,7 @@ func doModuleInstallOrNothing(m string) {
 	fr := ForgeResult{false, ma[2]}
 	if moduleVersion == "latest" {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
-			Debugf("doModuleInstallOrNothing(): " + workDir + " did not exists, fetching module")
+			Debugf("doModuleInstallOrNothing(): " + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(moduleName, "false")
 			if fr.needToGet {
@@ -48,7 +48,7 @@ func doModuleInstallOrNothing(m string) {
 		} else {
 			// check forge API if latest version of this module has been updated
 			Debugf("doModuleInstallOrNothing(): check forge API if latest version of module " + moduleName + " has been updated")
-			// XXX: disable adding If-Modified-Since head for now
+			// XXX: disable adding If-Modified-Since header for now
 			// because then the latestForgeModules does not get set with the actual module version for latest
 			// maybe if received 304 get the actual version from the -latest symlink
 			fr = queryForgeAPI(moduleName, "false")
@@ -184,6 +184,7 @@ func downloadForgeModule(name string, version string) {
 		}
 		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 		before := time.Now()
+		Debugf("GETing " + url)
 		resp, err := client.Do(req)
 		duration := time.Since(before).Seconds()
 		Verbosef("GETing " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
