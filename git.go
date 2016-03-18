@@ -47,11 +47,11 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 		//doCheckout = compareGitVersions(workDir, url, branch)
 	}
 
-	needSshKey := true
+	needSSHKey := true
 	if strings.Contains(url, "github.com") || len(sshPrivateKey) == 0 {
-		needSshKey = false
+		needSSHKey = false
 	} else {
-		needSshKey = true
+		needSSHKey = true
 		//doCheckout = compareGitVersions(workDir, url, branch)
 	}
 
@@ -61,7 +61,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 		gitCmd = "git --git-dir " + workDir + " remote update --prune"
 	}
 
-	if needSshKey {
+	if needSSHKey {
 		er = executeCommand("ssh-agent bash -c 'ssh-add "+sshPrivateKey+"; "+gitCmd+"'", config.Timeout, allowFail)
 	} else {
 		er = executeCommand(gitCmd, config.Timeout, allowFail)

@@ -37,9 +37,8 @@ func Infof(s string) {
 func fileExists(file string) bool {
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 // checkDirAndCreate tests if the given directory exists and tries to create it

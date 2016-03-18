@@ -28,7 +28,7 @@ func doModuleInstallOrNothing(m string) {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			Debugf("doModuleInstallOrNothing(): " + workDir + " did not exists, fetching module")
 			// check forge API what the latest version is
-			fr = queryForgeApi(moduleName, "false")
+			fr = queryForgeAPI(moduleName, "false")
 			if fr.needToGet {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
 					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
@@ -51,7 +51,7 @@ func doModuleInstallOrNothing(m string) {
 			// XXX: disable adding If-Modified-Since head for now
 			// because then the latestForgeModules does not get set with the actual module version for latest
 			// maybe if received 304 get the actual version from the -latest symlink
-			fr = queryForgeApi(moduleName, "false")
+			fr = queryForgeAPI(moduleName, "false")
 			//fmt.Println(needToGet)
 		}
 
@@ -62,14 +62,12 @@ func doModuleInstallOrNothing(m string) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
 				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
-			} else {
-				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
-				doModuleInstallOrNothing(moduleName + "-latest")
 			}
+			Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
+			doModuleInstallOrNothing(moduleName + "-latest")
 			return
-		} else {
-			Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
 		}
+		Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
 	} else {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			fr.needToGet = true
@@ -104,27 +102,27 @@ func doModuleInstallOrNothing(m string) {
 	}
 }
 
-func queryForgeApi(name string, file string) ForgeResult {
+func queryForgeAPI(name string, file string) ForgeResult {
 	//url := "https://forgeapi.puppetlabs.com:443/v3/modules/" + strings.Replace(name, "/", "-", -1)
 	url := "https://forgeapi.puppetlabs.com:443/v3/modules?query=" + name
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal("queryForgeApi(): Error creating GET request for Puppetlabs forge API", err)
+		log.Fatal("queryForgeAPI(): Error creating GET request for Puppetlabs forge API", err)
 		os.Exit(1)
 	}
 	if fileInfo, err := os.Stat(file); err == nil {
-		Debugf("queryForgeApi(): adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
+		Debugf("queryForgeAPI(): adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
 		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 	req.Header.Set("Connection", "close")
 
-	proxyUrl, err := http.ProxyFromEnvironment(req)
+	proxyURL, err := http.ProxyFromEnvironment(req)
 	if err != nil {
-		log.Fatal("queryForgeApi(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
+		log.Fatal("queryForgeAPI(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
 		os.Exit(1)
 	}
-	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 	before := time.Now()
 	resp, err := client.Do(req)
 	duration := time.Since(before).Seconds()
@@ -146,11 +144,11 @@ func queryForgeApi(name string, file string) ForgeResult {
 		if m := reCurrent.FindStringSubmatch(string(body)); len(m) > 1 {
 			//fmt.Println(m[1])
 			if strings.Count(m[1], "-") < 2 {
-				log.Fatal("queryForgeApi(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", m[1], " should contain three '-' characters")
+				log.Fatal("queryForgeAPI(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", m[1], " should contain three '-' characters")
 				os.Exit(1)
 			} else {
 				version := strings.Split(m[1], "-")[2]
-				Debugf("queryForgeApi(): found version " + version + " for " + name + "-latest")
+				Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
 				mutex.Lock()
 				latestForgeModules[name] = version
 				mutex.Unlock()
@@ -163,10 +161,10 @@ func queryForgeApi(name string, file string) ForgeResult {
 		}
 		return ForgeResult{false, ""}
 	} else if resp.Status == "304 Not Modified" {
-		Debugf("queryForgeApi(): Got 304 nothing to do for module " + name)
+		Debugf("queryForgeAPI(): Got 304 nothing to do for module " + name)
 		return ForgeResult{false, ""}
 	} else {
-		Debugf("queryForgeApi(): Unexpected response code " + resp.Status)
+		Debugf("queryForgeAPI(): Unexpected response code " + resp.Status)
 		return ForgeResult{false, ""}
 	}
 }
@@ -179,12 +177,12 @@ func downloadForgeModule(name string, version string) {
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
-		proxyUrl, err := http.ProxyFromEnvironment(req)
+		proxyURL, err := http.ProxyFromEnvironment(req)
 		if err != nil {
 			log.Fatal("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
 			os.Exit(1)
 		}
-		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyUrl)}}
+		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 		before := time.Now()
 		resp, err := client.Do(req)
 		duration := time.Since(before).Seconds()
@@ -216,7 +214,7 @@ func downloadForgeModule(name string, version string) {
 
 			defer file.Close()
 
-			var fileReader io.ReadCloser = resp.Body
+			var fileReader = resp.Body
 			if strings.HasSuffix(fileName, ".gz") {
 				if fileReader, err = pgzip.NewReader(file); err != nil {
 
@@ -299,9 +297,8 @@ func readModuleMetadata(file string) ForgeModule {
 	m := f.(map[string]interface{})
 	if !strings.Contains(m["name"].(string), "-") {
 		return ForgeModule{}
-	} else {
-		return ForgeModule{name: strings.Split(m["name"].(string), "-")[1], version: m["version"].(string), author: strings.ToLower(m["author"].(string))}
 	}
+	return ForgeModule{name: strings.Split(m["name"].(string), "-")[1], version: m["version"].(string), author: strings.ToLower(m["author"].(string))}
 }
 
 func resolveForgeModules(modules map[string]struct{}) {
@@ -329,10 +326,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
 			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
 			return
-		} else {
-			// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
-			m.version = "latest"
 		}
+		// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
+		m.version = "latest"
 
 	}
 	if _, err := os.Stat(targetDir + "metadata.json"); err == nil {

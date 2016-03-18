@@ -49,6 +49,7 @@ type ConfigSettings struct {
 	Timeout int `yaml:"timeout"`
 }
 
+// Source contains basic information about a Puppet environment repository
 type Source struct {
 	Remote     string
 	Basedir    string
@@ -64,12 +65,14 @@ type Puppetfile struct {
 	privateKey   string
 }
 
+// ForgeModule contains information (Version, Name, Author) about a Puppetlabs Forge module
 type ForgeModule struct {
 	version string
 	name    string
 	author  string
 }
 
+// GitModule contains information about a Git Puppet module
 type GitModule struct {
 	privateKey        string
 	git               string
@@ -81,11 +84,13 @@ type GitModule struct {
 	ignoreUnreachable bool
 }
 
+// ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded
 type ForgeResult struct {
 	needToGet     bool
 	versionNumber string
 }
 
+// ExecResult contains the exit code and output of an external command (e.g. git)
 type ExecResult struct {
 	returnCode int
 	output     string
