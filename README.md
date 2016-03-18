@@ -20,6 +20,9 @@ Regarding anything usage/workflow you really can just use the great [puppetlabs/
   
 # building
 ```
+# only initially need to resolve all dependecies
+go get
+# actually compiling the binary with the current date as build time
 BUILDTIME=$(date -u '+%Y-%m-%d %H:%M:%S') ; go build -ldflags "-X main.buildtime '$BUILDTIME'"
 ```
 
