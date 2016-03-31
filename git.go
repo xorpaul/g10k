@@ -17,7 +17,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	for url, gm := range uniqueGitModules {
 		wgGit.Add(1)
 		privateKey := gm.privateKey
-		go func(url string, privateKey string) {
+		go func(url string, privateKey string, gm GitModule) {
 			defer wgGit.Done()
 			if len(gm.privateKey) > 0 {
 				Debugf("git repo url " + url + " with ssh key " + privateKey)
@@ -33,7 +33,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 
-		}(url, privateKey)
+		}(url, privateKey, gm)
 	}
 	wgGit.Wait()
 }

@@ -50,13 +50,8 @@ func readConfigfile(configFile string) ConfigSettings {
 	return config
 }
 
-// readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string) Puppetfile {
-	var puppetFile Puppetfile
-	puppetFile.privateKey = sshKey
-	puppetFile.forgeModules = map[string]ForgeModule{}
-	puppetFile.gitModules = map[string]GitModule{}
-	Debugf("readPuppetfile(): Trying to parse: " + pf)
+// preparePuppetfile remove whitespace and comment lines from the given Puppetfile and merges Puppetfile resources that are identified with having a , at the end
+func preparePuppetfile(pf string) string {
 	file, err := os.Open(pf)
 	if err != nil {
 		log.Fatal(err)
@@ -66,21 +61,34 @@ func readPuppetfile(pf string, sshKey string) Puppetfile {
 	reComment := regexp.MustCompile("\\s*#")
 	reEmpty := regexp.MustCompile("^$")
 
-	n := ""
+	pfString := ""
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !reComment.MatchString(line) && !reEmpty.MatchString(line) {
 			if regexp.MustCompile(",\\s*$").MatchString(line) {
-				n += line
+				pfString += line
 			} else {
-				n += line + "\n"
+				pfString += line + "\n"
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+
+	return pfString
+}
+
+// readPuppetfile creates the ConfigSettings struct from the Puppetfile
+func readPuppetfile(pf string, sshKey string) Puppetfile {
+	var puppetFile Puppetfile
+	puppetFile.privateKey = sshKey
+	puppetFile.forgeModules = map[string]ForgeModule{}
+	puppetFile.gitModules = map[string]GitModule{}
+	Debugf("readPuppetfile(): Trying to parse: " + pf)
+
+	n := preparePuppetfile(pf)
 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
@@ -166,17 +174,19 @@ func readPuppetfile(pf string, sshKey string) Puppetfile {
 					} else if a[1] == "ref" {
 						gm.ref = a[2]
 					} else if a[1] == "link" {
-						gm.link, err = strconv.ParseBool(a[2])
+						link, err := strconv.ParseBool(a[2])
 						if err != nil {
 							log.Fatal("Error: Can not convert value ", a[2], " of parameter ", a[1], " to boolean. In ", pf, " for module ", m[1], " line: ", line)
 							os.Exit(1)
 						}
+						gm.link = link
 					} else if a[1] == "ignore-unreachable" || a[1] == "ignore_unreachable" {
-						gm.ignoreUnreachable, err = strconv.ParseBool(a[2])
+						ignoreUnreachable, err := strconv.ParseBool(a[2])
 						if err != nil {
 							log.Fatal("Error: Can not convert value ", a[2], " of parameter ", a[1], " to boolean. In ", pf, " for module ", m[1], " line: ", line)
 							os.Exit(1)
 						}
+						gm.ignoreUnreachable = ignoreUnreachable
 					}
 
 				}
