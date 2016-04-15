@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"encoding/json"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/klauspost/pgzip"
 	"io"
 	"io/ioutil"
@@ -24,6 +25,9 @@ func doModuleInstallOrNothing(m string) {
 	moduleVersion := ma[2]
 	workDir := config.ForgeCacheDir + m
 	fr := ForgeResult{false, ma[2]}
+	if check4update {
+		moduleVersion = "latest"
+	}
 	if moduleVersion == "latest" {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			Debugf("doModuleInstallOrNothing(): " + workDir + " does not exist, fetching module")
@@ -315,6 +319,15 @@ func resolveForgeModules(modules map[string]struct{}) {
 	wgForge.Wait()
 }
 
+func check4ForgeUpdate(moduleName string, currentVersion string, latestVersion string) {
+	Verbosef("found currently deployed Forge module " + moduleName + " in version: " + currentVersion)
+	Verbosef("found latest Forge module of " + moduleName + " in version: " + latestVersion)
+	if currentVersion != latestVersion {
+		color.Yellow("ATTENTION: Forge module: " + moduleName + " latest: " + latestVersion + " currently deployed: " + currentVersion)
+		needSyncForgeCount++
+	}
+}
+
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	mutex.Lock()
 	syncForgeCount++
@@ -326,6 +339,10 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	if m.version == "present" {
 		if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
 			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
+			if check4update {
+				me := readModuleMetadata(targetDir + "metadata.json")
+				check4ForgeUpdate(m.name, me.version, latestForgeModules[moduleName])
+			}
 			return
 		}
 		// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
@@ -340,6 +357,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 				Debugf("syncForgeToModuleDir(): using version " + latestForgeModules[moduleName] + " for " + moduleName + "-" + m.version)
 				m.version = latestForgeModules[moduleName]
 			}
+		}
+		if check4update {
+			check4ForgeUpdate(m.name, me.version, latestForgeModules[moduleName])
 		}
 		if me.version == m.version {
 			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)

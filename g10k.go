@@ -18,6 +18,7 @@ var (
 	usemove            bool
 	pfMode             bool
 	dryRun             bool
+	check4update       bool
 	config             ConfigSettings
 	wg                 sync.WaitGroup
 	mutex              sync.Mutex
@@ -99,16 +100,17 @@ type ExecResult struct {
 func main() {
 
 	var (
-		configFile    = flag.String("config", "", "which config file to use")
-		envBranchFlag = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
-		pfFlag        = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
-		forceFlag     = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
-		dryRunFlag    = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
-		usemoveFlag   = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!")
-		debugFlag     = flag.Bool("debug", false, "log debug output, defaults to false")
-		verboseFlag   = flag.Bool("verbose", false, "log verbose output, defaults to false")
-		infoFlag      = flag.Bool("info", false, "log info output, defaults to false")
-		versionFlag   = flag.Bool("version", false, "show build time and version number")
+		configFile       = flag.String("config", "", "which config file to use")
+		envBranchFlag    = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+		pfFlag           = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
+		forceFlag        = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
+		dryRunFlag       = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
+		usemoveFlag      = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!")
+		check4updateFlag = flag.Bool("check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryRun to true")
+		debugFlag        = flag.Bool("debug", false, "log debug output, defaults to false")
+		verboseFlag      = flag.Bool("verbose", false, "log verbose output, defaults to false")
+		infoFlag         = flag.Bool("info", false, "log info output, defaults to false")
+		versionFlag      = flag.Bool("version", false, "show build time and version number")
 	)
 	flag.Parse()
 
@@ -117,12 +119,17 @@ func main() {
 	info = *infoFlag
 	force = *forceFlag
 	dryRun = *dryRunFlag
+	check4update = *check4updateFlag
 	usemove = *usemoveFlag
 	pfMode = *pfFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
 		os.Exit(0)
+	}
+
+	if check4update {
+		dryRun = true
 	}
 
 	if len(os.Getenv("VIMRUNTIME")) > 0 {
@@ -189,7 +196,9 @@ func main() {
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
 
-	fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
+	if !check4update {
+		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
+	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)
 	}
