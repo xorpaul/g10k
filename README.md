@@ -47,6 +47,32 @@ cd /tmp/$RDIR/ ; time r10k puppetfile install
 
 
 ## Usage Docs
+```
+Usage of ./g10k:
+  -branch string
+    	which git branch of the Puppet environment to update, e.g. core_foobar
+  -check4update
+    	only check if the is newer version of the Puppet module avaialable. Does implicitly set parameter dryrun to true
+  -config string
+    	which config file to use
+  -debug
+    	log debug output, defaults to false
+  -dryrun
+    	do not modify anything, just print what would be changed
+  -force
+    	purge the Puppet environment directory and do a full sync
+  -info
+    	log info output, defaults to false
+  -puppetfile
+    	install all modules from Puppetfile in cwd
+  -usemove
+    	do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!
+  -verbose
+    	log verbose output, defaults to false
+  -version
+    	show build time and version number
+```
+
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
   
 # building
