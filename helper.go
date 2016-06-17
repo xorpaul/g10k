@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/kballard/go-shellquote"
 	"log"
 	"os"
@@ -29,7 +30,9 @@ func Verbosef(s string) {
 // Infof is a helper function for debug logging if global variable info is set to true
 func Infof(s string) {
 	if debug != false || verbose != false || info != false {
+		color.Set(color.FgGreen)
 		fmt.Println(s)
+		color.Unset()
 	}
 }
 
