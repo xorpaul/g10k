@@ -64,6 +64,7 @@ type Puppetfile struct {
 	forgeModules map[string]ForgeModule
 	gitModules   map[string]GitModule
 	privateKey   string
+	source       string
 }
 
 // ForgeModule contains information (Version, Name, Author) about a Puppetlabs Forge module
@@ -168,7 +169,7 @@ func main() {
 			}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm}
 			target = "./Puppetfile"
-			puppetfile := readPuppetfile("./Puppetfile", "")
+			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam")
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)

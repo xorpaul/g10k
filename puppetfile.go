@@ -62,7 +62,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
-								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source)
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile
 								mutex.Unlock()
@@ -135,20 +135,19 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env)
-		source := strings.Split(env, "_")[0]
-		basedir := checkDirAndCreate(config.Sources[source].Basedir, "basedir 2 for source "+source)
+		basedir := checkDirAndCreate(config.Sources[pf.source].Basedir, "basedir 2 for source "+pf.source)
 		moduleDir := basedir + env + "/" + pf.moduleDir
 		var envBranch string
 		if pfMode {
 			moduleDir = basedir + "/" + pf.moduleDir
 		} else {
-			envBranch = strings.Split(env, "_")[1]
+			envBranch = strings.Replace(env, pf.source+"_", "", 1)
 		}
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
-			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+source)
+			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+pf.source)
 		} else {
-			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for "+source)
+			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for "+pf.source)
 			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
