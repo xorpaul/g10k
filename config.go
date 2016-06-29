@@ -81,9 +81,10 @@ func preparePuppetfile(pf string) string {
 }
 
 // readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string) Puppetfile {
+func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 	var puppetFile Puppetfile
 	puppetFile.privateKey = sshKey
+	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
 	Debugf("readPuppetfile(): Trying to parse: " + pf)
