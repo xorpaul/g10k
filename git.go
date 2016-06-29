@@ -84,6 +84,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	needToSync := true
 	if er.returnCode != 0 && allowFail {
 		Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+		purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
 		return
 	}
 
