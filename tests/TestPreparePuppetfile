@@ -1,0 +1,6 @@
+moduledir 'external_modules'
+
+mod 'puppetlabs/ntp'
+
+
+  # comment
