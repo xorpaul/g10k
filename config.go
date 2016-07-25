@@ -31,6 +31,7 @@ func readConfigfile(configFile string) ConfigSettings {
 	}
 
 	//fmt.Println("config:", config)
+	//fmt.Println("config ----- forge:", config.Forge)
 	//for k, v := range config.Sources {
 	//	log.Print(k)
 	//	log.Print(v.Remote)
@@ -41,6 +42,12 @@ func readConfigfile(configFile string) ConfigSettings {
 	config.ForgeCacheDir = checkDirAndCreate(config.CacheDir+"forge/", "cachedir/forge")
 	config.ModulesCacheDir = checkDirAndCreate(config.CacheDir+"modules/", "cachedir/modules")
 	config.EnvCacheDir = checkDirAndCreate(config.CacheDir+"environments/", "cachedir/environments")
+
+	if len(config.Forge.Baseurl) == 0 {
+		config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
+	}
+
+	//fmt.Println("Forge Baseurl: ", config.Forge.Baseurl)
 
 	// set default timeout to 5 seconds if no timeout setting found
 	if config.Timeout == 0 {
