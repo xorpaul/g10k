@@ -108,7 +108,7 @@ func doModuleInstallOrNothing(m string) {
 
 func queryForgeAPI(name string, file string) ForgeResult {
 	//url := "https://forgeapi.puppetlabs.com:443/v3/modules/" + strings.Replace(name, "/", "-", -1)
-	url := "https://forgeapi.puppetlabs.com:443/v3/modules?query=" + name
+	url := config.Forge.Baseurl+"/v3/modules?query=" + name
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal("queryForgeAPI(): Error creating GET request for Puppetlabs forge API", err)
@@ -151,7 +151,8 @@ func queryForgeAPI(name string, file string) ForgeResult {
 				log.Fatal("queryForgeAPI(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", m[1], " should contain three '-' characters")
 				os.Exit(1)
 			} else {
-				version := strings.Split(m[1], "-")[2]
+				// modified the split because I found a module with version 4.0.0-beta1 mayflower-php
+				version := strings.Split(m[1], name+"-")[1]
 				Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
 				mutex.Lock()
 				latestForgeModules[name] = version

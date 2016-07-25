@@ -46,6 +46,9 @@ type ConfigSettings struct {
 		privateKey string `yaml:"private_key"`
 		username   string
 	}
+	Forge           struct {
+		Baseurl string `yaml:"baseurl"`
+	}
 	Sources map[string]Source
 	Timeout int `yaml:"timeout"`
 }
