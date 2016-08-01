@@ -3,7 +3,7 @@
 My r10k fork written in Go, designed to work as a drop-in replacement* in place of [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
 ### Why fork?
-  - Lack of caching/version-pre-checking in current r10k implementation hurt perfomance beyond a certain # of Modules per Puppetfile
+  - Lack of caching/version-pre-checking in current r10k implementation hurt perfomance beyond a certain # of modules per Puppetfile
   - We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice (fixed in r10k [2.2.0](https://github.com/puppetlabs/r10k/blob/master/CHANGELOG.mkd#220 ))
   - Good excuse to try Go ;)
 
@@ -12,7 +12,7 @@ My r10k fork written in Go, designed to work as a drop-in replacement* in place 
   - No 'local'-Modules support
 
 ### Non-breaking changes to r10k
-  - Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective Version only once
+  - Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective version only once
   - Most things (git, forge, and copy operations) done in parallel over each branch
   - Optional support for different ssh keys for each source inside the r10k.yaml
 
@@ -77,13 +77,13 @@ Regarding anything usage/workflow you really can just use the great [puppetlabs/
   
 # building
 ```
-# only initially need to resolve all dependecies
+# only initially needed to resolve all dependencies
 go get
 # actually compiling the binary with the current date as build time
 BUILDTIME=$(date -u '+%Y-%m-%d %H:%M:%S') ; go build -ldflags "-X main.buildtime '$BUILDTIME'"
 ```
 
-# testing
+# execute example with debug output
 ```
 ./g10k -debug -config test.yaml
 ```
