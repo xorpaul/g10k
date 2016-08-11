@@ -98,7 +98,8 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 
 	n := preparePuppetfile(pf)
 
-	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]")
+	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]?")
+	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s*['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
@@ -113,6 +114,9 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.moduleDir = m[1]
+		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
+			puppetFile.forgeBaseURL = m[1]
+			//fmt.Println("found forge base URL parameter ---> ", m[1])
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			//fmt.Println("found forge mod name ---> ", m[1])
 			comp := strings.Split(m[1], "/")

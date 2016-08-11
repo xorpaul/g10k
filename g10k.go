@@ -32,7 +32,7 @@ var (
 	cpGitTime          float64
 	cpForgeTime        float64
 	buildtime          string
-	uniqueForgeModules map[string]struct{}
+	uniqueForgeModules map[string]ForgeModule
 	latestForgeModules map[string]string
 )
 
@@ -46,11 +46,13 @@ type ConfigSettings struct {
 		privateKey string `yaml:"private_key"`
 		username   string
 	}
-	Forge           struct {
-		Baseurl string `yaml:"baseurl"`
-	}
+	Forge   Forge
 	Sources map[string]Source
 	Timeout int `yaml:"timeout"`
+}
+
+type Forge struct {
+	Baseurl string `yaml:"baseurl"`
 }
 
 // Source contains basic information about a Puppet environment repository
@@ -64,17 +66,19 @@ type Source struct {
 // Puppetfile contains the key value pairs from the Puppetfile
 type Puppetfile struct {
 	moduleDir    string
+	forgeBaseURL string
 	forgeModules map[string]ForgeModule
 	gitModules   map[string]GitModule
 	privateKey   string
 	source       string
 }
 
-// ForgeModule contains information (Version, Name, Author) about a Puppetlabs Forge module
+// ForgeModule contains information (Version, Name, Author, Forge BaseURL if custom) about a Puppetlabs Forge module
 type ForgeModule struct {
 	version string
 	name    string
 	author  string
+	baseUrl string
 }
 
 // GitModule contains information about a Git Puppet module
@@ -146,7 +150,10 @@ func main() {
 	before := time.Now()
 	if len(*configFile) > 0 {
 		if usemove {
-			log.Fatalln("Error: -usemove parameter is only allowed in -puppetfile mode!")
+			Fatalf("Error: -usemove parameter is only allowed in -puppetfile mode!")
+		}
+		if pfMode {
+			Fatalf("Error: -puppetfile parameter is not allowed with -config parameter!")
 		}
 		Debugf("Using as config file: " + *configFile)
 		config = readConfigfile(*configFile)
@@ -170,7 +177,9 @@ func main() {
 			} else {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm}
+			//config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Forge:{Baseurl: "https://forgeapi.puppetlabs.com"}, Sources: sm}
+			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings}
 			target = "./Puppetfile"
 			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam")
 			pfm := make(map[string]Puppetfile)

@@ -96,7 +96,7 @@ func resolvePuppetEnvironment(envBranch string) {
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	var wg sync.WaitGroup
 	uniqueGitModules := make(map[string]GitModule)
-	uniqueForgeModules = make(map[string]struct{})
+	uniqueForgeModules = make(map[string]ForgeModule)
 	latestForgeModules = make(map[string]string)
 	exisitingModuleDirs := make(map[string]struct{})
 	for env, pf := range allPuppetfiles {
@@ -112,10 +112,15 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			//fmt.Println("Found Forge module ", forgeModuleName, " with version", fm.version)
+			if len(pf.forgeBaseURL) > 0 {
+				fm.baseUrl = pf.forgeBaseURL
+			} else {
+				fm.baseUrl = ""
+			}
 			mutex.Lock()
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			if _, ok := uniqueForgeModules[forgeModuleName+"-"+fm.version]; !ok {
-				uniqueForgeModules[forgeModuleName+"-"+fm.version] = empty
+				uniqueForgeModules[forgeModuleName+"-"+fm.version] = fm
 			}
 			mutex.Unlock()
 		}

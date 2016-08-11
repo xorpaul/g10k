@@ -20,20 +20,27 @@ func Debugf(s string) {
 	}
 }
 
-// Verbosef is a helper function for debug logging if global variable verbose is set to true
+// Verbosef is a helper function for verbose logging if global variable verbose is set to true
 func Verbosef(s string) {
 	if debug != false || verbose != false {
 		log.Print(fmt.Sprint(s))
 	}
 }
 
-// Infof is a helper function for debug logging if global variable info is set to true
+// Infof is a helper function for info logging if global variable info is set to true
 func Infof(s string) {
 	if debug != false || verbose != false || info != false {
 		color.Set(color.FgGreen)
 		fmt.Println(s)
 		color.Unset()
 	}
+}
+
+// Fatalf is a helper function for fatal logging
+func Fatalf(s string) {
+	color.Set(color.FgRed)
+	log.Fatal(s)
+	color.Unset()
 }
 
 // fileExists checks if the given file exists and return a bool
@@ -51,14 +58,12 @@ func checkDirAndCreate(dir string, name string) string {
 			if _, err := os.Stat(dir); os.IsNotExist(err) {
 				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
 				if err := os.MkdirAll(dir, 0777); err != nil {
-					log.Print("checkDirAndCreate(): Error: failed to create directory: ", dir)
-					os.Exit(1)
+					Fatalf("checkDirAndCreate(): Error: failed to create directory: " + dir)
 				}
 			}
 		} else {
 			// TODO make dir optional
-			log.Print("dir setting '" + name + "' missing! Exiting!")
-			os.Exit(1)
+			Fatalf("checkDirAndCreate(): Error: dir setting '" + name + "' missing! Exiting!")
 		}
 	}
 	if !strings.HasSuffix(dir, "/") {
