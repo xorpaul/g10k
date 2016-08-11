@@ -178,7 +178,7 @@ func downloadForgeModule(name string, version string) {
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 	if _, err := os.Stat(config.ForgeCacheDir + name + "-" + version); os.IsNotExist(err) {
-		url := "https://forgeapi.puppetlabs.com/v3/files/" + fileName
+		url := config.Forge.Baseurl+"/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
