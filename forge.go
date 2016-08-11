@@ -12,14 +12,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-func doModuleInstallOrNothing(m string) {
+func doModuleInstallOrNothing(m string, fm ForgeModule) {
 	ma := strings.Split(m, "-")
 	moduleName := ma[0] + "-" + ma[1]
 	moduleVersion := ma[2]
@@ -32,7 +31,7 @@ func doModuleInstallOrNothing(m string) {
 		if _, err := os.Stat(workDir); os.IsNotExist(err) {
 			Debugf("doModuleInstallOrNothing(): " + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
-			fr = queryForgeAPI(moduleName, "false")
+			fr = queryForgeAPI(moduleName, "false", fm)
 			if fr.needToGet {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
 					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
@@ -55,7 +54,7 @@ func doModuleInstallOrNothing(m string) {
 			// XXX: disable adding If-Modified-Since header for now
 			// because then the latestForgeModules does not get set with the actual module version for latest
 			// maybe if received 304 get the actual version from the -latest symlink
-			fr = queryForgeAPI(moduleName, "false")
+			fr = queryForgeAPI(moduleName, "false", fm)
 			//fmt.Println(needToGet)
 		}
 
@@ -68,7 +67,7 @@ func doModuleInstallOrNothing(m string) {
 				return
 			}
 			Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
-			doModuleInstallOrNothing(moduleName + "-latest")
+			doModuleInstallOrNothing(moduleName+"-latest", fm)
 			return
 		}
 		Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
@@ -102,13 +101,17 @@ func doModuleInstallOrNothing(m string) {
 				}
 			}
 		}
-		downloadForgeModule(moduleName, fr.versionNumber)
+		downloadForgeModule(moduleName, fr.versionNumber, fm)
 	}
 }
 
-func queryForgeAPI(name string, file string) ForgeResult {
+func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	//url := "https://forgeapi.puppetlabs.com:443/v3/modules/" + strings.Replace(name, "/", "-", -1)
-	url := config.Forge.Baseurl+"/v3/modules?query=" + name
+	baseUrl := config.Forge.Baseurl
+	if len(fm.baseUrl) > 0 {
+		baseUrl = fm.baseUrl
+	}
+	url := baseUrl + "/v3/modules?query=" + name
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal("queryForgeAPI(): Error creating GET request for Puppetlabs forge API", err)
@@ -123,8 +126,7 @@ func queryForgeAPI(name string, file string) ForgeResult {
 
 	proxyURL, err := http.ProxyFromEnvironment(req)
 	if err != nil {
-		log.Fatal("queryForgeAPI(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
-		os.Exit(1)
+		Fatalf("queryForgeAPI(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
 	}
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 	before := time.Now()
@@ -143,22 +145,45 @@ func queryForgeAPI(name string, file string) ForgeResult {
 		// need to get latest version
 		body, err := ioutil.ReadAll(resp.Body)
 
-		//fmt.Println(string(body))
-		reCurrent := regexp.MustCompile("\\s*\"current_release\": {\n\\s*\"uri\": \"([^\"]+)\",")
-		if m := reCurrent.FindStringSubmatch(string(body)); len(m) > 1 {
-			//fmt.Println(m[1])
-			if strings.Count(m[1], "-") < 2 {
-				log.Fatal("queryForgeAPI(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", m[1], " should contain three '-' characters")
-				os.Exit(1)
-			} else {
-				// modified the split because I found a module with version 4.0.0-beta1 mayflower-php
-				version := strings.Split(m[1], name+"-")[1]
-				Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
-				mutex.Lock()
-				latestForgeModules[name] = version
-				mutex.Unlock()
-				return ForgeResult{true, version}
+		var f interface{}
+		if err := json.Unmarshal(body, &f); err != nil {
+			Fatalf("queryForgeAPI(): Error while decoding JSON from URL " + url + " Error: " + err.Error())
+		}
+		currentUri := ""
+		m := f.(map[string]interface{})
+		for _, v := range m {
+			switch vv := v.(type) {
+			case []interface{}:
+				if len(vv) >= 1 {
+					if curRel, ok := vv[0].(map[string]interface{})["current_release"]; ok {
+						if val, ok := curRel.(map[string]interface{})["uri"]; ok {
+							//fmt.Println("uri --> ", val)
+							currentUri = val.(string)
+						} else {
+							Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
+						}
+					} else {
+						Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
+					}
+				} else {
+					Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
+				}
+			default:
+				// skip, we'll do a sanity for the currentUri value later anyway
 			}
+		}
+
+		//fmt.Println(string(body))
+		if strings.Count(currentUri, "-") < 2 {
+			log.Fatal("queryForgeAPI(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", currentUri, " should contain three '-' characters")
+		} else {
+			// modified the split because I found a module with version 4.0.0-beta1 mayflower-php
+			version := strings.Split(currentUri, name+"-")[1]
+			Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
+			mutex.Lock()
+			latestForgeModules[name] = version
+			mutex.Unlock()
+			return ForgeResult{true, version}
 		}
 
 		if err != nil {
@@ -174,11 +199,15 @@ func queryForgeAPI(name string, file string) ForgeResult {
 	}
 }
 
-func downloadForgeModule(name string, version string) {
+func downloadForgeModule(name string, version string, fm ForgeModule) {
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 	if _, err := os.Stat(config.ForgeCacheDir + name + "-" + version); os.IsNotExist(err) {
-		url := "https://forgeapi.puppetlabs.com/v3/files/" + fileName
+		baseUrl := config.Forge.Baseurl
+		if len(fm.baseUrl) > 0 {
+			baseUrl = fm.baseUrl
+		}
+		url := baseUrl + "/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
@@ -307,15 +336,15 @@ func readModuleMetadata(file string) ForgeModule {
 	return ForgeModule{name: strings.Split(m["name"].(string), "-")[1], version: m["version"].(string), author: strings.ToLower(m["author"].(string))}
 }
 
-func resolveForgeModules(modules map[string]struct{}) {
+func resolveForgeModules(modules map[string]ForgeModule) {
 	var wgForge sync.WaitGroup
-	for m := range modules {
+	for m, fm := range modules {
 		wgForge.Add(1)
-		go func(m string) {
+		go func(m string, fm ForgeModule) {
 			defer wgForge.Done()
-			Debugf("Trying to get forge module " + m)
-			doModuleInstallOrNothing(m)
-		}(m)
+			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl)
+			doModuleInstallOrNothing(m, fm)
+		}(m, fm)
 	}
 	wgForge.Wait()
 }
@@ -371,8 +400,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if _, err := os.Stat(workDir); os.IsNotExist(err) {
-		log.Print("syncForgeToModuleDir(): Forge module not found in dir: ", workDir)
-		os.Exit(1)
+		Fatalf("syncForgeToModuleDir(): Forge module not found in dir: " + workDir)
 	} else {
 		Infof("Need to sync " + targetDir)
 		cmd := "cp --link --archive " + workDir + "* " + targetDir
