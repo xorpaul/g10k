@@ -30,10 +30,15 @@ func Verbosef(s string) {
 // Infof is a helper function for info logging if global variable info is set to true
 func Infof(s string) {
 	if debug != false || verbose != false || info != false {
-		color.Set(color.FgGreen)
-		fmt.Println(s)
-		color.Unset()
+		color.Green(s)
 	}
+}
+
+// Warnf is a helper function for warning logging
+func Warnf(s string) {
+	color.Set(color.FgYellow)
+	fmt.Println(s)
+	color.Unset()
 }
 
 // Fatalf is a helper function for fatal logging

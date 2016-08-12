@@ -2,10 +2,10 @@ package main
 
 import (
 	"archive/tar"
-	"encoding/json"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/klauspost/pgzip"
+	"github.com/tidwall/gjson"
 	"io"
 	"io/ioutil"
 	"log"
@@ -145,33 +145,13 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		// need to get latest version
 		body, err := ioutil.ReadAll(resp.Body)
 
-		var f interface{}
-		if err := json.Unmarshal(body, &f); err != nil {
-			Fatalf("queryForgeAPI(): Error while decoding JSON from URL " + url + " Error: " + err.Error())
-		}
-		currentUri := ""
-		m := f.(map[string]interface{})
-		for _, v := range m {
-			switch vv := v.(type) {
-			case []interface{}:
-				if len(vv) >= 1 {
-					if curRel, ok := vv[0].(map[string]interface{})["current_release"]; ok {
-						if val, ok := curRel.(map[string]interface{})["uri"]; ok {
-							//fmt.Println("uri --> ", val)
-							currentUri = val.(string)
-						} else {
-							Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
-						}
-					} else {
-						Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
-					}
-				} else {
-					Fatalf("queryForgeAPI(): Error: Unexpected JSON response while trying to figure out what version is current for Forge module " + name + " using " + url)
-				}
-			default:
-				// skip, we'll do a sanity for the currentUri value later anyway
-			}
-		}
+		before := time.Now()
+		currentUri := gjson.Get(string(body), "results.*.current_release.uri").String()
+		duration := time.Since(before).Seconds()
+
+		mutex.Lock()
+		forgeJsonParseTime += duration
+		mutex.Unlock()
 
 		//fmt.Println(string(body))
 		if strings.Count(currentUri, "-") < 2 {
@@ -324,16 +304,26 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 // readModuleMetadata returns the Forgemodule struct of the given module file path
 func readModuleMetadata(file string) ForgeModule {
 	content, _ := ioutil.ReadFile(file)
-	var f interface{}
-	if err := json.Unmarshal(content, &f); err != nil {
-		Debugf("readModuleMetadata(): err: " + fmt.Sprint(err))
-		return ForgeModule{}
+
+	before := time.Now()
+	name := gjson.Get(string(content), "name").String()
+	version := gjson.Get(string(content), "version").String()
+	author := gjson.Get(string(content), "author").String()
+	duration := time.Since(before).Seconds()
+	mutex.Lock()
+	metadataJsonParseTime += duration
+	mutex.Unlock()
+
+	Debugf("readModuleMetadata(): Found in file " + file + " name: " + name + " version: " + version + " author: " + author)
+
+	moduleName := "N/A"
+	if strings.Contains(name, "-") {
+		moduleName = strings.Split(name, "-")[1]
+	} else {
+		Debugf("readModuleMetadata(): Error: Something went wrong while decoding file " + file + " searching for the module name (found for name: " + name + "), version and author")
 	}
-	m := f.(map[string]interface{})
-	if !strings.Contains(m["name"].(string), "-") {
-		return ForgeModule{}
-	}
-	return ForgeModule{name: strings.Split(m["name"].(string), "-")[1], version: m["version"].(string), author: strings.ToLower(m["author"].(string))}
+
+	return ForgeModule{name: moduleName, version: version, author: strings.ToLower(author)}
 }
 
 func resolveForgeModules(modules map[string]ForgeModule) {
