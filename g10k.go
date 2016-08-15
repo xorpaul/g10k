@@ -11,29 +11,32 @@ import (
 )
 
 var (
-	debug              bool
-	verbose            bool
-	info               bool
-	force              bool
-	usemove            bool
-	pfMode             bool
-	dryRun             bool
-	check4update       bool
-	config             ConfigSettings
-	wg                 sync.WaitGroup
-	mutex              sync.Mutex
-	empty              struct{}
-	syncGitCount       int
-	syncForgeCount     int
-	needSyncGitCount   int
-	needSyncForgeCount int
-	syncGitTime        float64
-	syncForgeTime      float64
-	cpGitTime          float64
-	cpForgeTime        float64
-	buildtime          string
-	uniqueForgeModules map[string]ForgeModule
-	latestForgeModules map[string]string
+	debug                  bool
+	verbose                bool
+	info                   bool
+	force                  bool
+	usemove                bool
+	pfMode                 bool
+	dryRun                 bool
+	check4update           bool
+	config                 ConfigSettings
+	wg                     sync.WaitGroup
+	mutex                  sync.Mutex
+	empty                  struct{}
+	syncGitCount           int
+	syncForgeCount         int
+	needSyncGitCount       int
+	needSyncForgeCount     int
+	syncGitTime            float64
+	syncForgeTime          float64
+	cpGitTime              float64
+	cpForgeTime            float64
+	forgeJsonParseTime     float64
+	metadataJsonParseTime  float64
+	gmetadataJsonParseTime float64
+	buildtime              string
+	uniqueForgeModules     map[string]ForgeModule
+	latestForgeModules     map[string]string
 )
 
 // ConfigSettings contains the key value pairs from the g10k config file
@@ -208,6 +211,9 @@ func main() {
 	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
 	//doModuleInstallOrNothing("saz-resolv_conf-latest")
 	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
+
+	Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJsonParseTime, 'f', 4, 64) + " seconds")
+	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
 
 	if !check4update {
 		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")

@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -109,8 +108,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 	for _, line := range strings.Split(n, "\n") {
 		//fmt.Println("found line ---> ", line)
 		if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
-			log.Fatal("Error: trailing comma found in", pf, "somewhere here: ", line)
-			os.Exit(1)
+			Fatalf("Error: trailing comma found in " + pf + " somewhere here: " + line)
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.moduleDir = m[1]
@@ -143,7 +141,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			//fmt.Println("found git mod name ---> ", m[1])
 			if strings.Contains(m[1], "-") {
-				fmt.Println("Warning: Found invalid character '-' in Puppet module name", m[1], "in", pf, "line:", line)
+				Warnf("Warning: Found invalid character '-' in Puppet module name " + m[1] + " in " + pf + " line: " + line)
 			}
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
