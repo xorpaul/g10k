@@ -75,6 +75,35 @@ Usage of ./g10k:
 
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
   
+
+# additional Puppetfile features
+
+- link Git module branch to the current environment branch:
+```
+mod 'awesomemodule',
+    :git => 'http://github.com/foo/bar.git',
+    :link => 'true'
+```
+If you are in environment branch `dev` then g10k would try to check out this module with branch `dev`.
+This helps to be able to use the same Puppetfile over multiple environment branches and makes merges easier.
+See https://github.com/xorpaul/g10k/issues/6 for details.
+
+
+- only clone if branch/tag/commit exists
+```
+mod 'awesomemodule',
+    :git => 'http://github.com/foo/bar.git',
+    :ignore-unreachable => 'true'
+```
+
+In combination with the previous link feature you don't need to keep all environment branches also available for your modules.
+See https://github.com/xorpaul/g10k/issues/9 for details.
+
+- use different Forge base URL for your modules in your Puppetfile
+```
+forge.baseUrl http://foobar.domain.tld/
+```
+
 # building
 ```
 # only initially needed to resolve all dependencies
