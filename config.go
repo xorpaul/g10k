@@ -64,7 +64,7 @@ func preparePuppetfile(pf string) string {
 	}
 	defer file.Close()
 
-	reComment := regexp.MustCompile("\\s*#")
+	reComment := regexp.MustCompile("^\\s*#")
 	reEmpty := regexp.MustCompile("^$")
 
 	pfString := ""
@@ -72,10 +72,16 @@ func preparePuppetfile(pf string) string {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if !reComment.MatchString(line) && !reEmpty.MatchString(line) {
+			if strings.Contains(line, "#") {
+				Debugf("found inline comment in " + pf + "line: " + line)
+				line = strings.Split(line, "#")[0]
+			}
 			if regexp.MustCompile(",\\s*$").MatchString(line) {
 				pfString += line
+				Debugf("adding line:" + line)
 			} else {
 				pfString += line + "\n"
+				Debugf("adding line:" + line)
 			}
 		}
 	}
