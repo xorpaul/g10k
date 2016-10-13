@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -108,13 +107,12 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			duration := time.Since(before).Seconds()
 			mutex.Lock()
-			cpGitTime += duration
+			ioGitTime += duration
 			mutex.Unlock()
 			Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 			if err != nil {
 				if !allowFail {
-					log.Println("syncToModuleDir(): Failed to execute command: ", cmd, " Output: ", string(out))
-					os.Exit(1)
+					Fatalf("syncToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out))
 				} else {
 					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
 					return

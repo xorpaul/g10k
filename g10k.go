@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -19,6 +18,7 @@ var (
 	pfMode                 bool
 	dryRun                 bool
 	check4update           bool
+	checkSum               bool
 	config                 ConfigSettings
 	wg                     sync.WaitGroup
 	mutex                  sync.Mutex
@@ -29,8 +29,8 @@ var (
 	needSyncForgeCount     int
 	syncGitTime            float64
 	syncForgeTime          float64
-	cpGitTime              float64
-	cpForgeTime            float64
+	ioGitTime              float64
+	ioForgeTime            float64
 	forgeJsonParseTime     float64
 	metadataJsonParseTime  float64
 	gmetadataJsonParseTime float64
@@ -76,12 +76,14 @@ type Puppetfile struct {
 	source       string
 }
 
-// ForgeModule contains information (Version, Name, Author, Forge BaseURL if custom) about a Puppetlabs Forge module
+// ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
 type ForgeModule struct {
-	version string
-	name    string
-	author  string
-	baseUrl string
+	version  string
+	name     string
+	author   string
+	hashSum  string
+	fileSize int64
+	baseUrl  string
 }
 
 // GitModule contains information about a Git Puppet module
@@ -100,6 +102,8 @@ type GitModule struct {
 type ForgeResult struct {
 	needToGet     bool
 	versionNumber string
+	md5sum        string
+	fileSize      int64
 }
 
 // ExecResult contains the exit code and output of an external command (e.g. git)
@@ -118,6 +122,7 @@ func main() {
 		dryRunFlag       = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
 		usemoveFlag      = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
 		check4updateFlag = flag.Bool("check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
+		checkSumFlag     = flag.Bool("checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")
 		debugFlag        = flag.Bool("debug", false, "log debug output, defaults to false")
 		verboseFlag      = flag.Bool("verbose", false, "log verbose output, defaults to false")
 		infoFlag         = flag.Bool("info", false, "log info output, defaults to false")
@@ -133,6 +138,7 @@ func main() {
 	check4update = *check4updateFlag
 	usemove = *usemoveFlag
 	pfMode = *pfFlag
+	checkSum = *checkSumFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
@@ -189,10 +195,7 @@ func main() {
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)
 		} else {
-			log.Println("Error: no config file set")
-			log.Printf("Example call: %s -config test.yaml\n", os.Args[0])
-			log.Printf("or: %s -puppetfile\n", os.Args[0])
-			os.Exit(1)
+			Fatalf("Error: you need to specify at least a config file or use the Puppetfile mode\nExample call: " + os.Args[0] + " -config test.yaml or " + os.Args[0] + " -puppetfile\n")
 		}
 	}
 
@@ -216,7 +219,7 @@ func main() {
 	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
 
 	if !check4update {
-		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(cpGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(cpForgeTime, 'f', 1, 64)+"s)")
+		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s)")
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)
