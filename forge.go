@@ -2,20 +2,23 @@ package main
 
 import (
 	"archive/tar"
-	"fmt"
-	"github.com/fatih/color"
-	"github.com/klauspost/pgzip"
-	"github.com/tidwall/gjson"
+	"crypto/md5"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/klauspost/pgzip"
+	"github.com/tidwall/gjson"
 )
 
 func doModuleInstallOrNothing(m string, fm ForgeModule) {
@@ -23,7 +26,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 	moduleName := ma[0] + "-" + ma[1]
 	moduleVersion := ma[2]
 	workDir := config.ForgeCacheDir + m
-	fr := ForgeResult{false, ma[2]}
+	fr := ForgeResult{false, ma[2], "", 0}
 	if check4update {
 		moduleVersion = "latest"
 	}
@@ -37,10 +40,13 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
 					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-					Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + versionDir)
-					if err := os.Symlink(versionDir, workDir); err != nil {
-						log.Println("doModuleInstallOrNothing(): 1 Error while create symlink "+workDir+" pointing to "+versionDir, err)
-						os.Exit(1)
+					absolutePath, err := filepath.Abs(versionDir)
+					Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + absolutePath)
+					if err != nil {
+						Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
+					}
+					if err := os.Symlink(absolutePath, workDir); err != nil {
+						Fatalf("doModuleInstallOrNothing(): 1 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
 					}
 					//} else {
 					//Debugf("doModuleInstallOrNothing(): need to fetch Forge module " + moduleName + " in latest, because version " + fr.versionNumber + " will not be fetched already")
@@ -80,7 +86,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		}
 	}
 
-	//fmt.Println("fr.needToGet for ", m, fr.needToGet)
+	//log.Println("fr.needToGet for ", m, fr.needToGet)
 
 	if fr.needToGet {
 		if ma[2] != "latest" {
@@ -94,15 +100,19 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 				Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
 				_ = os.Remove(workDir)
 				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
-				Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + versionDir)
-				if err := os.Symlink(versionDir, workDir); err != nil {
-					log.Println("doModuleInstallOrNothing(): 2 Error while create symlink "+workDir+" pointing to "+versionDir, err)
-					os.Exit(1)
+				absolutePath, err := filepath.Abs(versionDir)
+				if err != nil {
+					Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
+				}
+				Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + absolutePath)
+				if err := os.Symlink(absolutePath, workDir); err != nil {
+					Fatalf("doModuleInstallOrNothing(): 2 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
 				}
 			}
 		}
-		downloadForgeModule(moduleName, fr.versionNumber, fm)
+		downloadForgeModule(moduleName, fr.versionNumber, fm, 1)
 	}
+
 }
 
 func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
@@ -111,11 +121,11 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	if len(fm.baseUrl) > 0 {
 		baseUrl = fm.baseUrl
 	}
-	url := baseUrl + "/v3/modules?query=" + name
+	//url := baseUrl + "/v3/modules?query=" + name
+	url := baseUrl + "/v3/releases?module=" + name + "&owner=" + fm.author + "&sort_by=release_date&limit=1"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal("queryForgeAPI(): Error creating GET request for Puppetlabs forge API", err)
-		os.Exit(1)
+		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())
 	}
 	if fileInfo, err := os.Stat(file); err == nil {
 		Debugf("queryForgeAPI(): adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
@@ -131,58 +141,109 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 	before := time.Now()
 	resp, err := client.Do(req)
+	if err != nil {
+		Fatalf("queryForgeAPI(): Error while issuing the HTTP request to " + url + " Error: " + err.Error())
+	}
 	duration := time.Since(before).Seconds()
 	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+
 	mutex.Lock()
 	syncForgeTime += duration
 	mutex.Unlock()
-	if err != nil {
-		panic(err)
-	}
 	defer resp.Body.Close()
 
 	if resp.Status == "200 OK" {
 		// need to get latest version
 		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			Fatalf("queryForgeAPI(): Error while reading response body for Forge module " + fm.name + " from " + url + ": " + err.Error())
+		}
 
 		before := time.Now()
-		currentUri := gjson.Get(string(body), "results.*.current_release.uri").String()
+		currentRelease := gjson.Get(string(body), "results.0").Map()
+
 		duration := time.Since(before).Seconds()
+		version := currentRelease["version"].String()
+		moduleHashsum := currentRelease["file_md5"].String()
+		moduleFilesize := currentRelease["file_size"].Int()
 
 		mutex.Lock()
 		forgeJsonParseTime += duration
 		mutex.Unlock()
 
-		//fmt.Println(string(body))
-		if strings.Count(currentUri, "-") < 2 {
-			log.Fatal("queryForgeAPI(): Error: Something went wrong while trying to figure out what version is current for Forge module ", name, " ", currentUri, " should contain three '-' characters")
-		} else {
-			// modified the split because I found a module with version 4.0.0-beta1 mayflower-php
-			version := strings.Split(currentUri, name+"-")[1]
-			Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
-			mutex.Lock()
-			latestForgeModules[name] = version
-			mutex.Unlock()
-			return ForgeResult{true, version}
-		}
+		Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
+		mutex.Lock()
+		latestForgeModules[name] = version
+		mutex.Unlock()
+		return ForgeResult{true, version, moduleHashsum, moduleFilesize}
 
-		if err != nil {
-			panic(err)
-		}
-		return ForgeResult{false, ""}
 	} else if resp.Status == "304 Not Modified" {
 		Debugf("queryForgeAPI(): Got 304 nothing to do for module " + name)
-		return ForgeResult{false, ""}
+		return ForgeResult{false, "", "", 0}
 	} else {
 		Debugf("queryForgeAPI(): Unexpected response code " + resp.Status)
-		return ForgeResult{false, ""}
+		return ForgeResult{false, "", "", 0}
 	}
 }
 
-func downloadForgeModule(name string, version string, fm ForgeModule) {
+// getMetadataForgeModule queries the configured Puppet Forge and return
+func getMetadataForgeModule(fm ForgeModule) ForgeModule {
+	baseUrl := config.Forge.Baseurl
+	if len(fm.baseUrl) > 0 {
+		baseUrl = fm.baseUrl
+	}
+	url := baseUrl + "/v3/releases/" + fm.author + "-" + fm.name + "-" + fm.version
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
+	req.Header.Set("Connection", "close")
+	proxyURL, err := http.ProxyFromEnvironment(req)
+	if err != nil {
+		Fatalf("getMetadataForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
+	}
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+	before := time.Now()
+	Debugf("GETing " + url)
+	resp, err := client.Do(req)
+	duration := time.Since(before).Seconds()
+	Verbosef("GETing Forge metadata from " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	mutex.Lock()
+	syncForgeTime += duration
+	mutex.Unlock()
+	if err != nil {
+		Fatalf("getMetadataForgeModule(): Error while querying metadata for Forge module " + fm.name + " from " + url + ": " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	if resp.Status == "200 OK" {
+		body, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			Fatalf("getMetadataForgeModule(): Error while reading response body for Forge module " + fm.name + " from " + url + ": " + err.Error())
+		}
+
+		before := time.Now()
+		currentRelease := gjson.Parse(string(body)).Map()
+		duration := time.Since(before).Seconds()
+		moduleHashsum := currentRelease["file_md5"].String()
+		moduleFilesize := currentRelease["file_size"].Int()
+		Debugf("getMetadataForgeModule: module: " + fm.author + "/" + fm.name + " moduleHashsum: " + moduleHashsum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
+
+		mutex.Lock()
+		forgeJsonParseTime += duration
+		mutex.Unlock()
+
+		return ForgeModule{hashSum: moduleHashsum, fileSize: moduleFilesize}
+	} else {
+		Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + resp.Status)
+	}
+	return ForgeModule{}
+}
+
+func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 	if _, err := os.Stat(config.ForgeCacheDir + name + "-" + version); os.IsNotExist(err) {
+
 		baseUrl := config.Forge.Baseurl
 		if len(fm.baseUrl) > 0 {
 			baseUrl = fm.baseUrl
@@ -193,8 +254,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 		req.Header.Set("Connection", "close")
 		proxyURL, err := http.ProxyFromEnvironment(req)
 		if err != nil {
-			log.Fatal("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()", err)
-			os.Exit(1)
+			Fatalf("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
 		}
 		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 		before := time.Now()
@@ -206,25 +266,23 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 		syncForgeTime += duration
 		mutex.Unlock()
 		if err != nil {
-			log.Print("downloadForgeModule(): Error while GETing Forge module ", name, " from ", url, ": ", err)
-			os.Exit(1)
+			Fatalf("downloadForgeModule(): Error while GETing Forge module " + name + " from " + url + ": " + err.Error())
 		}
 		defer resp.Body.Close()
 
 		if resp.Status == "200 OK" {
+			before = time.Now()
 			Debugf("downloadForgeModule(): Trying to create " + config.ForgeCacheDir + fileName)
 			out, err := os.Create(config.ForgeCacheDir + fileName)
 			if err != nil {
-				log.Print("downloadForgeModule(): Error while creating file for Forge module "+config.ForgeCacheDir+fileName, err)
-				os.Exit(1)
+				Fatalf("downloadForgeModule(): Error while creating file for Forge module " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
 			}
 			defer out.Close()
 			io.Copy(out, resp.Body)
 			file, err := os.Open(config.ForgeCacheDir + fileName)
 
 			if err != nil {
-				fmt.Println("downloadForgeModule(): Error while opening file", file, err)
-				os.Exit(1)
+				Fatalf("downloadForgeModule(): Error while opening file " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
 			}
 
 			defer file.Close()
@@ -232,9 +290,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 			var fileReader = resp.Body
 			if strings.HasSuffix(fileName, ".gz") {
 				if fileReader, err = pgzip.NewReader(file); err != nil {
-
-					fmt.Println("downloadForgeModule(): pgzip reader error for module ", fileName, " error:", err)
-					os.Exit(1)
+					Fatalf("downloadForgeModule(): pgzip reader error for module " + fileName + " error:" + err.Error())
 				}
 				defer fileReader.Close()
 			}
@@ -246,8 +302,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 					if err == io.EOF {
 						break
 					}
-					fmt.Println("downloadForgeModule(): error while tar reader.Next() for ", fileName, err)
-					os.Exit(1)
+					Fatalf("downloadForgeModule(): error while tar reader.Next() for " + fileName + err.Error())
 				}
 
 				// get the individual filename and extract to the current directory
@@ -263,8 +318,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 					err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
 
 					if err != nil {
-						fmt.Println("downloadForgeModule(): error while MkdirAll()", filename, err)
-						os.Exit(1)
+						Fatalf("downloadForgeModule(): error while MkdirAll()" + filename + err.Error())
 					}
 
 				case tar.TypeReg:
@@ -273,8 +327,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 					writer, err := os.Create(targetFilename)
 
 					if err != nil {
-						fmt.Println("downloadForgeModule(): error while Create()", filename, err)
-						os.Exit(1)
+						Fatalf("downloadForgeModule(): error while Create()" + filename + err.Error())
 					}
 
 					io.Copy(writer, tarBallReader)
@@ -282,23 +335,41 @@ func downloadForgeModule(name string, version string, fm ForgeModule) {
 					err = os.Chmod(targetFilename, os.FileMode(0644))
 
 					if err != nil {
-						fmt.Println("downloadForgeModule(): error while Chmod()", filename, err)
-						os.Exit(1)
+						Fatalf("downloadForgeModule(): error while Chmod()" + filename + err.Error())
 					}
 
 					writer.Close()
 				default:
-					fmt.Printf("Unable to untar type : %c in file %s", header.Typeflag, filename)
+					Fatalf("downloadForgeModule(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
 				}
 			}
 
+			duration = time.Since(before).Seconds()
+			Verbosef("Extracting " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			mutex.Lock()
+			ioForgeTime += duration
+			mutex.Unlock()
 		} else {
-			log.Print("downloadForgeModule(): Unexpected response code while GETing " + url + resp.Status)
-			os.Exit(1)
+			Fatalf("downloadForgeModule(): Unexpected response code while GETing " + url + resp.Status)
 		}
 	} else {
 		Debugf("downloadForgeModule(): Using cache for Forge module " + name + " version: " + version)
 	}
+
+	if checkSum {
+		fm.version = version
+		if doForgeModuleIntegrityCheck(fm) {
+			if retryCount == 0 {
+				Fatalf("downloadForgeModule(): giving up for Puppet module " + name + " version: " + version)
+			}
+			Warnf("Retrying...")
+			purgeDir(config.ForgeCacheDir+fileName, "downloadForgeModule()")
+			purgeDir(strings.Replace(config.ForgeCacheDir+fileName, ".tar.gz", "/", -1), "downloadForgeModule()")
+			// retry if hash sum mismatch found
+			downloadForgeModule(name, version, fm, retryCount-1)
+		}
+	}
+
 }
 
 // readModuleMetadata returns the Forgemodule struct of the given module file path
@@ -346,6 +417,67 @@ func check4ForgeUpdate(moduleName string, currentVersion string, latestVersion s
 		color.Yellow("ATTENTION: Forge module: " + moduleName + " latest: " + latestVersion + " currently deployed: " + currentVersion)
 		needSyncForgeCount++
 	}
+}
+
+func doForgeModuleIntegrityCheck(m ForgeModule) bool {
+	var wgCheckSum sync.WaitGroup
+
+	wgCheckSum.Add(1)
+	fmm := ForgeModule{}
+	go func(m ForgeModule) {
+		defer wgCheckSum.Done()
+		fmm = getMetadataForgeModule(m)
+		Debugf("doForgeModuleChecksumCheck(): target md5 hash sum: " + fmm.hashSum)
+	}(m)
+
+	wgCheckSum.Add(1)
+	calculatedHashSum := "N/A"
+	var calculatedArchiveSize int64
+	fileName := config.ForgeCacheDir + m.author + "-" + m.name + "-" + m.version + ".tar.gz"
+	go func(m ForgeModule) {
+		defer wgCheckSum.Done()
+
+		before := time.Now()
+		if fi, err := os.Stat(fileName); err == nil {
+			calculatedArchiveSize = fi.Size()
+			file, err := os.Open(fileName)
+			if err != nil {
+				Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+			}
+			defer file.Close()
+
+			Debugf("doForgeModuleChecksumCheck(): Trying to get md5 check sum for " + fileName)
+			hash := md5.New()
+			if _, err := io.Copy(hash, file); err != nil {
+				Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
+			}
+
+			calculatedHashSum = hex.EncodeToString(hash.Sum(nil))
+			Debugf("doForgeModuleChecksumCheck(): calculated md5 hash sum: " + calculatedHashSum)
+
+		} else {
+			Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+		}
+		duration := time.Since(before).Seconds()
+		Debugf("Calculating hash sum for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		Debugf("doForgeModuleChecksumCheck(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
+	}(m)
+
+	wgCheckSum.Wait()
+
+	if fmm.hashSum != calculatedHashSum {
+		Warnf("WARNING: calculated md5sum " + calculatedHashSum + " for " + fileName + " does not match expected md5sum " + fmm.hashSum)
+		return true
+	} else {
+		Debugf("OK: calculated md5sum " + calculatedHashSum + " for " + fileName + " does match expected md5sum " + fmm.hashSum)
+		if fmm.fileSize != calculatedArchiveSize {
+			Warnf("WARNING: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does not match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+			return true
+		}
+		Debugf("OK: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+	}
+	return false
+
 }
 
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
@@ -405,13 +537,11 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			duration := time.Since(before).Seconds()
 			mutex.Lock()
-			cpForgeTime += duration
+			ioForgeTime += duration
 			mutex.Unlock()
 			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 			if err != nil {
-				log.Println("Failed to execute command: ", cmd, " Output: ", string(out))
-				log.Print("syncForgeToModuleDir(): Error while trying to hardlink ", workDir, " to ", targetDir, " :", err)
-				os.Exit(1)
+				Fatalf("syncForgeToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out) + "\nError while trying to hardlink " + workDir + " to " + targetDir + " :" + err.Error())
 			}
 		}
 	}

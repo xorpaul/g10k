@@ -1,0 +1,11 @@
+---
+:cachedir: '/tmp/g10k'
+
+forge:
+  baseurl: http://pocu-forge.server.lan/
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    prefix: true
