@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -23,14 +21,10 @@ func resolvePuppetEnvironment(envBranch string) {
 			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + strconv.FormatBool(sa.Prefix) + ")")
 			if len(sa.PrivateKey) > 0 {
 				if _, err := os.Stat(sa.PrivateKey); err != nil {
-					log.Println("resolvePuppetEnvironment(): could not find SSH private key ", sa.PrivateKey, "error: ", err)
-					os.Exit(1)
+					Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + "error: " + err.Error())
 				}
 			}
-			//if _, err := os.Stat(sa.Basedir); os.IsNotExist(err) {
-			//	log.Println("resolvePuppetEnvironment(): could not access ", sa.Basedir)
-			//	os.Exit(1)
-			//}
+
 			workDir := config.EnvCacheDir + source + ".git"
 			// check if sa.Basedir exists
 			checkDirAndCreate(sa.Basedir, "basedir")
@@ -182,8 +176,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						if len(os.Getenv("g10k_branch")) > 0 {
 							tree = os.Getenv("g10k_branch")
 						} else {
-							fmt.Println("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as I can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch'")
-							os.Exit(1)
+							Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as I can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch'")
 						}
 					} else {
 						tree = envBranch

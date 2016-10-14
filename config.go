@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -16,8 +15,7 @@ import (
 func readConfigfile(configFile string) ConfigSettings {
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Print("There was an error parsing the config file "+configFile+": ", err)
-		os.Exit(1)
+		Fatalf("readConfigfile(): There was an error parsing the config file " + configFile + ": " + err.Error())
 	}
 
 	//fmt.Println("data:", string(data))
@@ -26,7 +24,7 @@ func readConfigfile(configFile string) ConfigSettings {
 	var config ConfigSettings
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		log.Fatalf("YAML unmarshal error: %v", err)
+		Fatalf("YAML unmarshal error: " + err.Error())
 	}
 
 	//fmt.Println("config:", config)
@@ -60,7 +58,7 @@ func readConfigfile(configFile string) ConfigSettings {
 func preparePuppetfile(pf string) string {
 	file, err := os.Open(pf)
 	if err != nil {
-		log.Fatal(err)
+		Fatalf("preparePuppetfile(): Error while opening Puppetfile " + pf + " Error: " + err.Error())
 	}
 	defer file.Close()
 
@@ -86,7 +84,7 @@ func preparePuppetfile(pf string) string {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		Fatalf("preparePuppetfile(): Error while scanning Puppetfile " + pf + " Error: " + err.Error())
 	}
 
 	return pfString
@@ -125,12 +123,10 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			//fmt.Println("found forge mod name ---> ", m[1])
 			comp := strings.Split(m[1], "/")
 			if len(comp) != 2 {
-				log.Print("Forge module name is invalid, should be like puppetlabs/apt, but is:", m[3], "in", pf, "line: ", line)
-				os.Exit(1)
+				Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt + but is:" + m[3] + "in" + pf + "line: " + line)
 			}
 			if _, ok := puppetFile.forgeModules[m[1]]; ok {
-				log.Fatal("Error: Duplicate forge module found in ", pf, " for module ", m[1], " line: ", line)
-				os.Exit(1)
+				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + m[1] + " line: " + line)
 			}
 			if len(m[3]) > 1 {
 				if m[3] == ":latest" {
@@ -152,16 +148,13 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
 				if strings.Count(gitModuleAttributes, ":git") < 1 {
-					log.Fatal("Error: Missing :git url in ", pf, " for module ", m[1], " line: ", line)
-					os.Exit(1)
+					Fatalf("Error: Missing :git url in " + pf + " for module " + m[1] + " line: " + line)
 				}
 				if strings.Count(gitModuleAttributes, ",") > 2 {
-					log.Fatal("Error: Too many attributes in ", pf, " for module ", m[1], " line: ", line)
-					os.Exit(1)
+					Fatalf("Error: Too many attributes in " + pf + " for module " + m[1] + " line: " + line)
 				}
 				if _, ok := puppetFile.gitModules[m[1]]; ok {
-					log.Fatal("Error: Duplicate module found in ", pf, " for module ", m[1], " line: ", line)
-					os.Exit(1)
+					Fatalf("Error: Duplicate module found in " + pf + " for module " + m[1] + " line: " + line)
 				}
 				puppetFile.gitModules[m[1]] = GitModule{}
 				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
@@ -172,12 +165,12 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 				for i := 0; i <= strings.Count(gitModuleAttributes, ","); i++ {
 					//fmt.Println("i -->", i)
 					if i >= len(gitModuleAttributesArray) {
-						log.Fatal("Error: Trailing comma or invalid setting for module found in ", pf, " for module ", m[1], " line: ", line)
+						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + m[1] + " line: " + line)
 					}
 					a := reGitAttribute.FindStringSubmatch(gitModuleAttributesArray[i])
 					//fmt.Println("a -->", a)
 					if len(a) == 0 {
-						log.Fatal("Error: Trailing comma or invalid setting for module found in ", pf, " for module ", m[1], " line: ", line)
+						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + m[1] + " line: " + line)
 					}
 					if a[1] == "git" {
 						gm.git = a[2]
@@ -192,15 +185,13 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 					} else if a[1] == "link" {
 						link, err := strconv.ParseBool(a[2])
 						if err != nil {
-							log.Fatal("Error: Can not convert value ", a[2], " of parameter ", a[1], " to boolean. In ", pf, " for module ", m[1], " line: ", line)
-							os.Exit(1)
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + a[1] + " to boolean. In " + pf + " for module " + m[1] + " line: " + line)
 						}
 						gm.link = link
 					} else if a[1] == "ignore-unreachable" || a[1] == "ignore_unreachable" {
 						ignoreUnreachable, err := strconv.ParseBool(a[2])
 						if err != nil {
-							log.Fatal("Error: Can not convert value ", a[2], " of parameter ", a[1], " to boolean. In ", pf, " for module ", m[1], " line: ", line)
-							os.Exit(1)
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + a[1] + " to boolean. In " + pf + " for module " + m[1] + " line: " + line)
 						}
 						gm.ignoreUnreachable = ignoreUnreachable
 					}
