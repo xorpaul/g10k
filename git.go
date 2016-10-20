@@ -9,15 +9,26 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/xorpaul/uiprogress"
 )
 
 func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
+	if len(uniqueGitModules) <= 0 {
+		Debugf("resolveGitRepositories(): uniqueGitModules[] is empty, skipping...")
+		return
+	}
 	var wgGit sync.WaitGroup
+	bar := uiprogress.AddBar(len(uniqueGitModules)).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Resolving Git modules (%d/%d)", b.Current(), len(uniqueGitModules))
+	})
 	for url, gm := range uniqueGitModules {
 		wgGit.Add(1)
 		privateKey := gm.privateKey
 		go func(url string, privateKey string, gm GitModule) {
 			defer wgGit.Done()
+			defer bar.Incr()
 			if len(gm.privateKey) > 0 {
 				Debugf("git repo url " + url + " with ssh key " + privateKey)
 			} else {

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/xorpaul/uiprogress"
 )
 
 func resolvePuppetEnvironment(envBranch string) {
@@ -119,6 +121,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			mutex.Unlock()
 		}
 	}
+	if !debug && !verbose && !info {
+		uiprogress.Start()
+	}
 	//fmt.Println(uniqueGitModules)
 	var wgResolve sync.WaitGroup
 	wgResolve.Add(2)
@@ -215,5 +220,8 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				Debugf("resolvePuppetfile(): Error while trying to remove unmanaged file " + d)
 			}
 		}
+	}
+	if !debug && !verbose && !info {
+		uiprogress.Stop()
 	}
 }

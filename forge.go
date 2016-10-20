@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,6 +20,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/klauspost/pgzip"
 	"github.com/tidwall/gjson"
+	"github.com/xorpaul/uiprogress"
 )
 
 func doModuleInstallOrNothing(m string, fm ForgeModule) {
@@ -398,14 +400,23 @@ func readModuleMetadata(file string) ForgeModule {
 }
 
 func resolveForgeModules(modules map[string]ForgeModule) {
+	if len(modules) <= 0 {
+		Debugf("resolveForgeModules(): empty ForgeModule[] found, skipping...")
+		return
+	}
 	var wgForge sync.WaitGroup
+	bar := uiprogress.AddBar(len(modules)).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Resolving Forge modules (%d/%d)", b.Current(), len(modules))
+	})
 	for m, fm := range modules {
 		wgForge.Add(1)
-		go func(m string, fm ForgeModule) {
+		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
 			defer wgForge.Done()
+			defer bar.Incr()
 			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl)
 			doModuleInstallOrNothing(m, fm)
-		}(m, fm)
+		}(m, fm, bar)
 	}
 	wgForge.Wait()
 }

@@ -149,12 +149,6 @@ func main() {
 		dryRun = true
 	}
 
-	if len(os.Getenv("VIMRUNTIME")) > 0 {
-		*configFile = "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/test.yaml"
-		*envBranchFlag = "invalid_modulename"
-		debug = true
-	}
-
 	target := ""
 	before := time.Now()
 	if len(*configFile) > 0 {
