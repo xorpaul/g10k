@@ -177,6 +177,10 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		mutex.Lock()
 		latestForgeModules[name] = version
 		mutex.Unlock()
+		// add empty metadata file for this Forge module
+		// this enable g10k to check when the latest version of this module was checked
+		// which works in combination with Puppetfile setting forge.CacheTtlMinutes setting
+		os.OpenFile(config.ForgeCacheDir+name+"-latest-checked", os.O_RDONLY|os.O_CREATE, 0666)
 		return ForgeResult{true, version, moduleHashsum, moduleFilesize}
 
 	} else if resp.Status == "304 Not Modified" {

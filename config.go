@@ -102,6 +102,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 	n := preparePuppetfile(pf)
 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]?")
+	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtlMinutes)\\s*['\"]?([^'\"]+)['\"]?")
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s*['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"/]+)['\"]\\s*,(.*)")
@@ -118,6 +119,13 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			puppetFile.moduleDir = m[1]
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
+			//fmt.Println("found forge base URL parameter ---> ", m[1])
+		} else if m := reForgeCacheTtl.FindStringSubmatch(line); len(m) > 1 {
+			ttl, err := strconv.Atoi(m[1])
+			if err != nil {
+				Fatalf("Error: Can not convert value " + m[1] + " of parameter " + m[0] + " to int. In " + pf + " line: " + line)
+			}
+			puppetFile.forgeCacheTtl = ttl
 			//fmt.Println("found forge base URL parameter ---> ", m[1])
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			//fmt.Println("found forge mod name ---> ", m[1])

@@ -35,6 +35,22 @@ func TestForgeChecksum(t *testing.T) {
 	if fmm.fileSize != expectedFmm.fileSize {
 		t.Error("Expected fileSize", expectedFmm.fileSize, "got", fmm.fileSize)
 	}
+}
+
+func TestForgeCacheTtlPuppetfile(t *testing.T) {
+	expected := regexp.MustCompile("(moduledir 'external_modules'\nforge.cacheTtlMinutes 500\n)")
+	got := preparePuppetfile("tests/TestForgeCacheTtlPuppetfile")
+
+	if !expected.MatchString(got) {
+		t.Error("Expected", expected, "got", got)
+	}
+
+	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTtl: 500}
+	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTtlPuppetfile", "", "test")
+
+	if gotPuppetfile.forgeCacheTtl != expectedPuppetfile.forgeCacheTtl {
+		t.Error("Expected for forgeCacheTtl", expectedPuppetfile.forgeCacheTtl, "got", gotPuppetfile.forgeCacheTtl)
+	}
 
 }
 
