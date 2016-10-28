@@ -3,7 +3,6 @@ package main
 import (
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -19,8 +18,9 @@ func resolvePuppetEnvironment(envBranch string) {
 			if force {
 				createOrPurgeDir(sa.Basedir, "resolvePuppetEnvironment()")
 			}
+
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
-			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + strconv.FormatBool(sa.Prefix) + ")")
+			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + sa.Prefix + ")")
 			if len(sa.PrivateKey) > 0 {
 				if _, err := os.Stat(sa.PrivateKey); err != nil {
 					Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + "error: " + err.Error())
@@ -52,8 +52,14 @@ func resolvePuppetEnvironment(envBranch string) {
 						defer wg.Done()
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
-							// TODO if sa.Prefix != true
-							targetDir := sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
+
+							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(branch, "/", "_", -1) + "/"
+							if sa.Prefix == "false" {
+								targetDir = sa.Basedir + strings.Replace(branch, "/", "_", -1) + "/"
+							} else if sa.Prefix == "true" {
+								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
+							}
+
 							syncToModuleDir(workDir, targetDir, branch, false)
 							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")

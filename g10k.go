@@ -45,24 +45,26 @@ type ConfigSettings struct {
 	ForgeCacheDir   string
 	ModulesCacheDir string
 	EnvCacheDir     string
-	Git             struct {
-		privateKey string `yaml:"private_key"`
-		username   string
-	}
-	Forge   Forge
-	Sources map[string]Source
-	Timeout int `yaml:"timeout"`
+	Git             Git
+	Forge           Forge
+	Sources         map[string]Source
+	Timeout         int `yaml:"timeout"`
 }
 
 type Forge struct {
 	Baseurl string `yaml:"baseurl"`
 }
 
+type Git struct {
+	privateKey string `yaml:"private_key"`
+	username   string
+}
+
 // Source contains basic information about a Puppet environment repository
 type Source struct {
 	Remote     string
 	Basedir    string
-	Prefix     bool
+	Prefix     string
 	PrivateKey string `yaml:"private_key"`
 }
 

@@ -30,8 +30,8 @@ func readConfigfile(configFile string) ConfigSettings {
 	//fmt.Println("config:", config)
 	//fmt.Println("config ----- forge:", config.Forge)
 	//for k, v := range config.Sources {
-	//	log.Print(k)
-	//	log.Print(v.Remote)
+	//	fmt.Print(k)
+	//	fmt.Print(v.Remote)
 	//}
 
 	// check if cachedir exists

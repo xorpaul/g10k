@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"regexp"
 	"testing"
 )
@@ -33,6 +34,26 @@ func TestForgeChecksum(t *testing.T) {
 
 	if fmm.fileSize != expectedFmm.fileSize {
 		t.Error("Expected fileSize", expectedFmm.fileSize, "got", fmm.fileSize)
+	}
+
+}
+
+func TestConfigPrefix(t *testing.T) {
+	got := readConfigfile("tests/TestConfigPrefix.yaml")
+
+	s := make(map[string]Source)
+	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
+		Basedir: "/tmp/example/", Prefix: "foobar", PrivateKey: ""}
+
+	expected := ConfigSettings{
+		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
+		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		Git:     Git{privateKey: "", username: ""},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Sources: s, Timeout: 5}
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Error("Expected ConfigSettings:", expected, ", but got ConfigSettings:", got)
 	}
 
 }
