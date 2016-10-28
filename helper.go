@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/kballard/go-shellquote"
 	"log"
 	"os"
 	"os/exec"
@@ -11,6 +9,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/kballard/go-shellquote"
 )
 
 // Debugf is a helper function for debug logging if global variable debug is set to true
@@ -60,8 +61,8 @@ func fileExists(file string) bool {
 func checkDirAndCreate(dir string, name string) string {
 	if !dryRun {
 		if len(dir) != 0 {
-			if _, err := os.Stat(dir); os.IsNotExist(err) {
-				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name)
+			if !fileExists(dir) {
+				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name){
 				if err := os.MkdirAll(dir, 0777); err != nil {
 					Fatalf("checkDirAndCreate(): Error: failed to create directory: " + dir)
 				}
@@ -80,7 +81,7 @@ func checkDirAndCreate(dir string, name string) string {
 
 func createOrPurgeDir(dir string, callingFunction string) {
 	if !dryRun {
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if !fileExists(dir) {
 			Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
 			os.Mkdir(dir, 0777)
 		} else {
@@ -95,7 +96,7 @@ func createOrPurgeDir(dir string, callingFunction string) {
 }
 
 func purgeDir(dir string, callingFunction string) {
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
+	if !fileExists(dir) {
 		Debugf("purgeDir(): Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
 	} else {
 		Debugf("purgeDir(): Trying to remove: " + dir + " called from " + callingFunction)

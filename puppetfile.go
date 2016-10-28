@@ -61,7 +61,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							}
 
 							syncToModuleDir(workDir, targetDir, branch, false)
-							if _, err := os.Stat(targetDir + "Puppetfile"); os.IsNotExist(err) {
+							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
 								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source)
@@ -97,34 +97,28 @@ func resolvePuppetEnvironment(envBranch string) {
 
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	var wg sync.WaitGroup
-	uniqueGitModules := make(map[string]GitModule)
-	uniqueForgeModules = make(map[string]ForgeModule)
-	latestForgeModules = make(map[string]string)
 	exisitingModuleDirs := make(map[string]struct{})
+	uniqueGitModules := make(map[string]GitModule)
+	uniqueForgeModules := make(map[string]ForgeModule)
+	// if we made it this far initialize the global maps
+	latestForgeModules.m = make(map[string]string)
 	for env, pf := range allPuppetfiles {
 		Debugf("Resolving " + env)
 		//fmt.Println(pf)
 		for _, gitModule := range pf.gitModules {
 			gitModule.privateKey = pf.privateKey
-			mutex.Lock()
 			if _, ok := uniqueGitModules[gitModule.git]; !ok {
 				uniqueGitModules[gitModule.git] = gitModule
 			}
-			mutex.Unlock()
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			//fmt.Println("Found Forge module ", forgeModuleName, " with version", fm.version)
-			if len(pf.forgeBaseURL) > 0 {
-				fm.baseUrl = pf.forgeBaseURL
-			} else {
-				fm.baseUrl = ""
-			}
-			mutex.Lock()
+			fm.baseUrl = pf.forgeBaseURL
+			fm.cacheTtl = pf.forgeCacheTtl
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			if _, ok := uniqueForgeModules[forgeModuleName+"-"+fm.version]; !ok {
 				uniqueForgeModules[forgeModuleName+"-"+fm.version] = fm
 			}
-			mutex.Unlock()
 		}
 	}
 	if !debug && !verbose && !info {

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 )
 
 func TestPreparePuppetfile(t *testing.T) {
@@ -38,14 +39,14 @@ func TestForgeChecksum(t *testing.T) {
 }
 
 func TestForgeCacheTtlPuppetfile(t *testing.T) {
-	expected := regexp.MustCompile("(moduledir 'external_modules'\nforge.cacheTtlMinutes 500\n)")
+	expected := regexp.MustCompile("(moduledir 'external_modules'\nforge.cacheTtl 50m\n)")
 	got := preparePuppetfile("tests/TestForgeCacheTtlPuppetfile")
 
 	if !expected.MatchString(got) {
 		t.Error("Expected", expected, "got", got)
 	}
 
-	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTtl: 500}
+	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTtl: 50 * time.Minute}
 	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTtlPuppetfile", "", "test")
 
 	if gotPuppetfile.forgeCacheTtl != expectedPuppetfile.forgeCacheTtl {

@@ -36,8 +36,13 @@ var (
 	gmetadataJsonParseTime float64
 	buildtime              string
 	uniqueForgeModules     map[string]ForgeModule
-	latestForgeModules     map[string]string
+	latestForgeModules     LatestForgeModules
 )
+
+type LatestForgeModules struct {
+	sync.RWMutex
+	m map[string]string
+}
 
 // ConfigSettings contains the key value pairs from the g10k config file
 type ConfigSettings struct {
@@ -72,7 +77,7 @@ type Source struct {
 type Puppetfile struct {
 	moduleDir     string
 	forgeBaseURL  string
-	forgeCacheTtl int
+	forgeCacheTtl time.Duration
 	forgeModules  map[string]ForgeModule
 	gitModules    map[string]GitModule
 	privateKey    string
@@ -87,6 +92,7 @@ type ForgeModule struct {
 	hashSum  string
 	fileSize int64
 	baseUrl  string
+	cacheTtl time.Duration
 }
 
 // GitModule contains information about a Git Puppet module

@@ -49,14 +49,6 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 }
 
 func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool) bool {
-	dirExists := false
-	if _, err := os.Stat(workDir); os.IsNotExist(err) {
-		dirExists = false
-	} else {
-		dirExists = true
-		//doCheckout = compareGitVersions(workDir, url, branch)
-	}
-
 	needSSHKey := true
 	if strings.Contains(url, "github.com") || len(sshPrivateKey) == 0 {
 		needSSHKey = false
@@ -67,7 +59,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + url + " " + workDir
-	if dirExists {
+	if fileExists(workDir) {
 		gitCmd = "git --git-dir " + workDir + " remote update --prune"
 	}
 

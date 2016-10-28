@@ -1,2 +1,2 @@
 moduledir 'external_modules'
-forge.cacheTtlMinutes 500
+forge.cacheTtl 50m

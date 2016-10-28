@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 // readConfigfile creates the ConfigSettings struct from the g10k config file
@@ -101,11 +103,11 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 
 	n := preparePuppetfile(pf)
 
-	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s*['\"]?([^'\"]+)['\"]?")
-	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtlMinutes)\\s*['\"]?([^'\"]+)['\"]?")
-	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s*['\"]?([^'\"]+)['\"]?")
-	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
-	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s*['\"]?([^'\"/]+)['\"]\\s*,(.*)")
+	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtl)\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
+	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	//moduleName := ""
 	//nextLineAttr := false
@@ -121,12 +123,11 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			puppetFile.forgeBaseURL = m[1]
 			//fmt.Println("found forge base URL parameter ---> ", m[1])
 		} else if m := reForgeCacheTtl.FindStringSubmatch(line); len(m) > 1 {
-			ttl, err := strconv.Atoi(m[1])
+			ttl, err := time.ParseDuration(m[1])
 			if err != nil {
-				Fatalf("Error: Can not convert value " + m[1] + " of parameter " + m[0] + " to int. In " + pf + " line: " + line)
+				Fatalf("Error: Can not convert value " + m[1] + " of parameter " + m[0] + " to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In " + pf + " line: " + line)
 			}
 			puppetFile.forgeCacheTtl = ttl
-			//fmt.Println("found forge base URL parameter ---> ", m[1])
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			//fmt.Println("found forge mod name ---> ", m[1])
 			comp := strings.Split(m[1], "/")

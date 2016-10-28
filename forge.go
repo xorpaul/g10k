@@ -33,7 +33,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		moduleVersion = "latest"
 	}
 	if moduleVersion == "latest" {
-		if _, err := os.Stat(workDir); os.IsNotExist(err) {
+		if !fileExists(workDir) {
 			Debugf("doModuleInstallOrNothing(): " + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(moduleName, "false", fm)
@@ -57,6 +57,22 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 				}
 			}
 		} else {
+			if fm.cacheTtl > 0 {
+				lastCheckedFile := workDir + "-last-checked"
+				//Debugf("doModuleInstallOrNothing(): checking for " + lastCheckedFile)
+				if fileInfo, err := os.Lstat(lastCheckedFile); err == nil {
+					//Debugf("doModuleInstallOrNothing(): found " + lastCheckedFile + " with mTime " + fileInfo.ModTime().String())
+					if fileInfo.ModTime().Add(fm.cacheTtl).After(time.Now()) {
+						Debugf("doModuleInstallOrNothing(): No need to check forge API if latest version of module " + moduleName + " has been updated, because last-checked file " + lastCheckedFile + " is not older than " + fm.cacheTtl.String())
+						// need to add the current (cached!) -latest version number to the latestForgeModules, because otherwise we would always sync this module, because 1.4.1 != -latest
+						me := readModuleMetadata(workDir + "/metadata.json")
+						latestForgeModules.Lock()
+						latestForgeModules.m[moduleName] = me.version
+						latestForgeModules.Unlock()
+						return
+					}
+				}
+			}
 			// check forge API if latest version of this module has been updated
 			Debugf("doModuleInstallOrNothing(): check forge API if latest version of module " + moduleName + " has been updated")
 			// XXX: disable adding If-Modified-Since header for now
@@ -69,7 +85,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 	} else if moduleVersion == "present" {
 		// ensure that a latest version this module exists
 		latestDir := config.ForgeCacheDir + moduleName + "-latest"
-		if _, err := os.Stat(latestDir); os.IsNotExist(err) {
+		if !fileExists(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
 				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
@@ -80,7 +96,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		}
 		Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
 	} else {
-		if _, err := os.Stat(workDir); os.IsNotExist(err) {
+		if !fileExists(workDir) {
 			fr.needToGet = true
 		} else {
 			Debugf("doModuleInstallOrNothing(): Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
@@ -99,8 +115,10 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
 				Debugf("doModuleInstallOrNothing(): No reason to re-symlink again")
 			} else {
-				Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
-				_ = os.Remove(workDir)
+				if fileExists(workDir) {
+					Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
+					_ = os.Remove(workDir)
+				}
 				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
 				absolutePath, err := filepath.Abs(versionDir)
 				if err != nil {
@@ -174,13 +192,15 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		mutex.Unlock()
 
 		Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
-		mutex.Lock()
-		latestForgeModules[name] = version
-		mutex.Unlock()
-		// add empty metadata file for this Forge module
-		// this enable g10k to check when the latest version of this module was checked
-		// which works in combination with Puppetfile setting forge.CacheTtlMinutes setting
-		os.OpenFile(config.ForgeCacheDir+name+"-latest-checked", os.O_RDONLY|os.O_CREATE, 0666)
+		latestForgeModules.Lock()
+		latestForgeModules.m[name] = version
+		latestForgeModules.Unlock()
+
+		lastCheckedFile := config.ForgeCacheDir + name + "-latest-last-checked"
+		Debugf("queryForgeAPI(): writing last-checked file " + lastCheckedFile)
+		f, _ := os.Create(lastCheckedFile)
+		defer f.Close()
+
 		return ForgeResult{true, version, moduleHashsum, moduleFilesize}
 
 	} else if resp.Status == "304 Not Modified" {
@@ -248,8 +268,8 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
-	if _, err := os.Stat(config.ForgeCacheDir + name + "-" + version); os.IsNotExist(err) {
 
+	if !fileExists(config.ForgeCacheDir + name + "-" + version) {
 		baseUrl := config.Forge.Baseurl
 		if len(fm.baseUrl) > 0 {
 			baseUrl = fm.baseUrl
@@ -418,7 +438,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
 			defer wgForge.Done()
 			defer bar.Incr()
-			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl)
+			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + "and CacheTtl set to " + fm.cacheTtl.String())
 			doModuleInstallOrNothing(m, fm)
 		}(m, fm, bar)
 	}
@@ -504,11 +524,13 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	targetDir := moduleDir + m.name
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	if m.version == "present" {
-		if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
+		if fileExists(targetDir + "metadata.json") {
 			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
 			if check4update {
 				me := readModuleMetadata(targetDir + "metadata.json")
-				check4ForgeUpdate(m.name, me.version, latestForgeModules[moduleName])
+				latestForgeModules.RLock()
+				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
+				latestForgeModules.RUnlock()
 			}
 			return
 		}
@@ -516,17 +538,20 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		m.version = "latest"
 
 	}
-	if _, err := os.Stat(targetDir + "metadata.json"); err == nil {
+	if fileExists(targetDir + "metadata.json") {
 		me := readModuleMetadata(targetDir + "metadata.json")
 		if m.version == "latest" {
-			//log.Println(latestForgeModules)
-			if _, ok := latestForgeModules[moduleName]; ok {
-				Debugf("syncForgeToModuleDir(): using version " + latestForgeModules[moduleName] + " for " + moduleName + "-" + m.version)
-				m.version = latestForgeModules[moduleName]
+			latestForgeModules.RLock()
+			if _, ok := latestForgeModules.m[moduleName]; ok {
+				Debugf("syncForgeToModuleDir(): using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
+				m.version = latestForgeModules.m[moduleName]
 			}
+			latestForgeModules.RUnlock()
 		}
 		if check4update {
-			check4ForgeUpdate(m.name, me.version, latestForgeModules[moduleName])
+			latestForgeModules.RLock()
+			check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
+			latestForgeModules.RUnlock()
 		}
 		if me.version == m.version {
 			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
@@ -536,7 +561,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		createOrPurgeDir(targetDir, " targetDir for module "+me.name)
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
-	if _, err := os.Stat(workDir); os.IsNotExist(err) {
+	if !fileExists(workDir) {
 		Fatalf("syncForgeToModuleDir(): Forge module not found in dir: " + workDir)
 	} else {
 		Infof("Need to sync " + targetDir)
