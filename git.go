@@ -76,7 +76,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	return true
 }
 
-func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool) {
+func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool) bool {
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
@@ -85,9 +85,11 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true
 	if er.returnCode != 0 && allowFail {
-		Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
-		purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
-		return
+		if ignoreUnreachable {
+			Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+			purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
+		}
+		return false
 	}
 
 	if len(er.output) > 0 {
@@ -118,7 +120,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 					Fatalf("syncToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out))
 				} else {
 					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
-					return
+					return false
 				}
 			}
 
@@ -132,4 +134,5 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			}
 		}
 	}
+	return true
 }

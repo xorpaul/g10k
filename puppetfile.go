@@ -60,7 +60,7 @@ func resolvePuppetEnvironment(envBranch string) {
 								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
 							}
 
-							syncToModuleDir(workDir, targetDir, branch, false)
+							syncToModuleDir(workDir, targetDir, branch, false, false)
 							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
@@ -187,7 +187,25 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						tree = envBranch
 					}
 				}
-				syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree, gitModule.ignoreUnreachable)
+				success := false
+				//fmt.Println(gitModule.fallback)
+				if len(gitModule.fallback) > 0 {
+					success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree, true, gitModule.ignoreUnreachable)
+					if !success {
+						for i, fallbackBranch := range gitModule.fallback {
+							if i == len(gitModule.fallback)-1 {
+								// last try
+								gitModule.ignoreUnreachable = true
+							}
+							success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, fallbackBranch, true, gitModule.ignoreUnreachable)
+							if success {
+								break
+							}
+						}
+					}
+				} else {
+					success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable)
+				}
 
 				// remove this module from the exisitingModuleDirs map
 				mutex.Lock()

@@ -133,7 +133,11 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	mutex.Lock()
 	syncGitTime += duration
 	mutex.Unlock()
-	Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	if allowFail && err != nil {
+		Debugf("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	} else {
+		Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	}
 	if err != nil {
 		if !allowFail {
 			Fatalf("executeCommand(): git command failed: " + command + " " + err.Error() + "\nOutput: " + string(out) +

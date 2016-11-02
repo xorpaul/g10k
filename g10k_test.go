@@ -7,6 +7,31 @@ import (
 	"time"
 )
 
+func comparePuppetfile(a, b GitModule) bool {
+	if &a == &b {
+		return true
+	}
+	if a.git != b.git || a.link != b.link ||
+		a.privateKey != b.privateKey ||
+		a.branch != b.branch ||
+		a.tag != b.tag ||
+		a.commit != b.commit ||
+		a.ref != b.ref ||
+		a.link != b.link ||
+		a.ignoreUnreachable != b.ignoreUnreachable {
+		return false
+	}
+	if len(a.fallback) != len(b.fallback) {
+		return false
+	}
+	for i, v := range a.fallback {
+		if b.fallback[i] != v {
+			return false
+		}
+	}
+	return true
+}
+
 func TestPreparePuppetfile(t *testing.T) {
 	expected := regexp.MustCompile("(moduledir 'external_modules'\nmod 'puppetlabs/ntp')")
 	got := preparePuppetfile("tests/TestPreparePuppetfile")
@@ -71,6 +96,34 @@ func TestConfigPrefix(t *testing.T) {
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Error("Expected ConfigSettings:", expected, ", but got ConfigSettings:", got)
+	}
+}
+
+func TestFallbackPuppetfile(t *testing.T) {
+	fallbackMapExample := make([]string, 1)
+	fallbackMapExample[0] = "master"
+
+	fallbackMapAnother := make([]string, 4)
+	fallbackMapAnother[0] = "dev"
+	fallbackMapAnother[1] = "qa"
+	fallbackMapAnother[2] = "prelive"
+	fallbackMapAnother[3] = "live"
+
+	gm := make(map[string]GitModule)
+	gm["example_module"] = GitModule{git: "git@somehost.com/foo/example-module.git",
+		link: true, ignoreUnreachable: false, fallback: fallbackMapExample}
+	gm["another_module"] = GitModule{git: "git@somehost.com/foo/another-module.git",
+		link: true, ignoreUnreachable: false, fallback: fallbackMapAnother}
+
+	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
+	got := readPuppetfile("tests/TestFallbackPuppetfile", "", "test")
+
+	if !comparePuppetfile(got.gitModules["example_module"], expected.gitModules["example_module"]) {
+		t.Error("Expected gitModules:", expected.gitModules["example_module"], ", but got gitModules:", got.gitModules["example_module"])
+	}
+
+	if !comparePuppetfile(got.gitModules["another_module"], expected.gitModules["another_module"]) {
+		t.Error("Expected gitModules:", expected.gitModules["another_module"], ", but got gitModules:", got.gitModules["another_module"])
 	}
 
 }
