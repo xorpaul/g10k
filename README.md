@@ -108,6 +108,11 @@ See https://github.com/xorpaul/g10k/issues/9 for details.
 ```
 forge.baseUrl http://foobar.domain.tld/
 ```
+- skip version checks for latest Forge modules for a certain time to speed up the sync
+```
+forge.cacheTtl 4h
+```
+You need to specify the TTL value in the form of golang Duration (https://golang.org/pkg/time/#ParseDuration)
 
 # building
 ```
