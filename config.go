@@ -108,7 +108,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	//moduleName := ""
 	//nextLineAttr := false
 
@@ -156,17 +156,17 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			}
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
+				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
 				if strings.Count(gitModuleAttributes, ":git") < 1 {
 					Fatalf("Error: Missing :git url in " + pf + " for module " + m[1] + " line: " + line)
 				}
-				if strings.Count(gitModuleAttributes, ",") > 2 {
+				if strings.Count(gitModuleAttributes, ",") > 3 {
 					Fatalf("Error: Too many attributes in " + pf + " for module " + m[1] + " line: " + line)
 				}
 				if _, ok := puppetFile.gitModules[m[1]]; ok {
 					Fatalf("Error: Duplicate module found in " + pf + " for module " + m[1] + " line: " + line)
 				}
 				puppetFile.gitModules[m[1]] = GitModule{}
-				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
 				gm := GitModule{}
 				gitModuleAttributesArray := strings.Split(gitModuleAttributes, ",")
 				//fmt.Println("found git mod attribute array ---> ", gitModuleAttributesArray)
@@ -203,6 +203,13 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + a[1] + " to boolean. In " + pf + " for module " + m[1] + " line: " + line)
 						}
 						gm.ignoreUnreachable = ignoreUnreachable
+					} else if a[1] == "fallback" {
+						mapSize := strings.Count(a[2], "|") + 1
+						gm.fallback = make([]string, mapSize)
+						for i, fallbackBranch := range strings.Split(a[2], "|") {
+							//fmt.Println("--------> ", i, strings.TrimSpace(fallbackBranch))
+							gm.fallback[i] = strings.TrimSpace(fallbackBranch)
+						}
 					}
 
 				}

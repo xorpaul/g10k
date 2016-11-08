@@ -114,6 +114,31 @@ forge.cacheTtl 4h
 ```
 You need to specify the TTL value in the form of golang Duration (https://golang.org/pkg/time/#ParseDuration)
 
+- try multiple Git branches for a Puppet modul until one can be used
+```
+mod 'puppetlabs-stdlib',
+    :git => 'https://github.com/puppetlabs/puppetlabs-stdlib.git',
+    :fallback => '4.889.x|foobar|master'
+```
+
+In this example g10k tries to use the branches:
+
+`4.889.x` -> `foobar` -> `master`
+
+Because there are no branches `4.889.x` or `foobar`.
+
+All without failing or error messages.
+
+Tip: You can see which branch was used, when using the `-verbose` parameter:
+
+```
+./g10k -puppetfile -verbose
+2016/11/08 14:16:40 Executing git --git-dir ./tmp/https-__github.com_puppetlabs_puppetlabs-stdlib.git remote update --prune took 1.05001s
+2016/11/08 14:16:40 Executing git --git-dir ./tmp/https-__github.com_puppetlabs_puppetlabs-stdlib.git log -n1 --pretty=format:%H master took 0.00299s
+Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git (1.1s sync, I/O 0.0s) and Forge (0.0s query+download, I/O 0.0s)
+```
+
+
 # building
 ```
 # only initially needed to resolve all dependencies
