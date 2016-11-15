@@ -138,6 +138,25 @@ Tip: You can see which branch was used, when using the `-verbose` parameter:
 Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git (1.1s sync, I/O 0.0s) and Forge (0.0s query+download, I/O 0.0s)
 ```
 
+# additional g10k config features compared to r10k
+- you can enforce version numbers of Forge modules in your Puppetfiles instead of `:latest` or `:present` by adding `force_forge_versions: true` to the g10k config in the specific resource
+
+```
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    force_forge_versions: true
+```
+
+If g10k then encounters `:latest` or `:present` for a Forge module it errors out with:
+
+```
+2016/11/15 18:45:38 Error: Found present setting for forge module in /tmp/example/example_benchmark/Puppetfile for module puppetlabs/concat line: mod 'puppetlabs/concat' and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')
+```
 
 # building
 ```

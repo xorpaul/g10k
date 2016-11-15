@@ -6,3 +6,4 @@ sources:
     remote: 'https://github.com/xorpaul/g10k-environment.git'
     basedir: '/tmp/example/'
     prefix: true
+    force_forge_versions: true
