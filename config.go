@@ -70,7 +70,7 @@ func preparePuppetfile(pf string) string {
 	pfString := ""
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 		if !reComment.MatchString(line) && !reEmpty.MatchString(line) {
 			if strings.Contains(line, "#") {
 				Debugf("found inline comment in " + pf + "line: " + line)
@@ -93,7 +93,7 @@ func preparePuppetfile(pf string) string {
 }
 
 // readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
+func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions bool) Puppetfile {
 	var puppetFile Puppetfile
 	puppetFile.privateKey = sshKey
 	puppetFile.source = source
@@ -109,6 +109,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	//moduleName := ""
 	//nextLineAttr := false
 
@@ -139,6 +140,9 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 			}
 			if len(m[3]) > 1 {
 				if m[3] == ":latest" {
+					if forceForgeVersions {
+						Fatalf("Error: Found latest setting for forge module in " + pf + " for module " + m[1] + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
+					}
 					puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest", name: comp[1], author: comp[0]}
 				} else {
 					puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3], name: comp[1], author: comp[0]}
@@ -147,26 +151,38 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 				//fmt.Println("found forge mod attribute ---> ", m[3])
 			} else {
 				//puppetFile.forgeModules[m[1]] = ForgeModule{}
+				if forceForgeVersions {
+					Fatalf("Error: Found present setting for forge module in " + pf + " for module " + m[1] + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
+				}
 				puppetFile.forgeModules[m[1]] = ForgeModule{version: "present", name: comp[1], author: comp[0]}
 			}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
-			//fmt.Println("found git mod name ---> ", m[1])
-			if strings.Contains(m[1], "-") {
-				Warnf("Warning: Found invalid character '-' in Puppet module name " + m[1] + " in " + pf + " line: " + line)
+			gitModuleName := m[1]
+			//fmt.Println("found git mod name ---> ", gitModuleName)
+			if strings.Contains(gitModuleName, "-") {
+				Warnf("Warning: Found invalid character '-' in Puppet module name " + gitModuleName + " in " + pf + " line: " + line)
 			}
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
 				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
 				if strings.Count(gitModuleAttributes, ":git") < 1 {
-					Fatalf("Error: Missing :git url in " + pf + " for module " + m[1] + " line: " + line)
+					Fatalf("Error: Missing :git url in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
 				if strings.Count(gitModuleAttributes, ",") > 3 {
-					Fatalf("Error: Too many attributes in " + pf + " for module " + m[1] + " line: " + line)
+					Fatalf("Error: Too many attributes in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
-				if _, ok := puppetFile.gitModules[m[1]]; ok {
-					Fatalf("Error: Duplicate module found in " + pf + " for module " + m[1] + " line: " + line)
+				if _, ok := puppetFile.gitModules[gitModuleName]; ok {
+					Fatalf("Error: Duplicate module found in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
-				puppetFile.gitModules[m[1]] = GitModule{}
+				gas := reUniqueGitAttribute.FindAllStringSubmatch(gitModuleAttributes, -1)
+				cga := ""
+				if len(gas) > 1 {
+					for _, ga := range gas {
+						cga += strings.TrimSpace(strings.Replace(ga[0], "=>", "", -1)) + ", "
+					}
+					Fatalf("Error: Found conflicting git attributes " + cga + "in " + pf + " for module " + gitModuleName + " line: " + line)
+				}
+				puppetFile.gitModules[gitModuleName] = GitModule{}
 				gm := GitModule{}
 				gitModuleAttributesArray := strings.Split(gitModuleAttributes, ",")
 				//fmt.Println("found git mod attribute array ---> ", gitModuleAttributesArray)
@@ -174,36 +190,37 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 				for i := 0; i <= strings.Count(gitModuleAttributes, ","); i++ {
 					//fmt.Println("i -->", i)
 					if i >= len(gitModuleAttributesArray) {
-						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + m[1] + " line: " + line)
+						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + gitModuleName + " line: " + line)
 					}
 					a := reGitAttribute.FindStringSubmatch(gitModuleAttributesArray[i])
 					//fmt.Println("a -->", a)
 					if len(a) == 0 {
-						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + m[1] + " line: " + line)
+						Fatalf("Error: Trailing comma or invalid setting for module found in " + pf + " for module " + gitModuleName + " line: " + line)
 					}
-					if a[1] == "git" {
+					gitModuleAttribute := a[1]
+					if gitModuleAttribute == "git" {
 						gm.git = a[2]
-					} else if a[1] == "branch" {
+					} else if gitModuleAttribute == "branch" {
 						gm.branch = a[2]
-					} else if a[1] == "tag" {
+					} else if gitModuleAttribute == "tag" {
 						gm.tag = a[2]
-					} else if a[1] == "commit" {
+					} else if gitModuleAttribute == "commit" {
 						gm.commit = a[2]
-					} else if a[1] == "ref" {
+					} else if gitModuleAttribute == "ref" {
 						gm.ref = a[2]
-					} else if a[1] == "link" {
+					} else if gitModuleAttribute == "link" {
 						link, err := strconv.ParseBool(a[2])
 						if err != nil {
-							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + a[1] + " to boolean. In " + pf + " for module " + m[1] + " line: " + line)
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + gitModuleAttribute + " to boolean. In " + pf + " for module " + gitModuleName + " line: " + line)
 						}
 						gm.link = link
-					} else if a[1] == "ignore-unreachable" || a[1] == "ignore_unreachable" {
+					} else if gitModuleAttribute == "ignore-unreachable" || gitModuleAttribute == "ignore_unreachable" {
 						ignoreUnreachable, err := strconv.ParseBool(a[2])
 						if err != nil {
-							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + a[1] + " to boolean. In " + pf + " for module " + m[1] + " line: " + line)
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + gitModuleAttribute + " to boolean. In " + pf + " for module " + gitModuleName + " line: " + line)
 						}
 						gm.ignoreUnreachable = ignoreUnreachable
-					} else if a[1] == "fallback" {
+					} else if gitModuleAttribute == "fallback" {
 						mapSize := strings.Count(a[2], "|") + 1
 						gm.fallback = make([]string, mapSize)
 						for i, fallbackBranch := range strings.Split(a[2], "|") {
@@ -213,7 +230,7 @@ func readPuppetfile(pf string, sshKey string, source string) Puppetfile {
 					}
 
 				}
-				puppetFile.gitModules[m[1]] = gm
+				puppetFile.gitModules[gitModuleName] = gm
 			}
 		}
 
