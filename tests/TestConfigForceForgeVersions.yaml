@@ -1,0 +1,9 @@
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    force_forge_versions: true
+    prefix: foobar

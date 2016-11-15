@@ -1,0 +1,6 @@
+moduledir 'external_modules'
+
+mod 'puppetlabs-stdlib',
+    :git => 'https://github.com/puppetlabs/puppetlabs-stdlib.git',
+    :branch => 'master',
+    :tag => '4.3.x'

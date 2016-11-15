@@ -4,5 +4,5 @@ mod 'example_module',
     :fallback => 'master'
 mod 'another_module',
     :git => 'git@somehost.com/foo/another-module.git',
-    :link => true,
+    :branch => 'master',
     :fallback => 'dev|qa |prelive| live'
