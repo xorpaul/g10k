@@ -67,10 +67,11 @@ type Git struct {
 
 // Source contains basic information about a Puppet environment repository
 type Source struct {
-	Remote     string
-	Basedir    string
-	Prefix     string
-	PrivateKey string `yaml:"private_key"`
+	Remote             string
+	Basedir            string
+	Prefix             string
+	PrivateKey         string `yaml:"private_key"`
+	ForceForgeVersions bool   `yaml:"force_forge_versions"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile
@@ -194,7 +195,7 @@ func main() {
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings}
 			target = "./Puppetfile"
-			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam")
+			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam", false)
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)
