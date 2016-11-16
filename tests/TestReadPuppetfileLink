@@ -1,5 +1,0 @@
-mod 'example_module',
-  :git => 'git@somehost.com/foo/example-module.git',
-  :branch => 'foo',
-  :link => rue
-

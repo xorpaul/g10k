@@ -211,7 +211,24 @@ func TestForceForgeVersionsPuppetfile(t *testing.T) {
 		return
 	}
 	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
+}
 
+func TestForceForgeVersionsPuppetfileCorrect(t *testing.T) {
+	t.Parallel()
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		readPuppetfile("tests/"+funcName, "", "test", true)
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	err := cmd.Run()
+
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 0", err)
+	}
+	return
 }
 
 func TestReadPuppetfileDuplicateGitAttribute(t *testing.T) {
