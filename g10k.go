@@ -82,6 +82,7 @@ type Puppetfile struct {
 	gitModules    map[string]GitModule
 	privateKey    string
 	source        string
+	workDir       string
 }
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
