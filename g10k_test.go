@@ -7,11 +7,11 @@ import (
 
 func TestForgeChecksum(t *testing.T) {
 	t.Parallel()
-	expectedFmm := ForgeModule{hashSum: "8a8c741978e578921e489774f05e9a65", fileSize: 57358}
+	expectedFmm := ForgeModule{md5sum: "8a8c741978e578921e489774f05e9a65", fileSize: 57358}
 	fmm := getMetadataForgeModule(ForgeModule{version: "2.2.0", name: "apt", author: "puppetlabs", baseUrl: "https://forgeapi.puppetlabs.com"})
 
-	if fmm.hashSum != expectedFmm.hashSum {
-		t.Error("Expected hashSum", expectedFmm.hashSum, "got", fmm.hashSum)
+	if fmm.md5sum != expectedFmm.md5sum {
+		t.Error("Expected md5sum", expectedFmm.md5sum, "got", fmm.md5sum)
 	}
 
 	if fmm.fileSize != expectedFmm.fileSize {

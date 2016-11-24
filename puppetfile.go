@@ -139,7 +139,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wgResolve.Wait()
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
-		Debugf("Syncing " + env)
+		Debugf("Syncing " + env + " with workDir " + pf.workDir)
 		basedir := checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
 		moduleDir := pf.workDir + pf.moduleDir
 		var envBranch string

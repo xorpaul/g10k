@@ -17,29 +17,35 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		a.forgeCacheTtl != b.forgeCacheTtl ||
 		a.privateKey != b.privateKey ||
 		a.source != b.source {
+		Debugf("equalPuppetfile(): moduleDir, forgeBaseURL, forgeCacheTtl, privateKey or source isn't equal!")
 		return false
 	}
 
 	if len(a.gitModules) != len(b.gitModules) ||
 		len(a.forgeModules) != len(b.forgeModules) {
+		Debugf("equalPuppetfile(): size of gitModules or forgeModules isn't equal!")
 		return false
 	}
 
 	for gitModuleName, gm := range a.gitModules {
 		if _, ok := b.gitModules[gitModuleName]; !ok {
+			Debugf("equalPuppetfile(): git module " + gitModuleName + " missing!")
 			return false
 		}
 		if !equalGitModule(gm, b.gitModules[gitModuleName]) {
+			Debugf("equalPuppetfile(): git module " + gitModuleName + " isn't equal!")
 			return false
 		}
 	}
 
 	for forgeModuleName, fm := range a.forgeModules {
 		if _, ok := b.forgeModules[forgeModuleName]; !ok {
+			Debugf("equalPuppetfile(): forge module " + forgeModuleName + " missing!")
 			return false
 		}
 		//fmt.Println("checking Forge module: ", forgeModuleName, fm)
 		if !equalForgeModule(fm, b.forgeModules[forgeModuleName]) {
+			Debugf("equalPuppetfile(): forge module " + forgeModuleName + " isn't equal!")
 			return false
 		}
 	}
@@ -53,7 +59,8 @@ func equalForgeModule(a, b ForgeModule) bool {
 	}
 	if a.author != b.author || a.name != b.name ||
 		a.version != b.version ||
-		a.hashSum != b.hashSum ||
+		a.md5sum != b.md5sum ||
+		a.sha256sum != b.sha256sum ||
 		a.fileSize != b.fileSize ||
 		a.baseUrl != b.baseUrl ||
 		a.cacheTtl != b.cacheTtl {
@@ -66,7 +73,7 @@ func equalGitModule(a, b GitModule) bool {
 	if &a == &b {
 		return true
 	}
-	if a.git != b.git || a.link != b.link ||
+	if a.git != b.git ||
 		a.privateKey != b.privateKey ||
 		a.branch != b.branch ||
 		a.tag != b.tag ||
@@ -475,4 +482,22 @@ func TestReadPuppetfileLink(t *testing.T) {
 	}
 	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
 
+}
+
+func TestReadPuppetfileChecksumAttribute(t *testing.T) {
+	t.Parallel()
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false)
+
+	fm := make(map[string]ForgeModule)
+	fm["puppetlabs/ntp"] = ForgeModule{version: "present", author: "puppetlabs", name: "ntp", sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
+	fm["puppetlabs/stdlib"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "stdlib", sha256sum: "433c69fb99a46185e81619fadb70e0961bce2f4e952294a16e61364210d1519d"}
+	fm["puppetlabs/apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt", sha256sum: "a09290c207bbfed7f42dd0356ff4dee16e138c7f9758d2134a21aeb66e14072f"}
+	fm["puppetlabs/concat"] = ForgeModule{version: "2.2.0", author: "puppetlabs", name: "concat", sha256sum: "ec0407abab71f57e106ade6ed394410d08eec29bdad4c285580e7b56514c5194"}
+
+	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+
+	if !equalPuppetfile(got, expected) {
+		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
+	}
 }

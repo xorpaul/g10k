@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -184,7 +185,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 
 		duration := time.Since(before).Seconds()
 		version := currentRelease["version"].String()
-		moduleHashsum := currentRelease["file_md5"].String()
+		modulemd5sum := currentRelease["file_md5"].String()
 		moduleFilesize := currentRelease["file_size"].Int()
 
 		mutex.Lock()
@@ -201,7 +202,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		f, _ := os.Create(lastCheckedFile)
 		defer f.Close()
 
-		return ForgeResult{true, version, moduleHashsum, moduleFilesize}
+		return ForgeResult{true, version, modulemd5sum, moduleFilesize}
 
 	} else if resp.Status == "304 Not Modified" {
 		Debugf("queryForgeAPI(): Got 304 nothing to do for module " + name)
@@ -250,15 +251,15 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 		before := time.Now()
 		currentRelease := gjson.Parse(string(body)).Map()
 		duration := time.Since(before).Seconds()
-		moduleHashsum := currentRelease["file_md5"].String()
+		modulemd5sum := currentRelease["file_md5"].String()
 		moduleFilesize := currentRelease["file_size"].Int()
-		Debugf("getMetadataForgeModule: module: " + fm.author + "/" + fm.name + " moduleHashsum: " + moduleHashsum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
+		Debugf("getMetadataForgeModule: module: " + fm.author + "/" + fm.name + " modulemd5sum: " + modulemd5sum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
 
 		mutex.Lock()
 		forgeJsonParseTime += duration
 		mutex.Unlock()
 
-		return ForgeModule{hashSum: moduleHashsum, fileSize: moduleFilesize}
+		return ForgeModule{md5sum: modulemd5sum, fileSize: moduleFilesize}
 	} else {
 		Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + resp.Status)
 	}
@@ -382,7 +383,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		Debugf("downloadForgeModule(): Using cache for Forge module " + name + " version: " + version)
 	}
 
-	if checkSum {
+	if checkSum || fm.sha256sum != "" {
 		fm.version = version
 		if doForgeModuleIntegrityCheck(fm) {
 			if retryCount == 0 {
@@ -462,13 +463,16 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	go func(m ForgeModule) {
 		defer wgCheckSum.Done()
 		fmm = getMetadataForgeModule(m)
-		Debugf("doForgeModuleChecksumCheck(): target md5 hash sum: " + fmm.hashSum)
+		Debugf("doForgeModuleChecksumCheck(): target md5 hash sum: " + fmm.md5sum)
+		Debugf("doForgeModuleChecksumCheck(): target sha256 hash sum from Puppetfile: " + m.sha256sum)
 	}(m)
 
-	wgCheckSum.Add(1)
-	calculatedHashSum := "N/A"
+	calculatedMd5Sum := "N/A"
+	calculatedSha256Sum := "N/A"
 	var calculatedArchiveSize int64
 	fileName := config.ForgeCacheDir + m.author + "-" + m.name + "-" + m.version + ".tar.gz"
+
+	wgCheckSum.Add(1)
 	go func(m ForgeModule) {
 		defer wgCheckSum.Done()
 
@@ -482,29 +486,42 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 			defer file.Close()
 
 			Debugf("doForgeModuleChecksumCheck(): Trying to get md5 check sum for " + fileName)
-			hash := md5.New()
-			if _, err := io.Copy(hash, file); err != nil {
+			md5 := md5.New()
+			if _, err := io.Copy(md5, file); err != nil {
 				Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
 			}
+			if m.sha256sum != "" {
+				sha256 := sha256.New()
+				if _, err := io.Copy(sha256, file); err != nil {
+					Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
+				}
 
-			calculatedHashSum = hex.EncodeToString(hash.Sum(nil))
-			Debugf("doForgeModuleChecksumCheck(): calculated md5 hash sum: " + calculatedHashSum)
+				calculatedSha256Sum = hex.EncodeToString(sha256.Sum(nil))
+				Debugf("doForgeModuleChecksumCheck(): calculated sha256 hash sum: " + calculatedSha256Sum)
+			}
+			calculatedMd5Sum = hex.EncodeToString(md5.Sum(nil))
+			Debugf("doForgeModuleChecksumCheck(): calculated md5 hash sum: " + calculatedMd5Sum)
 
 		} else {
 			Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
 		}
 		duration := time.Since(before).Seconds()
-		Debugf("Calculating hash sum for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		Debugf("Calculating hash sum(s) for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 		Debugf("doForgeModuleChecksumCheck(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
 	}(m)
 
 	wgCheckSum.Wait()
 
-	if fmm.hashSum != calculatedHashSum {
-		Warnf("WARNING: calculated md5sum " + calculatedHashSum + " for " + fileName + " does not match expected md5sum " + fmm.hashSum)
+	fmt.Println("calculated md5sum " + calculatedMd5Sum + "'")
+	fmt.Println("expected md5sum " + fmm.md5sum + "'")
+	if fmm.md5sum != calculatedMd5Sum {
+		Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
 		return true
 	} else {
-		Debugf("OK: calculated md5sum " + calculatedHashSum + " for " + fileName + " does match expected md5sum " + fmm.hashSum)
+		if m.sha256sum != calculatedSha256Sum {
+			Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
+			return true
+		}
 		if fmm.fileSize != calculatedArchiveSize {
 			Warnf("WARNING: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does not match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
 			return true
