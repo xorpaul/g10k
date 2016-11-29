@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -148,4 +149,10 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 		}
 	}
 	return er
+}
+
+// funcName return the function name as a string
+func funcName() string {
+	pc, _, _, _ := runtime.Caller(1)
+	return runtime.FuncForPC(pc).Name()
 }

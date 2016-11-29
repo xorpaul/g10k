@@ -1,0 +1,2 @@
+mod 'example_module',
+  :branch => 'foobar'

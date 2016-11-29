@@ -1,0 +1,4 @@
+moduledir 'external_modules'
+
+#mod 'puppetlabs/apt', '2.3.0'
+mod 'puppetlabs/apt'

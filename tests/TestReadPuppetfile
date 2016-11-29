@@ -1,0 +1,30 @@
+mod 'sensu', # Puppet 4 supported
+     :git => 'https://github.com/sensu/sensu-puppet.git',
+     :commit => '8f4fc5780071c4895dec559eafc6030511b0caaa'
+mod 'example_module',
+    :git => 'git@somehost.com/foo/example-module.git',
+    :link => true,
+    :fallback => 'master'
+mod 'another_module',
+    :git => 'git@somehost.com/foo/another-module.git',
+    :link => true,
+    :fallback => 'dev|qa |prelive| live'
+moduledir 'external_modules'
+
+#mod 'puppetlabs/apt', '2.3.0'
+mod 'puppetlabs/apt', '2.3.0'
+forge.cacheTtl 50m
+moduledir 'external_modules'
+
+mod 'puppetlabs/ntp'
+
+
+  # comment
+mod 'example_module_full',
+  :git => 'git@somehost.com/foo/example-module.git',
+  :branch => 'foo',
+  :fallback => 'b | a| r',
+  :ignore-unreachable => true
+forge.baseUrl foobar
+mod 'puppetlabs/stdlib',
+  :latest

@@ -64,7 +64,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
 							} else {
-								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions)
 								puppetfile.workDir = targetDir
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile
@@ -190,22 +190,23 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				success := false
 				//fmt.Println(gitModule.fallback)
+				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
 				if len(gitModule.fallback) > 0 {
-					success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree, true, gitModule.ignoreUnreachable)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable)
 					if !success {
 						for i, fallbackBranch := range gitModule.fallback {
 							if i == len(gitModule.fallback)-1 {
 								// last try
 								gitModule.ignoreUnreachable = true
 							}
-							success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, fallbackBranch, true, gitModule.ignoreUnreachable)
+							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable)
 							if success {
 								break
 							}
 						}
 					}
 				} else {
-					success = syncToModuleDir(config.ModulesCacheDir+strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1), targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable)
 				}
 
 				// remove this module from the exisitingModuleDirs map
