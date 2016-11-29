@@ -345,7 +345,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 					err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
 
 					if err != nil {
-						Fatalf("downloadForgeModule(): error while MkdirAll()" + filename + err.Error())
+						Fatalf("downloadForgeModule(): error while MkdirAll() " + filename + err.Error())
 					}
 
 				case tar.TypeReg:
@@ -354,7 +354,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 					writer, err := os.Create(targetFilename)
 
 					if err != nil {
-						Fatalf("downloadForgeModule(): error while Create()" + filename + err.Error())
+						Fatalf("downloadForgeModule(): error while Create() " + filename + err.Error())
 					}
 
 					io.Copy(writer, tarBallReader)
@@ -362,7 +362,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 					err = os.Chmod(targetFilename, os.FileMode(0644))
 
 					if err != nil {
-						Fatalf("downloadForgeModule(): error while Chmod()" + filename + err.Error())
+						Fatalf("downloadForgeModule(): error while Chmod() " + filename + err.Error())
 					}
 
 					writer.Close()
@@ -372,7 +372,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 			}
 
 			duration = time.Since(before).Seconds()
-			Verbosef("Extracting " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			Verbosef("Extracting " + config.ForgeCacheDir + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 			mutex.Lock()
 			ioForgeTime += duration
 			mutex.Unlock()
@@ -439,7 +439,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
 			defer wgForge.Done()
 			defer bar.Incr()
-			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + "and CacheTtl set to " + fm.cacheTtl.String())
+			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + " and CacheTtl set to " + fm.cacheTtl.String())
 			doModuleInstallOrNothing(m, fm)
 		}(m, fm, bar)
 	}
@@ -463,8 +463,8 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	go func(m ForgeModule) {
 		defer wgCheckSum.Done()
 		fmm = getMetadataForgeModule(m)
-		Debugf("doForgeModuleChecksumCheck(): target md5 hash sum: " + fmm.md5sum)
-		Debugf("doForgeModuleChecksumCheck(): target sha256 hash sum from Puppetfile: " + m.sha256sum)
+		Debugf("doForgeModuleIntegrityCheck(): target md5 hash sum: " + fmm.md5sum)
+		Debugf("doForgeModuleIntegrityCheck(): target sha256 hash sum from Puppetfile: " + m.sha256sum)
 	}(m)
 
 	calculatedMd5Sum := "N/A"
@@ -481,45 +481,40 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 			calculatedArchiveSize = fi.Size()
 			file, err := os.Open(fileName)
 			if err != nil {
-				Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+				Fatalf("doForgeModuleIntegrityCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
 			}
 			defer file.Close()
 
-			Debugf("doForgeModuleChecksumCheck(): Trying to get md5 check sum for " + fileName)
+			Debugf("doForgeModuleIntegrityCheck(): Trying to get md5 check sum for " + fileName)
 			md5 := md5.New()
-			if _, err := io.Copy(md5, file); err != nil {
-				Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
-			}
-			if m.sha256sum != "" {
-				sha256 := sha256.New()
-				if _, err := io.Copy(sha256, file); err != nil {
-					Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
-				}
+			hashReader := io.MultiWriter(md5)
+			sha256 := sha256.New()
+			hashReader = io.MultiWriter(md5, sha256)
 
-				calculatedSha256Sum = hex.EncodeToString(sha256.Sum(nil))
-				Debugf("doForgeModuleChecksumCheck(): calculated sha256 hash sum: " + calculatedSha256Sum)
+			if _, err := io.Copy(hashReader, file); err != nil {
+				Fatalf("doForgeModuleIntegrityCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
 			}
 			calculatedMd5Sum = hex.EncodeToString(md5.Sum(nil))
-			Debugf("doForgeModuleChecksumCheck(): calculated md5 hash sum: " + calculatedMd5Sum)
+			Debugf("doForgeModuleIntegrityCheck(): calculated md5 hash sum: " + calculatedMd5Sum)
+			calculatedSha256Sum = hex.EncodeToString(sha256.Sum(nil))
+			Debugf("doForgeModuleIntegrityCheck(): calculated sha256 hash sum: " + calculatedSha256Sum)
 
 		} else {
-			Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+			Fatalf("doForgeModuleIntegrityCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
 		}
 		duration := time.Since(before).Seconds()
-		Debugf("Calculating hash sum(s) for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-		Debugf("doForgeModuleChecksumCheck(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
+		Verbosef("Calculating hash sum(s) for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		Debugf("doForgeModuleIntegrityCheck(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
 	}(m)
 
 	wgCheckSum.Wait()
 
-	fmt.Println("calculated md5sum " + calculatedMd5Sum + "'")
-	fmt.Println("expected md5sum " + fmm.md5sum + "'")
 	if fmm.md5sum != calculatedMd5Sum {
 		Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
 		return true
 	} else {
 		if m.sha256sum != calculatedSha256Sum {
-			Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
+			Warnf("WARNING: calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does not match expected sha256sum " + m.sha256sum)
 			return true
 		}
 		if fmm.fileSize != calculatedArchiveSize {
@@ -527,6 +522,7 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 			return true
 		}
 		Debugf("OK: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+		Debugf("OK: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does match expected md5sum " + fmm.md5sum)
 	}
 	return false
 

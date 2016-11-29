@@ -4,7 +4,9 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -94,8 +96,32 @@ func equalGitModule(a, b GitModule) bool {
 	return true
 }
 
+func checkExitCodeAndOutputOfReadPuppetfileSubprocess(t *testing.T, forceForgeVersions bool, expectedExitCode int, expectedOutput string) {
+	pc, _, _, _ := runtime.Caller(1)
+	testFunctionName := strings.Split(runtime.FuncForPC(pc).Name(), ".")[len(strings.Split(runtime.FuncForPC(pc).Name(), "."))-1]
+	if os.Getenv("TEST_FOR_CRASH_"+testFunctionName) == "1" {
+		readPuppetfile("tests/"+testFunctionName, "", "test", forceForgeVersions)
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+testFunctionName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+testFunctionName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if expectedExitCode != exitCode {
+		t.Errorf("readPuppetfile() terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	if !strings.Contains(string(out), expectedOutput) {
+		t.Errorf("readPuppetfile() terminated with the correct exit code, but the expected output was missing")
+	}
+}
+
 func TestPreparePuppetfile(t *testing.T) {
-	t.Parallel()
 	expected := regexp.MustCompile("(moduledir 'external_modules'\nmod 'puppetlabs/ntp')")
 	got := preparePuppetfile("tests/TestPreparePuppetfile")
 
@@ -105,7 +131,6 @@ func TestPreparePuppetfile(t *testing.T) {
 }
 
 func TestCommentPuppetfile(t *testing.T) {
-	t.Parallel()
 	expected := regexp.MustCompile("mod 'sensu',\\s*:git => 'https://github.com/sensu/sensu-puppet.git',\\s*:commit => '8f4fc5780071c4895dec559eafc6030511b0caaa'")
 	got := preparePuppetfile("tests/TestCommentPuppetfile")
 
@@ -115,7 +140,6 @@ func TestCommentPuppetfile(t *testing.T) {
 }
 
 func TestReadPuppetfile(t *testing.T) {
-	t.Parallel()
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 
@@ -156,7 +180,6 @@ func TestReadPuppetfile(t *testing.T) {
 }
 
 func TestFallbackPuppetfile(t *testing.T) {
-	t.Parallel()
 	fallbackMapExample := make([]string, 1)
 	fallbackMapExample[0] = "master"
 
@@ -185,7 +208,6 @@ func TestFallbackPuppetfile(t *testing.T) {
 }
 
 func TestForgeCacheTtlPuppetfile(t *testing.T) {
-	t.Parallel()
 	expected := regexp.MustCompile("(moduledir 'external_modules'\nforge.cacheTtl 50m\n)")
 	got := preparePuppetfile("tests/TestForgeCacheTtlPuppetfile")
 
@@ -203,289 +225,66 @@ func TestForgeCacheTtlPuppetfile(t *testing.T) {
 }
 
 func TestForceForgeVersionsPuppetfile(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", true)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, true, 1, "")
 }
 
 func TestForceForgeVersionsPuppetfileCorrect(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", true)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 0", err)
-	}
-	return
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, true, 0, "")
 }
 
 func TestReadPuppetfileDuplicateGitAttribute(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileTrailingComma(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileInvalidForgeModuleName(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileDuplicateForgeModule(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileMissingGitAttribute(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileTooManyGitAttributes(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileConflictingGitAttributesTag(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileConflictingGitAttributesBranch(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileConflictingGitAttributesCommit(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileConflictingGitAttributesRef(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileIgnoreUnreachable(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
 func TestReadPuppetfileForgeCacheTtl(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Can not convert value 300x of parameter forge.cacheTtl 300x to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In tests/TestReadPuppetfileForgeCacheTtl line: forge.cacheTtl 300x")
 }
 
 func TestReadPuppetfileLink(t *testing.T) {
-	t.Parallel()
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		readPuppetfile("tests/"+funcName, "", "test", false)
-		return
-	}
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	err := cmd.Run()
-
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		return
-	}
-	t.Errorf("readPuppetfile() terminated with %v, but we expected exit status 1", err)
-
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Found conflicting git attributes :branch, :link, in tests/TestReadPuppetfileLink for module example_module line: mod 'example_module',:git => 'git@somehost.com/foo/example-module.git',:branch => 'foo',:link => true")
 }
 
 func TestReadPuppetfileChecksumAttribute(t *testing.T) {
-	t.Parallel()
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 
