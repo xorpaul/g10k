@@ -66,24 +66,7 @@ func TestConfigForceForgeVersions(t *testing.T) {
 }
 
 func TestInvalidFilesizeForgemodule(t *testing.T) {
-	// spin up HTTP test server to serve fake/invalid Forge module metadata
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v3/releases/puppetlabs-ntp-6.0.0" {
-			body, err := ioutil.ReadFile("tests/fake-forge/invalid-filesize-puppetlabs-ntp-metadata.json")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
-			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else {
-			t.Error("Unexpected request URL:" + r.URL.Path)
-		}
-	}))
+	ts := spinUpFakeForge(t, "tests/fake-forge/invalid-filesize-puppetlabs-ntp-metadata.json")
 	defer ts.Close()
 
 	f := ForgeModule{version: "6.0.0", name: "ntp", author: "puppetlabs",
@@ -137,26 +120,8 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 }
 
 func TestInvalidMd5sumForgemodule(t *testing.T) {
-	// spin up HTTP test server to serve fake/invalid Forge module metadata
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v3/releases/puppetlabs-ntp-6.0.0" {
-			body, err := ioutil.ReadFile("tests/fake-forge/invalid-md5sum-puppetlabs-ntp-metadata.json")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
-			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else {
-			t.Error("Unexpected request URL:" + r.URL.Path)
-		}
-	}))
+	ts := spinUpFakeForge(t, "tests/fake-forge/invalid-md5sum-puppetlabs-ntp-metadata.json")
 	defer ts.Close()
-
 	f := ForgeModule{version: "6.0.0", name: "ntp", author: "puppetlabs",
 		baseUrl: ts.URL, sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
 	fm := make(map[string]ForgeModule)
@@ -201,26 +166,8 @@ func TestInvalidMd5sumForgemodule(t *testing.T) {
 }
 
 func TestInvalidSha256sumForgemodule(t *testing.T) {
-	// spin up HTTP test server to serve fake/invalid Forge module metadata
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v3/releases/puppetlabs-ntp-6.0.0" {
-			body, err := ioutil.ReadFile("tests/fake-forge/invalid-sha256sum-puppetlabs-ntp-metadata.json")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
-			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
-			if err != nil {
-				t.Error(err)
-			}
-			fmt.Fprint(w, string(body))
-		} else {
-			t.Error("Unexpected request URL:" + r.URL.Path)
-		}
-	}))
+	ts := spinUpFakeForge(t, "tests/fake-forge/invalid-sha256sum-puppetlabs-ntp-metadata.json")
 	defer ts.Close()
-
 	f := ForgeModule{version: "6.0.0", name: "ntp", author: "puppetlabs",
 		baseUrl: ts.URL, sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
 	fm := make(map[string]ForgeModule)
@@ -262,4 +209,27 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 		return
 	}
 	t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", err)
+}
+
+func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
+	// spin up HTTP test server to serve fake/invalid Forge module metadata
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v3/releases/puppetlabs-ntp-6.0.0" {
+			body, err := ioutil.ReadFile(metadataFile)
+			if err != nil {
+				t.Error(err)
+			}
+			fmt.Fprint(w, string(body))
+		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
+			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
+			if err != nil {
+				t.Error(err)
+			}
+			fmt.Fprint(w, string(body))
+		} else {
+			t.Error("Unexpected request URL:" + r.URL.Path)
+		}
+	}))
+	return ts
+
 }

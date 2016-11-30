@@ -235,9 +235,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	//fmt.Println(uniqueForgeModules)
 	if len(exisitingModuleDirs) > 0 {
 		for d := range exisitingModuleDirs {
-			Debugf("resolvePuppetfile(): Removing unmanaged file " + d)
+			Debugf("Removing unmanaged file " + d)
 			if err := os.RemoveAll(d); err != nil {
-				Debugf("resolvePuppetfile(): Error while trying to remove unmanaged file " + d)
+				Debugf("Error while trying to remove unmanaged file " + d)
 			}
 		}
 	}

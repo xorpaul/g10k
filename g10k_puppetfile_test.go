@@ -19,35 +19,35 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		a.forgeCacheTtl != b.forgeCacheTtl ||
 		a.privateKey != b.privateKey ||
 		a.source != b.source {
-		Debugf("equalPuppetfile(): moduleDir, forgeBaseURL, forgeCacheTtl, privateKey or source isn't equal!")
+		Debugf("moduleDir, forgeBaseURL, forgeCacheTtl, privateKey or source isn't equal!")
 		return false
 	}
 
 	if len(a.gitModules) != len(b.gitModules) ||
 		len(a.forgeModules) != len(b.forgeModules) {
-		Debugf("equalPuppetfile(): size of gitModules or forgeModules isn't equal!")
+		Debugf("size of gitModules or forgeModules isn't equal!")
 		return false
 	}
 
 	for gitModuleName, gm := range a.gitModules {
 		if _, ok := b.gitModules[gitModuleName]; !ok {
-			Debugf("equalPuppetfile(): git module " + gitModuleName + " missing!")
+			Debugf("git module " + gitModuleName + " missing!")
 			return false
 		}
 		if !equalGitModule(gm, b.gitModules[gitModuleName]) {
-			Debugf("equalPuppetfile(): git module " + gitModuleName + " isn't equal!")
+			Debugf("git module " + gitModuleName + " isn't equal!")
 			return false
 		}
 	}
 
 	for forgeModuleName, fm := range a.forgeModules {
 		if _, ok := b.forgeModules[forgeModuleName]; !ok {
-			Debugf("equalPuppetfile(): forge module " + forgeModuleName + " missing!")
+			Debugf("forge module " + forgeModuleName + " missing!")
 			return false
 		}
 		//fmt.Println("checking Forge module: ", forgeModuleName, fm)
 		if !equalForgeModule(fm, b.forgeModules[forgeModuleName]) {
-			Debugf("equalPuppetfile(): forge module " + forgeModuleName + " isn't equal!")
+			Debugf("forge module " + forgeModuleName + " isn't equal!")
 			return false
 		}
 	}

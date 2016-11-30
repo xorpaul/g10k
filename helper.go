@@ -18,7 +18,14 @@ import (
 // Debugf is a helper function for debug logging if global variable debug is set to true
 func Debugf(s string) {
 	if debug != false {
-		log.Print("DEBUG " + fmt.Sprint(s))
+		pc, _, _, _ := runtime.Caller(1)
+		callingFunctionName := strings.Split(runtime.FuncForPC(pc).Name(), ".")[len(strings.Split(runtime.FuncForPC(pc).Name(), "."))-1]
+		if strings.HasPrefix(callingFunctionName, "func") {
+			// check for anonymous function names
+			log.Print("DEBUG " + fmt.Sprint(s))
+		} else {
+			log.Print("DEBUG " + callingFunctionName + "(): " + fmt.Sprint(s))
+		}
 	}
 }
 
@@ -83,14 +90,14 @@ func checkDirAndCreate(dir string, name string) string {
 func createOrPurgeDir(dir string, callingFunction string) {
 	if !dryRun {
 		if !fileExists(dir) {
-			Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
+			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
 			os.Mkdir(dir, 0777)
 		} else {
-			Debugf("createOrPurgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
+			Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 			if err := os.RemoveAll(dir); err != nil {
 				log.Print("createOrPurgeDir(): error: removing dir failed", err)
 			}
-			Debugf("createOrPurgeDir(): Trying to create dir: " + dir + " called from " + callingFunction)
+			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
 			os.Mkdir(dir, 0777)
 		}
 	}
@@ -98,9 +105,9 @@ func createOrPurgeDir(dir string, callingFunction string) {
 
 func purgeDir(dir string, callingFunction string) {
 	if !fileExists(dir) {
-		Debugf("purgeDir(): Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
+		Debugf("Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
 	} else {
-		Debugf("purgeDir(): Trying to remove: " + dir + " called from " + callingFunction)
+		Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 		if err := os.RemoveAll(dir); err != nil {
 			log.Print("purgeDir(): os.RemoveAll() error: removing dir failed: ", err)
 			if err = syscall.Unlink(dir); err != nil {
@@ -118,7 +125,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	if len(parts) > 1 {
 		args, err := shellquote.Split(parts[1])
 		if err != nil {
-			Debugf("executeCommand(): err: " + fmt.Sprint(err))
+			Debugf("err: " + fmt.Sprint(err))
 		} else {
 			cmdArgs = args
 		}
@@ -154,5 +161,6 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 // funcName return the function name as a string
 func funcName() string {
 	pc, _, _, _ := runtime.Caller(1)
-	return runtime.FuncForPC(pc).Name()
+	completeFuncname := runtime.FuncForPC(pc).Name()
+	return strings.Split(completeFuncname, ".")[len(strings.Split(completeFuncname, "."))-1]
 }

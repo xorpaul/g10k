@@ -99,7 +99,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
-	Debugf("readPuppetfile(): Trying to parse: " + pf)
+	Debugf("Trying to parse: " + pf)
 
 	n := preparePuppetfile(pf)
 
@@ -154,13 +154,13 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 					forgeAttribute := strings.Replace(strings.TrimSpace(a[1]), ":", "", 1)
 					if forgeAttribute != "sha256sum" {
 						forgeModuleVersion = forgeAttribute
-						Debugf("readPuppetfile(): setting forge module " + forgeModuleName + " to version " + forgeModuleVersion)
+						Debugf("setting forge module " + forgeModuleName + " to version " + forgeModuleVersion)
 					}
 					if len(a[2]) > 1 {
 						//fmt.Println("a[2] ---> ", a[2])
 						forgeAttributeName := strings.TrimSpace(a[1])
 						forgeAttributeValue := strings.TrimSpace(a[2])
-						Debugf("readPuppetfile(): found forge attribute ---> " + forgeAttributeName + " with value ---> " + forgeAttributeValue)
+						Debugf("found forge attribute ---> " + forgeAttributeName + " with value ---> " + forgeAttributeValue)
 						if forgeAttributeName == ":sha256sum" {
 							forgeChecksum = forgeAttributeValue
 						}
