@@ -114,9 +114,9 @@ forge.cacheTtl 4h
 ```
 You need to specify the TTL value in the form of golang Duration (https://golang.org/pkg/time/#ParseDuration)
 
-- try multiple Git branches for a Puppet modul until one can be used
+- try multiple Git branches for a Puppet module until one can be used
 ```
-mod 'puppetlabs-stdlib',
+mod 'stdlib',
     :git => 'https://github.com/puppetlabs/puppetlabs-stdlib.git',
     :fallback => '4.889.x|foobar|master'
 ```
