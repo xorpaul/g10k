@@ -99,14 +99,15 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
-	Debugf("readPuppetfile(): Trying to parse: " + pf)
+	Debugf("Trying to parse: " + pf)
 
 	n := preparePuppetfile(pf)
 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtl)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*(,)\\s*['\"]?([^'\"]*))?")
+	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*)[,]?(.*)")
+	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
@@ -130,37 +131,52 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			}
 			puppetFile.forgeCacheTtl = ttl
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
-			//fmt.Println("found forge mod name ---> ", m[1])
-			comp := strings.Split(m[1], "/")
+			forgeModuleName := strings.TrimSpace(m[1])
+			//fmt.Println("found forge mod name ---> ", forgeModuleName)
+			comp := strings.Split(forgeModuleName, "/")
 			if len(comp) != 2 {
-				Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt + but is:" + m[3] + "in" + pf + "line: " + line)
+				Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt + but is:" + m[2] + "in" + pf + "line: " + line)
 			}
-			if _, ok := puppetFile.forgeModules[m[1]]; ok {
-				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + m[1] + " line: " + line)
+			if _, ok := puppetFile.forgeModules[forgeModuleName]; ok {
+				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + forgeModuleName + " line: " + line)
 			}
-			if len(m[3]) > 1 {
-				if m[3] == ":latest" {
-					if forceForgeVersions {
-						Fatalf("Error: Found latest setting for forge module in " + pf + " for module " + m[1] + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
+			forgeModuleVersion := "present"
+			forgeChecksum := ""
+			// try to find a forge module attribute
+			if len(m[2]) > 1 {
+				forgeModuleAttributes := m[2]
+				forgeModuleAttributesArray := strings.Split(forgeModuleAttributes, ",")
+				//fmt.Println("found forge mod attribute array ---> ", forgeModuleAttributesArray)
+				//fmt.Println("len(forgeModuleAttributesArray) --> ", len(forgeModuleAttributesArray))
+				for i := 0; i <= strings.Count(forgeModuleAttributes, ","); i++ {
+					a := reForgeAttribute.FindStringSubmatch(forgeModuleAttributesArray[i])
+					//fmt.Println("a[1] ---> ", a[1])
+					forgeAttribute := strings.Replace(strings.TrimSpace(a[1]), ":", "", 1)
+					if forgeAttribute != "sha256sum" {
+						forgeModuleVersion = forgeAttribute
+						Debugf("setting forge module " + forgeModuleName + " to version " + forgeModuleVersion)
 					}
-					puppetFile.forgeModules[m[1]] = ForgeModule{version: "latest", name: comp[1], author: comp[0]}
-				} else {
-					puppetFile.forgeModules[m[1]] = ForgeModule{version: m[3], name: comp[1], author: comp[0]}
+					if len(a[2]) > 1 {
+						//fmt.Println("a[2] ---> ", a[2])
+						forgeAttributeName := strings.TrimSpace(a[1])
+						forgeAttributeValue := strings.TrimSpace(a[2])
+						Debugf("found forge attribute ---> " + forgeAttributeName + " with value ---> " + forgeAttributeValue)
+						if forgeAttributeName == ":sha256sum" {
+							forgeChecksum = forgeAttributeValue
+						}
+					}
 				}
-				//fmt.Println("found m[1] ---> '", m[1], "'")
-				//fmt.Println("found forge mod attribute ---> ", m[3])
-			} else {
-				//puppetFile.forgeModules[m[1]] = ForgeModule{}
-				if forceForgeVersions {
-					Fatalf("Error: Found present setting for forge module in " + pf + " for module " + m[1] + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
-				}
-				puppetFile.forgeModules[m[1]] = ForgeModule{version: "present", name: comp[1], author: comp[0]}
 			}
+			if forceForgeVersions && (forgeModuleVersion == "present" || forgeModuleVersion == "latest") {
+				Fatalf("Error: Found " + forgeModuleVersion + " setting for forge module in " + pf + " for module " + forgeModuleName + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
+			}
+			puppetFile.forgeModules[forgeModuleName] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
 			if strings.Contains(gitModuleName, "-") {
-				Warnf("Warning: Found invalid character '-' in Puppet module name " + gitModuleName + " in " + pf + " line: " + line)
+				Warnf("Warning: Found invalid character '-' in Puppet module name " + gitModuleName + " in " + pf + " line: " + line +
+					"\n See module guidlines: https://docs.puppet.com/puppet/latest/reference/lang_reserved.html#modules")
 			}
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]

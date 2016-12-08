@@ -1,5 +1,5 @@
-forge.cacheTtl 300x
 mod 'example_module',
   :git => 'git@somehost.com/foo/example-module.git',
-  :branch => 'foo'
+  :branch => 'foo',
+  :link => true
 

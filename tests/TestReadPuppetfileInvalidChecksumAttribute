@@ -1,0 +1,3 @@
+mod 'foo/bar', :latest, :sha256sum => '29a8ef1b38f125a60b2a633c24b79284foooooo846adfcf670bd60dd5cc8d6d2544f'
+mod 'puppetlabs/stdlib', '2.3.0'
+  :sha256sum => '433c69fb99a46185e81619fadb70e0961bce2f4e952294a16e61364210fooooo'

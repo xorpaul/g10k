@@ -139,7 +139,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wgResolve.Wait()
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
-		Debugf("Syncing " + env)
+		Debugf("Syncing " + env + " with workDir " + pf.workDir)
 		basedir := checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
 		moduleDir := pf.workDir + pf.moduleDir
 		var envBranch string
@@ -235,9 +235,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	//fmt.Println(uniqueForgeModules)
 	if len(exisitingModuleDirs) > 0 {
 		for d := range exisitingModuleDirs {
-			Debugf("resolvePuppetfile(): Removing unmanaged file " + d)
+			Debugf("Removing unmanaged file " + d)
 			if err := os.RemoveAll(d); err != nil {
-				Debugf("resolvePuppetfile(): Error while trying to remove unmanaged file " + d)
+				Debugf("Error while trying to remove unmanaged file " + d)
 			}
 		}
 	}

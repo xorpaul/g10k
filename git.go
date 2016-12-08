@@ -15,7 +15,7 @@ import (
 
 func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	if len(uniqueGitModules) <= 0 {
-		Debugf("resolveGitRepositories(): uniqueGitModules[] is empty, skipping...")
+		Debugf("uniqueGitModules[] is empty, skipping...")
 		return
 	}
 	var wgGit sync.WaitGroup
@@ -52,9 +52,6 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	needSSHKey := true
 	if strings.Contains(url, "github.com") || len(sshPrivateKey) == 0 {
 		needSSHKey = false
-	} else {
-		needSSHKey = true
-		//doCheckout = compareGitVersions(workDir, url, branch)
 	}
 
 	er := ExecResult{}
@@ -96,7 +93,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		targetHash, _ := ioutil.ReadFile(hashFile)
 		if string(targetHash) == er.output {
 			needToSync = false
-			//Debugf("syncToModuleDir(): Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
+			//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
 		}
 
 	}

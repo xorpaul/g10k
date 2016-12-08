@@ -88,13 +88,14 @@ type Puppetfile struct {
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
 type ForgeModule struct {
-	version  string
-	name     string
-	author   string
-	hashSum  string
-	fileSize int64
-	baseUrl  string
-	cacheTtl time.Duration
+	version   string
+	name      string
+	author    string
+	md5sum    string
+	fileSize  int64
+	baseUrl   string
+	cacheTtl  time.Duration
+	sha256sum string
 }
 
 // GitModule contains information about a Git Puppet module
@@ -197,6 +198,7 @@ func main() {
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings}
 			target = "./Puppetfile"
 			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam", false)
+			puppetfile.workDir = "."
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)

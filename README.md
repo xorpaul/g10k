@@ -138,6 +138,31 @@ Tip: You can see which branch was used, when using the `-verbose` parameter:
 Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git (1.1s sync, I/O 0.0s) and Forge (0.0s query+download, I/O 0.0s)
 ```
 
+- additional Forge attribute `:sha256sum`:
+
+For (some) increased security you can add a SHA256 sum for each Forge module, which g10k will verify after downloading the respective .tar.gz file:
+
+```
+mod 'puppetlabs/ntp', '6.0.0', :sha256sum => 'a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944'
+
+```
+
+This does provide a very crude way to detect manipulated Forge modules and MITM attacks until the Puppetlabs Forge does support some sort of signing of Forge module releases.
+
+If the SHA256 sum does not match the expected hash sum, g10k will warn the user and retry a download until giving up:
+
+```
+Resolving Forge modules (0/1)   --- [--------------------------------------------------------------------]   0%
+WARNING: calculated sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944 for ./tmp/puppetlabs-ntp-6.0.0.tar.gz does not match expected sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c94
+Resolving Forge modules (0/1)   --- [--------------------------------------------------------------------]   0%
+WARNING: calculated sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944 for ./tmp/puppetlabs-ntp-6.0.0.tar.gz does not match expected sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c94
+2016/12/08 18:05:11 downloadForgeModule(): giving up for Puppet module puppetlabs-ntp version: 6.0.0
+
+```
+
+(The Forge module retry count in case the Puppetlabs Forge provided MD5 sum, file archive size or SHA256 sum doesn't match defaults to `1`, but will be user configurable later.)
+
+
 # additional g10k config features compared to r10k
 - you can enforce version numbers of Forge modules in your Puppetfiles instead of `:latest` or `:present` by adding `force_forge_versions: true` to the g10k config in the specific resource
 

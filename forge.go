@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -34,16 +35,16 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 	}
 	if moduleVersion == "latest" {
 		if !fileExists(workDir) {
-			Debugf("doModuleInstallOrNothing(): " + workDir + " does not exist, fetching module")
+			Debugf("" + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(moduleName, "false", fm)
 			if fr.needToGet {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
-					Debugf("doModuleInstallOrNothing(): no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
+					Debugf("no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
 					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
 					absolutePath, err := filepath.Abs(versionDir)
-					Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + absolutePath)
+					Debugf("trying to create symlink " + workDir + " pointing to " + absolutePath)
 					if err != nil {
 						Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
 					}
@@ -51,7 +52,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 						Fatalf("doModuleInstallOrNothing(): 1 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
 					}
 					//} else {
-					//Debugf("doModuleInstallOrNothing(): need to fetch Forge module " + moduleName + " in latest, because version " + fr.versionNumber + " will not be fetched already")
+					//Debugf("need to fetch Forge module " + moduleName + " in latest, because version " + fr.versionNumber + " will not be fetched already")
 
 					//fmt.Println(needToGet)
 				}
@@ -59,11 +60,11 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		} else {
 			if fm.cacheTtl > 0 {
 				lastCheckedFile := workDir + "-last-checked"
-				//Debugf("doModuleInstallOrNothing(): checking for " + lastCheckedFile)
+				//Debugf("checking for " + lastCheckedFile)
 				if fileInfo, err := os.Lstat(lastCheckedFile); err == nil {
-					//Debugf("doModuleInstallOrNothing(): found " + lastCheckedFile + " with mTime " + fileInfo.ModTime().String())
+					//Debugf("found " + lastCheckedFile + " with mTime " + fileInfo.ModTime().String())
 					if fileInfo.ModTime().Add(fm.cacheTtl).After(time.Now()) {
-						Debugf("doModuleInstallOrNothing(): No need to check forge API if latest version of module " + moduleName + " has been updated, because last-checked file " + lastCheckedFile + " is not older than " + fm.cacheTtl.String())
+						Debugf("No need to check forge API if latest version of module " + moduleName + " has been updated, because last-checked file " + lastCheckedFile + " is not older than " + fm.cacheTtl.String())
 						// need to add the current (cached!) -latest version number to the latestForgeModules, because otherwise we would always sync this module, because 1.4.1 != -latest
 						me := readModuleMetadata(workDir + "/metadata.json")
 						latestForgeModules.Lock()
@@ -74,7 +75,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 				}
 			}
 			// check forge API if latest version of this module has been updated
-			Debugf("doModuleInstallOrNothing(): check forge API if latest version of module " + moduleName + " has been updated")
+			Debugf("check forge API if latest version of module " + moduleName + " has been updated")
 			// XXX: disable adding If-Modified-Since header for now
 			// because then the latestForgeModules does not get set with the actual module version for latest
 			// maybe if received 304 get the actual version from the -latest symlink
@@ -87,19 +88,19 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		latestDir := config.ForgeCacheDir + moduleName + "-latest"
 		if !fileExists(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
-				Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
+				Debugf("we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
 			}
-			Debugf("doModuleInstallOrNothing(): we got " + m + ", but no " + latestDir + " to use. Getting -latest")
+			Debugf("we got " + m + ", but no " + latestDir + " to use. Getting -latest")
 			doModuleInstallOrNothing(moduleName+"-latest", fm)
 			return
 		}
-		Debugf("doModuleInstallOrNothing(): Nothing to do for module " + m + ", because " + latestDir + " exists")
+		Debugf("Nothing to do for module " + m + ", because " + latestDir + " exists")
 	} else {
 		if !fileExists(workDir) {
 			fr.needToGet = true
 		} else {
-			Debugf("doModuleInstallOrNothing(): Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
+			Debugf("Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
 			return
 		}
 	}
@@ -108,15 +109,15 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 
 	if fr.needToGet {
 		if ma[2] != "latest" {
-			Debugf("doModuleInstallOrNothing(): Trying to remove: " + workDir)
+			Debugf("Trying to remove: " + workDir)
 			_ = os.Remove(workDir)
 		} else {
 			versionDir, _ := os.Readlink(workDir)
 			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
-				Debugf("doModuleInstallOrNothing(): No reason to re-symlink again")
+				Debugf("No reason to re-symlink again")
 			} else {
 				if fileExists(workDir) {
-					Debugf("doModuleInstallOrNothing(): Trying to remove symlink: " + workDir)
+					Debugf("Trying to remove symlink: " + workDir)
 					_ = os.Remove(workDir)
 				}
 				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
@@ -124,7 +125,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 				if err != nil {
 					Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
 				}
-				Debugf("doModuleInstallOrNothing(): trying to create symlink " + workDir + " pointing to " + absolutePath)
+				Debugf("trying to create symlink " + workDir + " pointing to " + absolutePath)
 				if err := os.Symlink(absolutePath, workDir); err != nil {
 					Fatalf("doModuleInstallOrNothing(): 2 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
 				}
@@ -148,7 +149,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())
 	}
 	if fileInfo, err := os.Stat(file); err == nil {
-		Debugf("queryForgeAPI(): adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
+		Debugf("adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
 		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
@@ -184,30 +185,30 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 
 		duration := time.Since(before).Seconds()
 		version := currentRelease["version"].String()
-		moduleHashsum := currentRelease["file_md5"].String()
+		modulemd5sum := currentRelease["file_md5"].String()
 		moduleFilesize := currentRelease["file_size"].Int()
 
 		mutex.Lock()
 		forgeJsonParseTime += duration
 		mutex.Unlock()
 
-		Debugf("queryForgeAPI(): found version " + version + " for " + name + "-latest")
+		Debugf("found version " + version + " for " + name + "-latest")
 		latestForgeModules.Lock()
 		latestForgeModules.m[name] = version
 		latestForgeModules.Unlock()
 
 		lastCheckedFile := config.ForgeCacheDir + name + "-latest-last-checked"
-		Debugf("queryForgeAPI(): writing last-checked file " + lastCheckedFile)
+		Debugf("writing last-checked file " + lastCheckedFile)
 		f, _ := os.Create(lastCheckedFile)
 		defer f.Close()
 
-		return ForgeResult{true, version, moduleHashsum, moduleFilesize}
+		return ForgeResult{true, version, modulemd5sum, moduleFilesize}
 
 	} else if resp.Status == "304 Not Modified" {
-		Debugf("queryForgeAPI(): Got 304 nothing to do for module " + name)
+		Debugf("Got 304 nothing to do for module " + name)
 		return ForgeResult{false, "", "", 0}
 	} else {
-		Debugf("queryForgeAPI(): Unexpected response code " + resp.Status)
+		Debugf("Unexpected response code " + resp.Status)
 		return ForgeResult{false, "", "", 0}
 	}
 }
@@ -250,22 +251,95 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 		before := time.Now()
 		currentRelease := gjson.Parse(string(body)).Map()
 		duration := time.Since(before).Seconds()
-		moduleHashsum := currentRelease["file_md5"].String()
+		modulemd5sum := currentRelease["file_md5"].String()
 		moduleFilesize := currentRelease["file_size"].Int()
-		Debugf("getMetadataForgeModule: module: " + fm.author + "/" + fm.name + " moduleHashsum: " + moduleHashsum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
+		Debugf("module: " + fm.author + "/" + fm.name + " modulemd5sum: " + modulemd5sum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
 
 		mutex.Lock()
 		forgeJsonParseTime += duration
 		mutex.Unlock()
 
-		return ForgeModule{hashSum: moduleHashsum, fileSize: moduleFilesize}
+		return ForgeModule{md5sum: modulemd5sum, fileSize: moduleFilesize}
 	} else {
-		Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + resp.Status)
+		Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + " " + resp.Status)
 	}
 	return ForgeModule{}
 }
 
+func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, fileName string) {
+	defer wgForgeModule.Done()
+	funcName := funcName()
+
+	before := time.Now()
+	fileReader, err := pgzip.NewReader(file)
+	if err != nil {
+		Fatalf(funcName + "(): pgzip reader error for module " + fileName + " error:" + err.Error())
+	}
+	defer fileReader.Close()
+
+	tarBallReader := tar.NewReader(fileReader)
+	for {
+		header, err := tarBallReader.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			Fatalf(funcName + "(): error while tar reader.Next() for " + fileName + err.Error())
+		}
+
+		// get the individual filename and extract to the current directory
+		filename := header.Name
+		targetFilename := config.ForgeCacheDir + "/" + filename
+		//Debugf("Trying to extract file" + filename)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			// handle directory
+			//fmt.Println("Creating directory :", filename)
+			//err = os.MkdirAll(targetFilename, os.FileMode(header.Mode)) // or use 0755 if you prefer
+			err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
+
+			if err != nil {
+				Fatalf(funcName + "(): error while MkdirAll() " + filename + err.Error())
+			}
+
+		case tar.TypeReg:
+			// handle normal file
+			//fmt.Println("Untarring :", filename)
+			writer, err := os.Create(targetFilename)
+
+			if err != nil {
+				Fatalf(funcName + "(): error while Create() " + filename + err.Error())
+			}
+
+			io.Copy(writer, tarBallReader)
+
+			err = os.Chmod(targetFilename, os.FileMode(0644))
+
+			if err != nil {
+				Fatalf(funcName + "(): error while Chmod() " + filename + err.Error())
+			}
+
+			writer.Close()
+		default:
+			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
+		}
+	}
+
+	duration := time.Since(before).Seconds()
+	Verbosef("Extracting " + config.ForgeCacheDir + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	mutex.Lock()
+	ioForgeTime += duration
+	mutex.Unlock()
+}
+
 func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {
+	funcName := funcName()
+	var wgForgeModule sync.WaitGroup
+
+	extractR, extractW := io.Pipe()
+	saveFileR, saveFileW := io.Pipe()
+
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 
@@ -280,7 +354,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		req.Header.Set("Connection", "close")
 		proxyURL, err := http.ProxyFromEnvironment(req)
 		if err != nil {
-			Fatalf("downloadForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
+			Fatalf(funcName + "(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
 		}
 		client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
 		before := time.Now()
@@ -292,97 +366,53 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		syncForgeTime += duration
 		mutex.Unlock()
 		if err != nil {
-			Fatalf("downloadForgeModule(): Error while GETing Forge module " + name + " from " + url + ": " + err.Error())
+			Fatalf(funcName + "(): Error while GETing Forge module " + name + " from " + url + ": " + err.Error())
 		}
 		defer resp.Body.Close()
 
 		if resp.Status == "200 OK" {
-			before = time.Now()
-			Debugf("downloadForgeModule(): Trying to create " + config.ForgeCacheDir + fileName)
-			out, err := os.Create(config.ForgeCacheDir + fileName)
-			if err != nil {
-				Fatalf("downloadForgeModule(): Error while creating file for Forge module " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
-			}
-			defer out.Close()
-			io.Copy(out, resp.Body)
-			file, err := os.Open(config.ForgeCacheDir + fileName)
-
-			if err != nil {
-				Fatalf("downloadForgeModule(): Error while opening file " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
-			}
-
-			defer file.Close()
-
-			var fileReader = resp.Body
-			if strings.HasSuffix(fileName, ".gz") {
-				if fileReader, err = pgzip.NewReader(file); err != nil {
-					Fatalf("downloadForgeModule(): pgzip reader error for module " + fileName + " error:" + err.Error())
-				}
-				defer fileReader.Close()
-			}
-
-			tarBallReader := tar.NewReader(fileReader)
-			for {
-				header, err := tarBallReader.Next()
+			wgForgeModule.Add(1)
+			go func() {
+				defer wgForgeModule.Done()
+				Debugf(funcName + "(): Trying to create " + config.ForgeCacheDir + fileName)
+				out, err := os.Create(config.ForgeCacheDir + fileName)
 				if err != nil {
-					if err == io.EOF {
-						break
-					}
-					Fatalf("downloadForgeModule(): error while tar reader.Next() for " + fileName + err.Error())
+					Fatalf(funcName + "(): Error while creating file for Forge module " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
 				}
+				defer out.Close()
+				io.Copy(out, saveFileR)
+				Debugf(funcName + "(): Finished creating " + config.ForgeCacheDir + fileName)
+			}()
+			wgForgeModule.Add(1)
+			go extractForgeModule(&wgForgeModule, extractR, fileName)
+			wgForgeModule.Add(1)
+			go func() {
+				defer wgForgeModule.Done()
 
-				// get the individual filename and extract to the current directory
-				filename := header.Name
-				targetFilename := config.ForgeCacheDir + "/" + filename
-				//Debugf("downloadForgeModule(): Trying to extract file" + filename)
+				// after completing the copy, we need to close
+				// the PipeWriters to propagate the EOF to all
+				// PipeReaders to avoid deadlock
+				defer extractW.Close()
+				defer saveFileW.Close()
 
-				switch header.Typeflag {
-				case tar.TypeDir:
-					// handle directory
-					//fmt.Println("Creating directory :", filename)
-					//err = os.MkdirAll(targetFilename, os.FileMode(header.Mode)) // or use 0755 if you prefer
-					err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
+				var mw io.Writer
+				// build the multiwriter for all the pipes
+				mw = io.MultiWriter(extractW, saveFileW)
 
-					if err != nil {
-						Fatalf("downloadForgeModule(): error while MkdirAll()" + filename + err.Error())
-					}
-
-				case tar.TypeReg:
-					// handle normal file
-					//fmt.Println("Untarring :", filename)
-					writer, err := os.Create(targetFilename)
-
-					if err != nil {
-						Fatalf("downloadForgeModule(): error while Create()" + filename + err.Error())
-					}
-
-					io.Copy(writer, tarBallReader)
-
-					err = os.Chmod(targetFilename, os.FileMode(0644))
-
-					if err != nil {
-						Fatalf("downloadForgeModule(): error while Chmod()" + filename + err.Error())
-					}
-
-					writer.Close()
-				default:
-					Fatalf("downloadForgeModule(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
+				// copy the data into the multiwriter
+				if _, err := io.Copy(mw, resp.Body); err != nil {
+					Fatalf("Error while writing to MultiWriter " + err.Error())
 				}
-			}
-
-			duration = time.Since(before).Seconds()
-			Verbosef("Extracting " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-			mutex.Lock()
-			ioForgeTime += duration
-			mutex.Unlock()
+			}()
 		} else {
-			Fatalf("downloadForgeModule(): Unexpected response code while GETing " + url + resp.Status)
+			Fatalf(funcName + "(): Unexpected response code while GETing " + url + " " + resp.Status)
 		}
 	} else {
-		Debugf("downloadForgeModule(): Using cache for Forge module " + name + " version: " + version)
+		Debugf("Using cache for Forge module " + name + " version: " + version)
 	}
+	wgForgeModule.Wait()
 
-	if checkSum {
+	if checkSum || fm.sha256sum != "" {
 		fm.version = version
 		if doForgeModuleIntegrityCheck(fm) {
 			if retryCount == 0 {
@@ -411,13 +441,13 @@ func readModuleMetadata(file string) ForgeModule {
 	metadataJsonParseTime += duration
 	mutex.Unlock()
 
-	Debugf("readModuleMetadata(): Found in file " + file + " name: " + name + " version: " + version + " author: " + author)
+	Debugf("Found in file " + file + " name: " + name + " version: " + version + " author: " + author)
 
 	moduleName := "N/A"
 	if strings.Contains(name, "-") {
 		moduleName = strings.Split(name, "-")[1]
 	} else {
-		Debugf("readModuleMetadata(): Error: Something went wrong while decoding file " + file + " searching for the module name (found for name: " + name + "), version and author")
+		Debugf("Error: Something went wrong while decoding file " + file + " searching for the module name (found for name: " + name + "), version and author")
 	}
 
 	return ForgeModule{name: moduleName, version: version, author: strings.ToLower(author)}
@@ -425,7 +455,7 @@ func readModuleMetadata(file string) ForgeModule {
 
 func resolveForgeModules(modules map[string]ForgeModule) {
 	if len(modules) <= 0 {
-		Debugf("resolveForgeModules(): empty ForgeModule[] found, skipping...")
+		Debugf("empty ForgeModule[] found, skipping...")
 		return
 	}
 	var wgForge sync.WaitGroup
@@ -438,7 +468,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
 			defer wgForge.Done()
 			defer bar.Incr()
-			Debugf("Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + "and CacheTtl set to " + fm.cacheTtl.String())
+			Debugf("resolveForgeModules(): Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + " and CacheTtl set to " + fm.cacheTtl.String())
 			doModuleInstallOrNothing(m, fm)
 		}(m, fm, bar)
 	}
@@ -455,6 +485,7 @@ func check4ForgeUpdate(moduleName string, currentVersion string, latestVersion s
 }
 
 func doForgeModuleIntegrityCheck(m ForgeModule) bool {
+	funcName := funcName()
 	var wgCheckSum sync.WaitGroup
 
 	wgCheckSum.Add(1)
@@ -462,54 +493,114 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	go func(m ForgeModule) {
 		defer wgCheckSum.Done()
 		fmm = getMetadataForgeModule(m)
-		Debugf("doForgeModuleChecksumCheck(): target md5 hash sum: " + fmm.hashSum)
+		Debugf(funcName + "(): target md5 hash sum: " + fmm.md5sum)
+		if m.sha256sum != "" {
+			Debugf(funcName + "(): target sha256 hash sum from Puppetfile: " + m.sha256sum)
+		}
 	}(m)
 
-	wgCheckSum.Add(1)
-	calculatedHashSum := "N/A"
+	calculatedMd5Sum := ""
+	calculatedSha256Sum := ""
+	// http://rodaine.com/2015/04/async-split-io-reader-in-golang/
+	// create the pipes
+	md5R, md5W := io.Pipe()
+	sha256R, sha256W := io.Pipe()
 	var calculatedArchiveSize int64
 	fileName := config.ForgeCacheDir + m.author + "-" + m.name + "-" + m.version + ".tar.gz"
-	go func(m ForgeModule) {
+
+	// md5 sum
+	wgCheckSum.Add(1)
+	go func(md5R *io.PipeReader) {
 		defer wgCheckSum.Done()
+		before := time.Now()
+		hashmd5 := md5.New()
+		if _, err := io.Copy(hashmd5, md5R); err != nil {
+			Fatalf(funcName + "(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
+		}
+		duration := time.Since(before).Seconds()
+		Verbosef("Calculating md5 sum for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		calculatedMd5Sum = hex.EncodeToString(hashmd5.Sum(nil))
+		Debugf(funcName + "(): calculated md5 hash sum: " + calculatedMd5Sum)
+	}(md5R)
+
+	if m.sha256sum != "" {
+		// sha256 sum
+		wgCheckSum.Add(1)
+		go func(sha256R *io.PipeReader) {
+			defer wgCheckSum.Done()
+			before := time.Now()
+			hashSha256 := sha256.New()
+			if _, err := io.Copy(hashSha256, sha256R); err != nil {
+				Fatalf(funcName + "(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
+			}
+			duration := time.Since(before).Seconds()
+			Verbosef("Calculating sha256 sum for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			calculatedSha256Sum = hex.EncodeToString(hashSha256.Sum(nil))
+			Debugf(funcName + "(): calculated sha256 hash sum: " + calculatedSha256Sum)
+		}(sha256R)
+	}
+
+	wgCheckSum.Add(1)
+	go func() {
+		defer wgCheckSum.Done()
+
+		// after completing the copy, we need to close
+		// the PipeWriters to propagate the EOF to all
+		// PipeReaders to avoid deadlock
+		defer md5W.Close()
+		if m.sha256sum != "" {
+			defer sha256W.Close()
+		}
+
+		var mw io.Writer
+		if m.sha256sum != "" {
+			// build the multiwriter for all the pipes
+			mw = io.MultiWriter(md5W, sha256W)
+		} else {
+			mw = io.MultiWriter(md5W)
+		}
 
 		before := time.Now()
 		if fi, err := os.Stat(fileName); err == nil {
 			calculatedArchiveSize = fi.Size()
 			file, err := os.Open(fileName)
 			if err != nil {
-				Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+				Fatalf("Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
 			}
 			defer file.Close()
 
-			Debugf("doForgeModuleChecksumCheck(): Trying to get md5 check sum for " + fileName)
-			hash := md5.New()
-			if _, err := io.Copy(hash, file); err != nil {
-				Fatalf("doForgeModuleChecksumCheck(): Error while reading Forge module archive " + fileName + " ! Error: " + err.Error())
+			// copy the data into the multiwriter
+			if _, err := io.Copy(mw, file); err != nil {
+				Fatalf("Error while writing to MultiWriter " + err.Error())
 			}
 
-			calculatedHashSum = hex.EncodeToString(hash.Sum(nil))
-			Debugf("doForgeModuleChecksumCheck(): calculated md5 hash sum: " + calculatedHashSum)
-
 		} else {
-			Fatalf("doForgeModuleChecksumCheck(): Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
+			Fatalf("Can't access Forge module archive " + fileName + " ! Error: " + err.Error())
 		}
 		duration := time.Since(before).Seconds()
-		Debugf("Calculating hash sum for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-		Debugf("doForgeModuleChecksumCheck(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
-	}(m)
+		Verbosef("Calculating hash sum(s) for " + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		Debugf(funcName + "(): calculated archive size: " + strconv.FormatInt(calculatedArchiveSize, 10))
+	}()
 
 	wgCheckSum.Wait()
 
-	if fmm.hashSum != calculatedHashSum {
-		Warnf("WARNING: calculated md5sum " + calculatedHashSum + " for " + fileName + " does not match expected md5sum " + fmm.hashSum)
+	if fmm.md5sum != calculatedMd5Sum {
+		Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
 		return true
 	} else {
-		Debugf("OK: calculated md5sum " + calculatedHashSum + " for " + fileName + " does match expected md5sum " + fmm.hashSum)
+		if m.sha256sum != calculatedSha256Sum {
+			Warnf("WARNING: calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does not match expected sha256sum " + m.sha256sum)
+			return true
+		}
 		if fmm.fileSize != calculatedArchiveSize {
 			Warnf("WARNING: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does not match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
 			return true
 		}
-		Debugf("OK: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+		Debugf("calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+		Debugf("calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does match expected md5sum " + fmm.md5sum)
+		if m.sha256sum != "" {
+			Debugf("calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does match expected sha256sum " + m.sha256sum)
+		}
 	}
 	return false
 
@@ -520,12 +611,12 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	syncForgeCount++
 	mutex.Unlock()
 	moduleName := strings.Replace(name, "/", "-", -1)
-	//Debugf("syncForgeToModuleDir(): m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
+	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
 	targetDir := moduleDir + m.name
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	if m.version == "present" {
 		if fileExists(targetDir + "metadata.json") {
-			Debugf("syncForgeToModuleDir(): Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
+			Debugf("Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
 			if check4update {
 				me := readModuleMetadata(targetDir + "metadata.json")
 				latestForgeModules.RLock()
@@ -543,7 +634,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		if m.version == "latest" {
 			latestForgeModules.RLock()
 			if _, ok := latestForgeModules.m[moduleName]; ok {
-				Debugf("syncForgeToModuleDir(): using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
+				Debugf("using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
 				m.version = latestForgeModules.m[moduleName]
 			}
 			latestForgeModules.RUnlock()
@@ -554,7 +645,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			latestForgeModules.RUnlock()
 		}
 		if me.version == m.version {
-			Debugf("syncForgeToModuleDir(): Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
+			Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
 			return
 		}
 		log.Println("syncForgeToModuleDir(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
