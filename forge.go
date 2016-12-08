@@ -565,36 +565,23 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		Fatalf("syncForgeToModuleDir(): Forge module not found in dir: " + workDir)
 	} else {
 		Infof("Need to sync " + targetDir)
-		purgeDir(targetDir, "syncForgeToModuleDir()")
-		fi, err := os.Lstat(workDir)
-		if err != nil {
-			Fatalf("Error while creating hard link of " + workDir + " pointing at " + workDir + " Error: " + err.Error())
-		}
-
-		if fi.Mode()&os.ModeSymlink != 0 {
-			fmt.Printf("%v is a symlink\n", workDir)
-		}
-
-		if err := os.Symlink(workDir, strings.TrimSuffix(targetDir, "/")); err != nil {
-			Fatalf("Error while creating hard link of " + targetDir + " pointing at " + workDir + " Error: " + err.Error())
-		}
-		//cmd := "cp --link --archive " + workDir + "* " + targetDir
+		cmd := "cp --link --archive " + workDir + "* " + targetDir
 		if usemove {
-			cmd := "mv " + workDir + "* " + targetDir
+			cmd = "mv " + workDir + "* " + targetDir
+		}
+		mutex.Lock()
+		needSyncForgeCount++
+		mutex.Unlock()
+		if !dryRun {
+			before := time.Now()
+			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+			duration := time.Since(before).Seconds()
 			mutex.Lock()
-			needSyncForgeCount++
+			ioForgeTime += duration
 			mutex.Unlock()
-			if !dryRun {
-				before := time.Now()
-				out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
-				duration := time.Since(before).Seconds()
-				mutex.Lock()
-				ioForgeTime += duration
-				mutex.Unlock()
-				Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-				if err != nil {
-					Fatalf("syncForgeToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out) + "\nError while trying to hardlink " + workDir + " to " + targetDir + " :" + err.Error())
-				}
+			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			if err != nil {
+				Fatalf("syncForgeToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out) + "\nError while trying to hardlink " + workDir + " to " + targetDir + " :" + err.Error())
 			}
 		}
 	}
