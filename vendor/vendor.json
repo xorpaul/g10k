@@ -1,0 +1,91 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "x77xUarDfVxctJMAJPCQzlYk8JM=",
+			"path": "github.com/fatih/color",
+			"revision": "bf82308e8c8546dc2b945157173eb8a959ae9505",
+			"revisionTime": "2016-10-25T12:05:01Z"
+		},
+		{
+			"checksumSHA1": "onNEhw8Tab65nAMFm0YMjtNaa9E=",
+			"path": "github.com/henvic/uilive",
+			"revision": "5fa69abff5263544d2b7fd68e21ab36a3a381a1b",
+			"revisionTime": "2016-05-26T02:02:29Z"
+		},
+		{
+			"checksumSHA1": "v3FvbNaR/CPHNmKqyVNLM4SXjX0=",
+			"path": "github.com/kballard/go-shellquote",
+			"revision": "d8ec1a69a250a17bb0e419c386eac1f3711dc142",
+			"revisionTime": "2015-08-10T07:47:51Z"
+		},
+		{
+			"checksumSHA1": "vfzz7zTL9TZLpFO7NC1H6/Du3+s=",
+			"path": "github.com/klauspost/compress/flate",
+			"revision": "e3b7981a12dd3cab49afa1d3a50e715846f23732",
+			"revisionTime": "2016-11-06T14:34:36Z"
+		},
+		{
+			"checksumSHA1": "iKPMvbAueGfdyHcWCgzwKzm8WVo=",
+			"path": "github.com/klauspost/cpuid",
+			"revision": "09cded8978dc9e80714c4d85b0322337b0a1e5e0",
+			"revisionTime": "2016-03-02T07:53:16Z"
+		},
+		{
+			"checksumSHA1": "BM6ZlNJmtKy3GBoWwg2X55gnZ4A=",
+			"path": "github.com/klauspost/crc32",
+			"revision": "cb6bfca970f6908083f26f39a79009d608efd5cd",
+			"revisionTime": "2016-10-16T15:41:25Z"
+		},
+		{
+			"checksumSHA1": "1NA0DwIE66CdBQ0EVIIf2lEyZs4=",
+			"path": "github.com/klauspost/pgzip",
+			"revision": "e1189db7261c60cf75c77d573014936620d3d119",
+			"revisionTime": "2016-11-06T19:28:24Z"
+		},
+		{
+			"checksumSHA1": "I4njd26dG5hxFT2nawuByM4pxzY=",
+			"path": "github.com/mattn/go-colorable",
+			"revision": "d228849504861217f796da67fae4f6e347643f15",
+			"revisionTime": "2016-11-03T16:00:40Z"
+		},
+		{
+			"checksumSHA1": "xZuhljnmBysJPta/lMyYmJdujCg=",
+			"path": "github.com/mattn/go-isatty",
+			"revision": "66b8e73f3f5cda9f96b69efd03dd3d7fc4a5cdb8",
+			"revisionTime": "2016-08-06T12:27:52Z"
+		},
+		{
+			"checksumSHA1": "aEMzH2TrK6e/14sfXKq4Yk4lwss=",
+			"path": "github.com/tidwall/gjson",
+			"revision": "72b0cad1c18345c48d7ddf5ade1f2c45af35b442",
+			"revisionTime": "2016-11-05T02:41:23Z"
+		},
+		{
+			"checksumSHA1": "qmePMXEDYGwkAfT9QvtMC58JN/E=",
+			"path": "github.com/tidwall/match",
+			"revision": "173748da739a410c5b0b813b956f89ff94730b4c",
+			"revisionTime": "2016-08-30T17:39:30Z"
+		},
+		{
+			"checksumSHA1": "mNjmazCBDALewXDUhkGhkz5Gfk4=",
+			"path": "github.com/xorpaul/uiprogress",
+			"revision": "2678dcea3aeb4d58e9dee3dc3825f8f0b73bc354",
+			"revisionTime": "2016-10-17T11:55:18Z"
+		},
+		{
+			"checksumSHA1": "WrNf86140An+GtgDCLgfaBPQZG8=",
+			"path": "github.com/xorpaul/uiprogress/util/strutil",
+			"revision": "2678dcea3aeb4d58e9dee3dc3825f8f0b73bc354",
+			"revisionTime": "2016-10-17T11:55:18Z"
+		},
+		{
+			"checksumSHA1": "12GqsW8PiRPnezDDy0v4brZrndM=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "a5b47d31c556af34a302ce5d659e6fea44d90de0",
+			"revisionTime": "2016-09-28T15:37:09Z"
+		}
+	],
+	"rootPath": "github.com/xorpaul/g10k"
+}
