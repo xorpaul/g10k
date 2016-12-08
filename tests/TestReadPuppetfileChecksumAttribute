@@ -1,4 +1,4 @@
-mod 'puppetlabs/ntp', :present,
+mod 'puppetlabs/ntp', '6.0.0',
 :sha256sum => 'a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944'
 
 mod 'puppetlabs/stdlib', '2.3.0',

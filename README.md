@@ -160,7 +160,7 @@ WARNING: calculated sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55
 
 ```
 
-(The Forge module retry count in case the Puppetlabs Forge privded MD5 sum, file archive size or SHA256 sum doesn't match defaults to `1`, but will be user configurable later.)
+(The Forge module retry count in case the Puppetlabs Forge provided MD5 sum, file archive size or SHA256 sum doesn't match defaults to `1`, but will be user configurable later.)
 
 
 # additional g10k config features compared to r10k
