@@ -20,6 +20,7 @@ var (
 	dryRun                 bool
 	check4update           bool
 	checkSum               bool
+	moduleDirParam         string
 	config                 ConfigSettings
 	wg                     sync.WaitGroup
 	mutex                  sync.Mutex
@@ -131,6 +132,7 @@ func main() {
 	var (
 		configFile       = flag.String("config", "", "which config file to use")
 		envBranchFlag    = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+		moduleDirFlag    = flag.String("moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
 		pfFlag           = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
 		forceFlag        = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
 		dryRunFlag       = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
@@ -153,6 +155,7 @@ func main() {
 	usemove = *usemoveFlag
 	pfMode = *pfFlag
 	checkSum = *checkSumFlag
+	moduleDirParam = *moduleDirFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")

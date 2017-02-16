@@ -233,3 +233,15 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 	return ts
 
 }
+
+func TestModuleDirOverride(t *testing.T) {
+	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", false)
+	if "external_modules" != got.moduleDir {
+		t.Error("Expected 'external_modules' for module dir, but got", got.moduleDir)
+	}
+	moduleDirParam = "foobar"
+	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", false)
+	if moduleDirParam != got.moduleDir {
+		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.moduleDir)
+	}
+}

@@ -176,7 +176,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			//fmt.Println("found git mod name ---> ", gitModuleName)
 			if strings.Contains(gitModuleName, "-") {
 				Warnf("Warning: Found invalid character '-' in Puppet module name " + gitModuleName + " in " + pf + " line: " + line +
-					"\n See module guidlines: https://docs.puppet.com/puppet/latest/reference/lang_reserved.html#modules")
+					"\n See module guidelines: https://docs.puppet.com/puppet/latest/reference/lang_reserved.html#modules")
 			}
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
@@ -252,9 +252,14 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 
 	}
 	// check if we need to set defaults
-	if len(puppetFile.moduleDir) == 0 {
-		puppetFile.moduleDir = "modules"
+	if len(moduleDirParam) != 0 {
+		puppetFile.moduleDir = moduleDirParam
+	} else {
+		if len(puppetFile.moduleDir) == 0 {
+			puppetFile.moduleDir = "modules"
+		}
 	}
+	Debugf("Setting moduledir for Puppetfile " + pf + " to " + puppetFile.moduleDir)
 	//fmt.Println(puppetFile)
 	return puppetFile
 }

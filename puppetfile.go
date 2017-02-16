@@ -148,6 +148,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		} else {
 			envBranch = strings.Replace(env, pf.source+"_", "", 1)
 		}
+		if strings.HasPrefix(pf.moduleDir, "/") {
+			moduleDir = pf.moduleDir
+		}
 		if force {
 			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
 			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+pf.source)
