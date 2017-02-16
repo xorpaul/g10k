@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"sync"
 	"time"
@@ -160,6 +161,11 @@ func main() {
 
 	if check4update {
 		dryRun = true
+	}
+
+	// check for git executable dependency
+	if _, err := exec.LookPath("git"); err != nil {
+		Fatalf("Error: could not find 'git' executable in PATH")
 	}
 
 	target := ""
