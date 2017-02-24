@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/xorpaul/uiprogress"
@@ -18,17 +17,52 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 		Debugf("uniqueGitModules[] is empty, skipping...")
 		return
 	}
-	var wgGit sync.WaitGroup
 	bar := uiprogress.AddBar(len(uniqueGitModules)).AppendCompleted().PrependElapsed()
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
 		return fmt.Sprintf("Resolving Git modules (%d/%d)", b.Current(), len(uniqueGitModules))
 	})
+	// Dummy channel to coordinate the number of concurrent goroutines.
+	// This channel should be buffered otherwise we will be immediately blocked
+	// when trying to fill it.
+	maxNbConcurrentGoroutines := 1
+	concurrentGoroutines := make(chan struct{}, maxNbConcurrentGoroutines)
+	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+	for i := 0; i < maxNbConcurrentGoroutines; i++ {
+		concurrentGoroutines <- struct{}{}
+	}
+
+	// The done channel indicates when a single goroutine has
+	// finished its job.
+	done := make(chan bool)
+	// The waitForAllJobs channel allows the main program
+	// to wait until we have indeed done all the jobs.
+	waitForAllJobs := make(chan bool)
+	// Collect all the jobs, and since the job is finished, we can
+	// release another spot for a goroutine.
+	go func() {
+		for _, gm := range uniqueGitModules {
+			go func(gm GitModule) {
+				<-done
+				// Say that another goroutine can now start.
+				concurrentGoroutines <- struct{}{}
+			}(gm)
+		}
+		// We have collected all the jobs, the program
+		// can now terminate  8.6s with git (13.7s sync, I/O 1.2s)
+		waitForAllJobs <- true
+	}()
+
 	for url, gm := range uniqueGitModules {
-		wgGit.Add(1)
+		Debugf("git repo url " + url)
 		privateKey := gm.privateKey
 		go func(url string, privateKey string, gm GitModule) {
-			defer wgGit.Done()
+			// Try to receive from the concurrentGoroutines channel. When we have something,
+			// it means we can start a new goroutine because another one finished.
+			// Otherwise, it will block the execution until an execution
+			// spot is available.
+			<-concurrentGoroutines
 			defer bar.Incr()
+
 			if len(gm.privateKey) > 0 {
 				Debugf("git repo url " + url + " with ssh key " + privateKey)
 			} else {
@@ -44,8 +78,11 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 
 		}(url, privateKey, gm)
+		done <- true
 	}
-	wgGit.Wait()
+
+	// Wait for all jobs to finish
+	<-waitForAllJobs
 }
 
 func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool) bool {
@@ -77,7 +114,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
-	logCmd := "git --git-dir " + srcDir + " log -n1 --pretty=format:%H " + tree
+	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + tree + "'"
 	er := executeCommand(logCmd, config.Timeout, allowFail)
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true

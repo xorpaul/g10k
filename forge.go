@@ -463,16 +463,50 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
 		return fmt.Sprintf("Resolving Forge modules (%d/%d)", b.Current(), len(modules))
 	})
+	// Dummy channel to coordinate the number of concurrent goroutines.
+	// This channel should be buffered otherwise we will be immediately blocked
+	// when trying to fill it.
+	concurrentGoroutines := make(chan struct{}, maxNbConcurrentGoroutines)
+	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+	for i := 0; i < maxNbConcurrentGoroutines; i++ {
+		concurrentGoroutines <- struct{}{}
+	}
+
+	// The done channel indicates when a single goroutine has
+	// finished its job.
+	done := make(chan bool)
+	// The waitForAllJobs channel allows the main program
+	// to wait until we have indeed done all the jobs.
+	waitForAllJobs := make(chan bool)
+	// Collect all the jobs, and since the job is finished, we can
+	// release another spot for a goroutine.
+	go func() {
+		for i := 1; i <= len(modules); i++ {
+			<-done
+			// Say that another goroutine can now start.
+			concurrentGoroutines <- struct{}{}
+		}
+		// We have collected all the jobs, the program
+		// can now terminate  8.6s with git (13.7s sync, I/O 1.2s)
+		waitForAllJobs <- true
+	}()
+
 	for m, fm := range modules {
 		wgForge.Add(1)
 		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
-			defer wgForge.Done()
+			// Try to receive from the concurrentGoroutines channel. When we have something,
+			// it means we can start a new goroutine because another one finished.
+			// Otherwise, it will block the execution until an execution
+			// spot is available.
+			<-concurrentGoroutines
 			defer bar.Incr()
 			Debugf("resolveForgeModules(): Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + " and CacheTtl set to " + fm.cacheTtl.String())
 			doModuleInstallOrNothing(m, fm)
+			done <- true
 		}(m, fm, bar)
 	}
-	wgForge.Wait()
+	// Wait for all jobs to finish
+	<-waitForAllJobs
 }
 
 func check4ForgeUpdate(moduleName string, currentVersion string, latestVersion string) {

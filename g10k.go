@@ -11,34 +11,35 @@ import (
 )
 
 var (
-	debug                  bool
-	verbose                bool
-	info                   bool
-	force                  bool
-	usemove                bool
-	pfMode                 bool
-	dryRun                 bool
-	check4update           bool
-	checkSum               bool
-	moduleDirParam         string
-	config                 ConfigSettings
-	wg                     sync.WaitGroup
-	mutex                  sync.Mutex
-	empty                  struct{}
-	syncGitCount           int
-	syncForgeCount         int
-	needSyncGitCount       int
-	needSyncForgeCount     int
-	syncGitTime            float64
-	syncForgeTime          float64
-	ioGitTime              float64
-	ioForgeTime            float64
-	forgeJsonParseTime     float64
-	metadataJsonParseTime  float64
-	gmetadataJsonParseTime float64
-	buildtime              string
-	uniqueForgeModules     map[string]ForgeModule
-	latestForgeModules     LatestForgeModules
+	debug                     bool
+	verbose                   bool
+	info                      bool
+	force                     bool
+	usemove                   bool
+	pfMode                    bool
+	dryRun                    bool
+	check4update              bool
+	checkSum                  bool
+	moduleDirParam            string
+	config                    ConfigSettings
+	wg                        sync.WaitGroup
+	mutex                     sync.Mutex
+	empty                     struct{}
+	syncGitCount              int
+	syncForgeCount            int
+	needSyncGitCount          int
+	needSyncForgeCount        int
+	syncGitTime               float64
+	syncForgeTime             float64
+	ioGitTime                 float64
+	ioForgeTime               float64
+	forgeJsonParseTime        float64
+	metadataJsonParseTime     float64
+	gmetadataJsonParseTime    float64
+	buildtime                 string
+	uniqueForgeModules        map[string]ForgeModule
+	latestForgeModules        LatestForgeModules
+	maxNbConcurrentGoroutines int
 )
 
 type LatestForgeModules struct {
@@ -130,19 +131,20 @@ type ExecResult struct {
 func main() {
 
 	var (
-		configFile       = flag.String("config", "", "which config file to use")
-		envBranchFlag    = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
-		moduleDirFlag    = flag.String("moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
-		pfFlag           = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
-		forceFlag        = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
-		dryRunFlag       = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
-		usemoveFlag      = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
-		check4updateFlag = flag.Bool("check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
-		checkSumFlag     = flag.Bool("checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")
-		debugFlag        = flag.Bool("debug", false, "log debug output, defaults to false")
-		verboseFlag      = flag.Bool("verbose", false, "log verbose output, defaults to false")
-		infoFlag         = flag.Bool("info", false, "log info output, defaults to false")
-		versionFlag      = flag.Bool("version", false, "show build time and version number")
+		configFile        = flag.String("config", "", "which config file to use")
+		envBranchFlag     = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+		moduleDirFlag     = flag.String("moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
+		maxConcurrentFlag = flag.Int("maxworker", 100, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
+		pfFlag            = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
+		forceFlag         = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
+		dryRunFlag        = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
+		usemoveFlag       = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
+		check4updateFlag  = flag.Bool("check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
+		checkSumFlag      = flag.Bool("checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")
+		debugFlag         = flag.Bool("debug", false, "log debug output, defaults to false")
+		verboseFlag       = flag.Bool("verbose", false, "log verbose output, defaults to false")
+		infoFlag          = flag.Bool("info", false, "log info output, defaults to false")
+		versionFlag       = flag.Bool("version", false, "show build time and version number")
 	)
 	flag.Parse()
 
@@ -156,6 +158,7 @@ func main() {
 	pfMode = *pfFlag
 	checkSum = *checkSumFlag
 	moduleDirParam = *moduleDirFlag
+	maxNbConcurrentGoroutines = *maxConcurrentFlag
 
 	if *versionFlag {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
