@@ -11,9 +11,7 @@
 
 <p align="center">get a json value quickly</a></p>
 
-GJSON is a Go package the provides a [very fast](#performance) and simple way to get a value from a json document. The reason for this library it to give efficient json indexing for the [BuntDB](https://github.com/tidwall/buntdb) project. 
-
-For a command line interface check out [JSONed](https://github.com/tidwall/jsoned).
+GJSON is a Go package that provides a [very fast](#performance) and simple way to get a value from a json document. The purpose for this library it to give efficient json indexing for the [BuntDB](https://github.com/tidwall/buntdb) project. 
 
 Getting Started
 ===============
@@ -49,9 +47,7 @@ This will print:
 ```
 Prichard
 ```
-
-*There's also the [GetBytes](#working-with-bytes) function for working with JSON byte slices.*
-
+*There's also the [GetMany](#get-multiple-values-at-once) function to get multiple values at once, and [GetBytes](#working-with-bytes) for working with JSON byte slices.*
 
 ## Path Syntax
 
@@ -68,8 +64,9 @@ The dot and wildcard characters can be escaped with '\'.
   "children": ["Sara","Alex","Jack"],
   "fav.movie": "Deer Hunter",
   "friends": [
-	{"first": "James", "last": "Murphy"},
-	{"first": "Roger", "last": "Craig"}
+    {"first": "Dale", "last": "Murphy", "age": 44},
+    {"first": "Roger", "last": "Craig", "age": 68},
+    {"first": "Jane", "last": "Murphy", "age": 47}
   ]
 }
 ```
@@ -82,12 +79,18 @@ The dot and wildcard characters can be escaped with '\'.
 "child*.2"           >> "Jack"
 "c?ildren.0"         >> "Sara"
 "fav\.movie"         >> "Deer Hunter"
-"friends.#.first"    >> ["James","Roger"]
+"friends.#.first"    >> ["Dale","Roger","Jane"]
 "friends.1.last"     >> "Craig"
 ```
-To query an array:
+
+You can also query an array for the first match by using `#[...]`, or find all matches with `#[...]#`. 
+Queries support the `==`, `!=`, `<`, `<=`, `>`, `>=` comparison operators and the simple pattern matching `%` operator.
+
 ```
-`friends.#[last="Murphy"].first` >> "James"
+friends.#[last=="Murphy"].first    >> "Dale"
+friends.#[last=="Murphy"]#.first   >> ["Dale","Jane"]
+friends.#[age>45]#.last            >> ["Craig","Murphy"]
+friends.#[first%"D*"].last         >> "Murphy"
 ```
 
 ## Result Type
@@ -126,13 +129,15 @@ result.Bool() bool
 result.Array() []gjson.Result
 result.Map() map[string]gjson.Result
 result.Get(path string) Result
+result.ForEach(iterator func(key, value Result) bool)
+result.Less(token Result, caseSensitive bool) bool
 ```
 
 The `result.Value()` function returns an `interface{}` which requires type assertion and is one of the following Go types:
 
 
 
-The `result.Array()` funtion returns back an array of values.
+The `result.Array()` function returns back an array of values.
 If the result represents a non-existent value, then an empty array will be returned.
 If the result is not a JSON array, the return value will be an array containing one result.
 
@@ -182,6 +187,20 @@ name := gjson.Get(json, `programmers.#[lastName="Hunter"].firstName`)
 println(name.String())  // prints "Elliotte"
 ```
 
+## Iterate through an object or array
+
+The `ForEach` function allows for quickly iterating through an object or array. 
+The key and value are passed to the iterator function for objects.
+Only the value is passed for arrays.
+Returning `false` from an iterator will stop iteration.
+
+```go
+result := gjson.Get(json, "programmers")
+result.ForEach(func(key, value gjson.Result) bool{
+	println(value.String()) 
+	return true // keep iterating
+})
+```
 
 ## Simple Parse and Get
 
@@ -248,6 +267,16 @@ if result.Index > 0 {
 
 This is a best-effort no allocation sub slice of the original json. This method utilizes the `result.Index` field, which is the position of the raw data in the original json. It's possible that the value of `result.Index` equals zero, in which case the `result.Raw` is converted to a `[]byte`.
 
+## Get multiple values at once
+
+The `GetMany` function can be used to get multiple values at the same time, and is optimized to scan over a JSON payload once.
+
+```go
+results := gjson.GetMany(json, "name.first", "name.last", "age")
+```
+
+The return value is a `[]Result`, which will always contain exactly the same number of items as the input paths.
+
 ## Performance
 
 Benchmarks of GJSON alongside [encoding/json](https://golang.org/pkg/encoding/json/), 
@@ -264,6 +293,17 @@ BenchmarkJSONDecoder-8           	  300000	     14339 ns/op	    4224 B/op	     1
 BenchmarkFFJSONLexer-8           	 1500000	      3156 ns/op	     896 B/op	       8 allocs/op
 BenchmarkEasyJSONLexer-8         	 3000000	       938 ns/op	     613 B/op	       6 allocs/op
 BenchmarkJSONParserGet-8         	 3000000	       442 ns/op	      21 B/op	       0 allocs/op
+```
+
+Benchmarks for the `GetMany` function:
+
+```
+BenchmarkGJSONGetMany4Paths-8     	 4000000	       319 ns/op	     112 B/op	       0 allocs/op
+BenchmarkGJSONGetMany8Paths-8     	 8000000	       218 ns/op	      56 B/op	       0 allocs/op
+BenchmarkGJSONGetMany16Paths-8    	16000000	       160 ns/op	      56 B/op	       0 allocs/op
+BenchmarkGJSONGetMany32Paths-8    	32000000	       130 ns/op	      64 B/op	       0 allocs/op
+BenchmarkGJSONGetMany64Paths-8    	64000000	       117 ns/op	      64 B/op	       0 allocs/op
+BenchmarkGJSONGetMany128Paths-8    128000000	       109 ns/op	      64 B/op	       0 allocs/op
 ```
 
 JSON document used:
@@ -304,6 +344,20 @@ widget.image.hOffset
 widget.text.onMouseUp
 ```
 
+For the `GetMany` benchmarks these paths are used:
+
+```
+widget.window.name
+widget.image.hOffset
+widget.text.onMouseUp
+widget.window.title
+widget.image.alignment
+widget.text.style
+widget.window.height
+widget.image.src
+widget.text.data
+widget.text.size
+```
 
 *These benchmarks were run on a MacBook Pro 15" 2.8 GHz Intel Core i7 using Go 1.7.*
 

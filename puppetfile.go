@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/xorpaul/uiprogress"
+	"github.com/henvic/uiprogress"
 )
 
 func resolvePuppetEnvironment(envBranch string) {
