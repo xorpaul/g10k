@@ -104,7 +104,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		mutex.Unlock()
 		if !dryRun {
 			createOrPurgeDir(targetDir, "syncToModuleDir()")
-			cmd := "git --git-dir " + srcDir + " archive " + tree + " | tar -x -C " + targetDir
+			cmd := "git --git-dir " + srcDir + " archive '" + tree + "' | tar -x -C " + targetDir
 			before := time.Now()
 			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
 			duration := time.Since(before).Seconds()
