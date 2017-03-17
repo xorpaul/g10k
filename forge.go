@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -272,24 +271,36 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 
 	before := time.Now()
 	fileReader, err := pgzip.NewReader(file)
+
+	unTar(fileReader, config.ForgeCacheDir+"/")
+
 	if err != nil {
 		Fatalf(funcName + "(): pgzip reader error for module " + fileName + " error:" + err.Error())
 	}
 	defer fileReader.Close()
 
-	tarBallReader := tar.NewReader(fileReader)
+	duration := time.Since(before).Seconds()
+	Verbosef("Extracting " + config.ForgeCacheDir + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	mutex.Lock()
+	ioForgeTime += duration
+	mutex.Unlock()
+}
+
+func unTar(r io.Reader, targetBaseDir string) {
+	funcName := funcName()
+	tarBallReader := tar.NewReader(r)
 	for {
 		header, err := tarBallReader.Next()
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
-			Fatalf(funcName + "(): error while tar reader.Next() for " + fileName + err.Error())
+			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader " + err.Error())
 		}
 
 		// get the individual filename and extract to the current directory
 		filename := header.Name
-		targetFilename := config.ForgeCacheDir + "/" + filename
+		targetFilename := targetBaseDir + filename
 		//Debugf("Trying to extract file" + filename)
 
 		switch header.Typeflag {
@@ -321,16 +332,15 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 			}
 
 			writer.Close()
+
+		// Skip pax_global_header with the commit ID this archive was created from
+		case tar.TypeXGlobalHeader:
+			continue
+
 		default:
 			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
 		}
 	}
-
-	duration := time.Since(before).Seconds()
-	Verbosef("Extracting " + config.ForgeCacheDir + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-	mutex.Lock()
-	ioForgeTime += duration
-	mutex.Unlock()
 }
 
 func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {
@@ -607,6 +617,7 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 }
 
 func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
+	funcName := funcName()
 	mutex.Lock()
 	syncForgeCount++
 	mutex.Unlock()
@@ -648,32 +659,51 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
 			return
 		}
-		log.Println("syncForgeToModuleDir(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
+		log.Println(funcName + "(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
 		createOrPurgeDir(targetDir, " targetDir for module "+me.name)
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if !fileExists(workDir) {
-		Fatalf("syncForgeToModuleDir(): Forge module not found in dir: " + workDir)
+		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
 	} else {
 		Infof("Need to sync " + targetDir)
-		cmd := "cp --link --archive " + workDir + "* " + targetDir
-		if usemove {
-			cmd = "mv " + workDir + "* " + targetDir
-		}
 		mutex.Lock()
 		needSyncForgeCount++
 		mutex.Unlock()
 		if !dryRun {
+			hardlink := func(path string, info os.FileInfo, err error) error {
+				if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
+					target, err := filepath.Rel(workDir, path)
+					if err != nil {
+						Fatalf(funcName + "(): Can't make " + path + " relative to " + workDir + " Error: " + err.Error())
+					}
+
+					if info.IsDir() {
+						//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
+						err = os.Mkdir(targetDir+target, os.FileMode(0755))
+						if err != nil {
+							Fatalf(funcName + "(): error while Mkdir() " + targetDir + target + " Error: " + err.Error())
+						}
+					} else {
+						//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
+						err = os.Link(path, targetDir+target)
+						if err != nil {
+							Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + target + " Error: " + err.Error())
+						}
+					}
+				}
+				return nil
+			}
+			c := make(chan error)
+			Debugf(funcName + "() filepath.Walk'ing directory " + workDir)
 			before := time.Now()
-			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+			go func() { c <- filepath.Walk(workDir, hardlink) }()
+			<-c // Walk done
 			duration := time.Since(before).Seconds()
 			mutex.Lock()
 			ioForgeTime += duration
 			mutex.Unlock()
-			Verbosef("Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-			if err != nil {
-				Fatalf("syncForgeToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out) + "\nError while trying to hardlink " + workDir + " to " + targetDir + " :" + err.Error())
-			}
+			Verbosef("Populating " + targetDir + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 		}
 	}
 }
