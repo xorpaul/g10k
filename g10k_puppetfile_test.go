@@ -300,3 +300,16 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
 	}
 }
+
+func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+
+	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	fm := make(map[string]ForgeModule)
+	fm["pcfens/filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
+	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+	if !equalPuppetfile(got, expected) {
+		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
+	}
+
+}

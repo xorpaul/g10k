@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/henvic/uiprogress"
 	"github.com/klauspost/pgzip"
 	"github.com/tidwall/gjson"
-	"github.com/xorpaul/uiprogress"
 )
 
 func doModuleInstallOrNothing(m string, fm ForgeModule) {
