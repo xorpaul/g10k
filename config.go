@@ -112,7 +112,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtl)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+/[^'\"]+)['\"](?:\\s*)[,]?(.*)")
+	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
@@ -141,8 +141,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			//fmt.Println("found forge mod name ---> ", forgeModuleName)
 			comp := strings.Split(forgeModuleName, "/")
 			if len(comp) != 2 {
-				Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt + but is:" + m[2] + "in" + pf + "line: " + line)
+				comp = strings.Split(forgeModuleName, "-")
+				if len(comp) != 2 {
+					Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt or puppetlabs-apt ,but is: " + m[2] + " in " + pf + " line: " + line)
+				}
 			}
+			forgeModuleName = comp[0] + "/" + comp[1]
 			if _, ok := puppetFile.forgeModules[forgeModuleName]; ok {
 				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + forgeModuleName + " line: " + line)
 			}
