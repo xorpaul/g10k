@@ -104,22 +104,27 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		mutex.Unlock()
 		if !dryRun {
 			createOrPurgeDir(targetDir, "syncToModuleDir()")
-			cmd := "git --git-dir " + srcDir + " archive '" + tree + "' | tar -x -C " + targetDir
+			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", tree}
+			cmd := exec.Command("git", gitArchiveArgs...)
+			Debugf("Executing git --git-dir " + srcDir + " archive " + tree)
+			cmdOut, err := cmd.StdoutPipe()
+			if err != nil {
+				if !allowFail {
+					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+				} else {
+					return false
+				}
+				Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + tree + " Error: " + err.Error())
+			}
+			cmd.Start()
+
 			before := time.Now()
-			out, err := exec.Command("bash", "-c", cmd).CombinedOutput()
+			unTar(cmdOut, targetDir)
 			duration := time.Since(before).Seconds()
 			mutex.Lock()
 			ioGitTime += duration
 			mutex.Unlock()
-			Verbosef("syncToModuleDir(): Executing " + cmd + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
-			if err != nil {
-				if !allowFail {
-					Fatalf("syncToModuleDir(): Failed to execute command: " + cmd + " Output: " + string(out))
-				} else {
-					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
-					return false
-				}
-			}
+			Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 
 			er = executeCommand(logCmd, config.Timeout, false)
 			if len(er.output) > 0 {

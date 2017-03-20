@@ -42,7 +42,8 @@ func resolvePuppetEnvironment(envBranch string) {
 
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
-					if strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
+					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
+					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
 						continue
 					}
