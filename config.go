@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -20,11 +19,18 @@ func readConfigfile(configFile string) ConfigSettings {
 		Fatalf("readConfigfile(): There was an error parsing the config file " + configFile + ": " + err.Error())
 	}
 
-	//fmt.Println("data:", string(data))
-	data = bytes.Replace(data, []byte(":cachedir:"), []byte("cachedir:"), -1)
-	//fmt.Println("data:", string(data))
+	rubySymbolsRemoved := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		reWhitespaceColon := regexp.MustCompile("^(\\s*):")
+		m := reWhitespaceColon.FindStringSubmatch(line)
+		if len(m) > 0 {
+			rubySymbolsRemoved += reWhitespaceColon.ReplaceAllString(line, m[1]) + "\n"
+		} else {
+			rubySymbolsRemoved += line + "\n"
+		}
+	}
 	var config ConfigSettings
-	err = yaml.Unmarshal(data, &config)
+	err = yaml.Unmarshal([]byte(rubySymbolsRemoved), &config)
 	if err != nil {
 		Fatalf("YAML unmarshal error: " + err.Error())
 	}
