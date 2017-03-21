@@ -45,7 +45,7 @@ func resolvePuppetEnvironment(envBranch string) {
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
-						if k == len(branches)-1 {
+						if sa.WarnMissingBranch && k == len(branches)-1 {
 							Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 						}
 						continue
@@ -174,7 +174,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				defer wg.Done()
 				//fmt.Println(gitModule)
 				//fmt.Println("source: " + source)
-				targetDir := moduleDir + "/" + gitName
+				targetDir := moduleDir + "/" + gitName + "/"
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
 				if len(gitModule.branch) > 0 {
@@ -189,8 +189,10 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					if pfMode {
 						if len(os.Getenv("g10k_branch")) > 0 {
 							tree = os.Getenv("g10k_branch")
+						} else if len(branchParam) > 0 {
+							tree = branchParam
 						} else {
-							Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as I can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch'")
+							Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as g10k can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch' or using the -branch parameter")
 						}
 					} else {
 						tree = envBranch
