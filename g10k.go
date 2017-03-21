@@ -74,6 +74,7 @@ type Source struct {
 	Prefix             string
 	PrivateKey         string `yaml:"private_key"`
 	ForceForgeVersions bool   `yaml:"force_forge_versions"`
+	WarnMissingBranch  bool   `yaml:"warn_if_branch_is_missing"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile

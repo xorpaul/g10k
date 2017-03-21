@@ -183,6 +183,28 @@ If g10k then encounters `:latest` or `:present` for a Forge module it errors out
 2016/11/15 18:45:38 Error: Found present setting for forge module in /tmp/example/example_benchmark/Puppetfile for module puppetlabs/concat line: mod 'puppetlabs/concat' and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')
 ```
 
+- g10k can let you know if your source does not contain the branch you specified with the `-branch` parameter:
+
+```
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    warn_if_branch_is_missing: true
+```
+
+If you then call g10k with that config file and the following parameter `-branch nonExistingBranch`. You should get:
+
+```
+WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)
+```
+
+This can be helpful if you use a dedicated hiera repository/g10k source and you want to ensure that you always have a matching branch, see [#45](https://github.com/xorpaul/g10k/issues/45)
+
+
 # building
 ```
 # only initially needed to resolve all dependencies
