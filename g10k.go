@@ -14,6 +14,7 @@ var (
 	debug                  bool
 	verbose                bool
 	info                   bool
+	quiet                  bool
 	force                  bool
 	usemove                bool
 	pfMode                 bool
@@ -148,6 +149,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "log debug output, defaults to false")
 	flag.BoolVar(&verbose, "verbose", false, "log verbose output, defaults to false")
 	flag.BoolVar(&info, "info", false, "log info output, defaults to false")
+	flag.BoolVar(&quiet, "quiet", false, "no output, defaults to false")
 	flag.Parse()
 
 	configFile := *configFileFlag
@@ -234,7 +236,7 @@ func main() {
 	Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJsonParseTime, 'f', 4, 64) + " seconds")
 	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
 
-	if !check4update {
+	if !check4update && !quiet {
 		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s)")
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
