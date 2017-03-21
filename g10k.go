@@ -21,6 +21,8 @@ var (
 	check4update           bool
 	checkSum               bool
 	moduleDirParam         string
+	cacheDirParam          string
+	branchParam            string
 	config                 ConfigSettings
 	wg                     sync.WaitGroup
 	mutex                  sync.Mutex
@@ -131,34 +133,27 @@ type ExecResult struct {
 func main() {
 
 	var (
-		configFile       = flag.String("config", "", "which config file to use")
-		envBranchFlag    = flag.String("branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
-		moduleDirFlag    = flag.String("moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
-		pfFlag           = flag.Bool("puppetfile", false, "install all modules from Puppetfile in cwd")
-		forceFlag        = flag.Bool("force", false, "purge the Puppet environment directory and do a full sync")
-		dryRunFlag       = flag.Bool("dryrun", false, "do not modify anything, just print what would be changed")
-		usemoveFlag      = flag.Bool("usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
-		check4updateFlag = flag.Bool("check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
-		checkSumFlag     = flag.Bool("checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")
-		debugFlag        = flag.Bool("debug", false, "log debug output, defaults to false")
-		verboseFlag      = flag.Bool("verbose", false, "log verbose output, defaults to false")
-		infoFlag         = flag.Bool("info", false, "log info output, defaults to false")
-		versionFlag      = flag.Bool("version", false, "show build time and version number")
+		configFileFlag = flag.String("config", "", "which config file to use")
+		versionFlag    = flag.Bool("version", false, "show build time and version number")
 	)
+	flag.StringVar(&branchParam, "branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+	flag.StringVar(&moduleDirParam, "moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
+	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
+	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
+	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
+	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
+	flag.BoolVar(&usemove, "usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! Var(&Useful for g10k runs inside a Docker container)")
+	flag.BoolVar(&check4update, "check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
+	flag.BoolVar(&checkSum, "checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")
+	flag.BoolVar(&debug, "debug", false, "log debug output, defaults to false")
+	flag.BoolVar(&verbose, "verbose", false, "log verbose output, defaults to false")
+	flag.BoolVar(&info, "info", false, "log info output, defaults to false")
 	flag.Parse()
 
-	debug = *debugFlag
-	verbose = *verboseFlag
-	info = *infoFlag
-	force = *forceFlag
-	dryRun = *dryRunFlag
-	check4update = *check4updateFlag
-	usemove = *usemoveFlag
-	pfMode = *pfFlag
-	checkSum = *checkSumFlag
-	moduleDirParam = *moduleDirFlag
+	configFile := *configFileFlag
+	version := *versionFlag
 
-	if *versionFlag {
+	if version {
 		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
@@ -174,19 +169,19 @@ func main() {
 
 	target := ""
 	before := time.Now()
-	if len(*configFile) > 0 {
+	if len(configFile) > 0 {
 		if usemove {
 			Fatalf("Error: -usemove parameter is only allowed in -puppetfile mode!")
 		}
 		if pfMode {
 			Fatalf("Error: -puppetfile parameter is not allowed with -config parameter!")
 		}
-		Debugf("Using as config file: " + *configFile)
-		config = readConfigfile(*configFile)
-		target = *configFile
-		if len(*envBranchFlag) > 0 {
-			resolvePuppetEnvironment(*envBranchFlag)
-			target += " with branch " + *envBranchFlag
+		Debugf("Using as config file: " + configFile)
+		config = readConfigfile(configFile)
+		target = configFile
+		if len(branchParam) > 0 {
+			resolvePuppetEnvironment(branchParam)
+			target += " with branch " + branchParam
 		} else {
 			resolvePuppetEnvironment("")
 		}
@@ -200,6 +195,9 @@ func main() {
 				cachedir = os.Getenv("g10k_cachedir")
 				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
 				Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
+			} else if len(cacheDirParam) > 0 {
+				Debugf("Using -cachedir parameter set to : " + cacheDirParam)
+				cachedir = checkDirAndCreate(cacheDirParam, "cachedir CLI param")
 			} else {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
