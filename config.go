@@ -14,6 +14,7 @@ import (
 
 // readConfigfile creates the ConfigSettings struct from the g10k config file
 func readConfigfile(configFile string) ConfigSettings {
+	Debugf("Trying to read g10k config file: " + configFile)
 	data, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		Fatalf("readConfigfile(): There was an error parsing the config file " + configFile + ": " + err.Error())
@@ -35,12 +36,8 @@ func readConfigfile(configFile string) ConfigSettings {
 		Fatalf("YAML unmarshal error: " + err.Error())
 	}
 
-	//fmt.Println("config:", config)
-	//fmt.Println("config ----- forge:", config.Forge)
-	//for k, v := range config.Sources {
-	//	fmt.Print(k)
-	//	fmt.Print(v.Remote)
-	//}
+	//fmt.Print("config: ")
+	//fmt.Printf("%+v\n", config)
 
 	// check if cachedir exists
 	config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir")

@@ -40,13 +40,17 @@ func resolvePuppetEnvironment(envBranch string) {
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
 				branches := strings.Split(strings.TrimSpace(er.output), "\n")
 
-				for _, branch := range branches {
+				for k, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
+						if k == len(branches)-1 {
+							Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+						}
 						continue
 					}
+
 					wg.Add(1)
 
 					go func(branch string) {

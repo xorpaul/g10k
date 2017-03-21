@@ -28,7 +28,8 @@ func TestForgeChecksum(t *testing.T) {
 }
 
 func TestConfigPrefix(t *testing.T) {
-	got := readConfigfile("tests/TestConfigPrefix.yaml")
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readConfigfile("tests/" + funcName + ".yaml")
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
@@ -42,16 +43,17 @@ func TestConfigPrefix(t *testing.T) {
 		Sources: s, Timeout: 5}
 
 	if !reflect.DeepEqual(got, expected) {
-		t.Error("Expected ConfigSettings:", expected, ", but got ConfigSettings:", got)
+		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigForceForgeVersions(t *testing.T) {
-	got := readConfigfile("tests/TestConfigForceForgeVersions.yaml")
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readConfigfile("tests/" + funcName + ".yaml")
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example/", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true}
+		Basedir: "/tmp/example/", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true, WarnMissingBranch: false}
 
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
@@ -61,7 +63,52 @@ func TestConfigForceForgeVersions(t *testing.T) {
 		Sources: s, Timeout: 5}
 
 	if !reflect.DeepEqual(got, expected) {
-		t.Error("Expected ConfigSettings:", expected, ", but got ConfigSettings:", got)
+		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
+	}
+}
+
+func TestConfigAddWarning(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readConfigfile("tests/" + funcName + ".yaml")
+
+	s := make(map[string]Source)
+	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
+		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false, WarnMissingBranch: true}
+
+	expected := ConfigSettings{
+		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
+		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		Git:     Git{privateKey: "", username: ""},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Sources: s, Timeout: 5}
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
+	}
+}
+
+func TestBinaryConfigAddWarning(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigAddWarning.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("nonExistingBranch")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 0)
+	}
+	if !strings.Contains(string(out), "WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing")
 	}
 }
 
