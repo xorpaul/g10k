@@ -334,6 +334,16 @@ func unTar(r io.Reader, targetBaseDir string) {
 
 			writer.Close()
 
+		case tar.TypeSymlink:
+			if os.Symlink(header.Linkname, targetFilename) != nil {
+				Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
+			}
+
+		case tar.TypeLink:
+			if os.Link(header.Linkname, targetFilename) != nil {
+				Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
+			}
+
 		// Skip pax_global_header with the commit ID this archive was created from
 		case tar.TypeXGlobalHeader:
 			continue
