@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fatih/color"
@@ -667,6 +668,26 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
 	} else {
 		Infof("Need to sync " + targetDir)
+		var targetDirDevice, workDirDevice uint64
+		if fileInfo, err := os.Stat(targetDir); err == nil {
+			if fileInfo.Sys() != nil {
+				targetDirDevice = fileInfo.Sys().(*syscall.Stat_t).Dev
+			}
+		} else {
+			Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
+		}
+		if fileInfo, err := os.Stat(workDir); err == nil {
+			if fileInfo.Sys() != nil {
+				workDirDevice = fileInfo.Sys().(*syscall.Stat_t).Dev
+			}
+		} else {
+			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
+		}
+
+		if targetDirDevice != workDirDevice {
+			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
+		}
+
 		mutex.Lock()
 		needSyncForgeCount++
 		mutex.Unlock()
