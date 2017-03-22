@@ -87,7 +87,7 @@ func TestConfigAddWarning(t *testing.T) {
 	}
 }
 
-func TestBinaryConfigAddWarning(t *testing.T) {
+func TestResolvConfigAddWarning(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigAddWarning.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
@@ -110,6 +110,49 @@ func TestBinaryConfigAddWarning(t *testing.T) {
 	if !strings.Contains(string(out), "WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing")
 	}
+}
+
+func TestResolvStatic(t *testing.T) {
+
+	path, err := exec.LookPath("hashdeep")
+	if err != nil {
+		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+	}
+
+	quiet = true
+	purgeDir("./cache/", "TestResolvStatic()")
+	purgeDir("./example/", "TestResolvStatic()")
+	config = readConfigfile("tests/TestConfigStatic.yaml")
+	resolvePuppetEnvironment("static")
+
+	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	out, err := cmd.CombinedOutput()
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if exitCode != 0 {
+		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
+	}
+	if !strings.Contains(string(out), "") {
+		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing")
+	}
+	Debugf("hashdeep output:" + string(out))
+
+	purgeDir("example/example_static/external_modules/stdlib/spec/unit/facter/util", "TestResolvStatic()")
+
+	cmd = exec.Command("hashdeep", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	out, err = cmd.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if exitCode != 1 {
+		t.Errorf("hashdeep terminated with %v, but we expected exit status 1\nOutput: %v", exitCode, string(out))
+	}
+
 }
 
 func TestInvalidFilesizeForgemodule(t *testing.T) {

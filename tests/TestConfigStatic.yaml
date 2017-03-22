@@ -1,0 +1,9 @@
+---
+cachedir: './cache'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: './example/'
+    prefix: true
+    warn_if_branch_is_missing: true

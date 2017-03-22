@@ -40,15 +40,15 @@ func resolvePuppetEnvironment(envBranch string) {
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
 				branches := strings.Split(strings.TrimSpace(er.output), "\n")
 
-				for k, branch := range branches {
+				foundBranch := false
+				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
-						if sa.WarnMissingBranch && k == len(branches)-1 {
-							Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
-						}
 						continue
+					} else if len(envBranch) > 0 && branch == envBranch {
+						foundBranch = true
 					}
 
 					wg.Add(1)
@@ -79,6 +79,9 @@ func resolvePuppetEnvironment(envBranch string) {
 						}
 					}(branch)
 
+				}
+				if sa.WarnMissingBranch && !foundBranch {
+					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				}
 			}
 		}(source, sa)
@@ -127,7 +130,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 	}
-	if !debug && !verbose && !info {
+	if !debug && !verbose && !info && !quiet {
 		uiprogress.Start()
 	}
 	//fmt.Println(uniqueGitModules)
@@ -251,7 +254,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 	}
-	if !debug && !verbose && !info {
+	if !debug && !verbose && !info && !quiet {
 		uiprogress.Stop()
 	}
 }
