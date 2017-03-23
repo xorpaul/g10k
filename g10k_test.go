@@ -153,6 +153,11 @@ func TestResolvStatic(t *testing.T) {
 		t.Errorf("hashdeep terminated with %v, but we expected exit status 1\nOutput: %v", exitCode, string(out))
 	}
 
+	fileMode, err := os.Stat("./example/example_static/external_modules/aws/examples/audit-security-groups/count_out_of_sync_resources.sh")
+	if fileMode.Mode().String() != "-rwxrwxr-x" {
+		t.Error("Wrong file permission for test file. Check unTar()")
+	}
+
 }
 
 func TestInvalidFilesizeForgemodule(t *testing.T) {

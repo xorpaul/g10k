@@ -325,8 +325,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			}
 
 			io.Copy(writer, tarBallReader)
-
-			err = os.Chmod(targetFilename, os.FileMode(0644))
+			err = os.Chmod(targetFilename, os.FileMode(header.Mode))
 
 			if err != nil {
 				Fatalf(funcName + "(): error while Chmod() " + filename + err.Error())
