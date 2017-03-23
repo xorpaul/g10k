@@ -313,3 +313,17 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 	}
 
 }
+
+func TestReadPuppetfileForgeDash(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false)
+
+	fm := make(map[string]ForgeModule)
+	fm["mayflower/php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
+
+	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+
+	if !equalPuppetfile(got, expected) {
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}

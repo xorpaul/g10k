@@ -24,12 +24,11 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func doModuleInstallOrNothing(m string, fm ForgeModule) {
-	ma := strings.Split(m, "-")
-	moduleName := ma[0] + "-" + ma[1]
-	moduleVersion := ma[2]
-	workDir := config.ForgeCacheDir + m
-	fr := ForgeResult{false, ma[2], "", 0}
+func doModuleInstallOrNothing(fm ForgeModule) {
+	moduleName := fm.author + "-" + fm.name
+	moduleVersion := fm.version
+	workDir := config.ForgeCacheDir + moduleName + "-" + fm.version
+	fr := ForgeResult{false, fm.version, "", 0}
 	if check4update {
 		moduleVersion = "latest"
 	}
@@ -88,14 +87,15 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 		latestDir := config.ForgeCacheDir + moduleName + "-latest"
 		if !fileExists(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
-				Debugf("we got " + m + ", but no " + latestDir + " to use, but -latest is already being fetched.")
+				Debugf("we got " + fm.author + "-" + fm.name + "-" + fm.version + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
 			}
-			Debugf("we got " + m + ", but no " + latestDir + " to use. Getting -latest")
-			doModuleInstallOrNothing(moduleName+"-latest", fm)
+			Debugf("we got " + fm.author + "-" + fm.name + "-" + fm.version + ", but no " + latestDir + " to use. Getting -latest")
+			fm.version = "latest"
+			doModuleInstallOrNothing(fm)
 			return
 		}
-		Debugf("Nothing to do for module " + m + ", because " + latestDir + " exists")
+		Debugf("Nothing to do for module " + fm.author + "-" + fm.name + "-" + fm.version + ", because " + latestDir + " exists")
 	} else {
 		if !fileExists(workDir) {
 			fr.needToGet = true
@@ -108,7 +108,7 @@ func doModuleInstallOrNothing(m string, fm ForgeModule) {
 	//log.Println("fr.needToGet for ", m, fr.needToGet)
 
 	if fr.needToGet {
-		if ma[2] != "latest" {
+		if fm.version != "latest" {
 			Debugf("Trying to remove: " + workDir)
 			_ = os.Remove(workDir)
 		} else {
@@ -490,7 +490,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 			defer wgForge.Done()
 			defer bar.Incr()
 			Debugf("resolveForgeModules(): Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + " and CacheTtl set to " + fm.cacheTtl.String())
-			doModuleInstallOrNothing(m, fm)
+			doModuleInstallOrNothing(fm)
 		}(m, fm, bar)
 	}
 	wgForge.Wait()
