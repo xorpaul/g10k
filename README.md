@@ -18,15 +18,14 @@ My r10k fork written in Go, designed to work as a drop-in replacement* in place 
 
 ### Pseudo "benchmark"
 
-updated 2016-10-14
 
 Using Puppetfile with 4 git repositories and 25 Forge modules
 https://github.com/xorpaul/g10k-environment/blob/benchmark/Puppetfile
 
-||w/o cache| w/ cache
-|------------|------------ | -------------
-|r10k|1m14s,1m18s,1m12s|18s,17s,17s
-|g10k|4.6s,5s,4.7s|1s,1s,1s
+| 2016-10-14 | w/o cache | w/ cache |
+| ------------ | ------------ | ------------- |
+| r10k | 1m14s,1m18s,1m12s | 18s,17s,17s |
+| g10k | 4.6s,5s,4.7s | 1s,1s,1s |
 
 Using go 1.7.1 and g10k commit 7524778
 Using ruby 2.1.5+deb8u2 and r10k v2.4.3
