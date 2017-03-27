@@ -77,7 +77,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
-	logCmd := "git --git-dir " + srcDir + " log -n1 --pretty=format:%H " + tree
+	logCmd := "git --git-dir " + srcDir + " rev-parse '" + tree + "'"
 	er := executeCommand(logCmd, config.Timeout, allowFail)
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true
