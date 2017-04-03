@@ -650,27 +650,32 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		m.version = "latest"
 
 	}
-	if fileExists(targetDir + "metadata.json") {
-		me := readModuleMetadata(targetDir + "metadata.json")
-		if m.version == "latest" {
-			latestForgeModules.RLock()
-			if _, ok := latestForgeModules.m[moduleName]; ok {
-				Debugf("using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
-				m.version = latestForgeModules.m[moduleName]
+	if fileExists(targetDir) {
+		if fileExists(targetDir + "metadata.json") {
+			me := readModuleMetadata(targetDir + "metadata.json")
+			if m.version == "latest" {
+				latestForgeModules.RLock()
+				if _, ok := latestForgeModules.m[moduleName]; ok {
+					Debugf("using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
+					m.version = latestForgeModules.m[moduleName]
+				}
+				latestForgeModules.RUnlock()
 			}
-			latestForgeModules.RUnlock()
+			if check4update {
+				latestForgeModules.RLock()
+				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
+				latestForgeModules.RUnlock()
+			}
+			if me.version == m.version {
+				Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
+				return
+			}
+			log.Println(funcName + "(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
+			createOrPurgeDir(targetDir, " targetDir for module "+me.name)
+		} else {
+			Debugf("Need to purge " + targetDir + ", because it exists without a metadata.json. This shouldn't happen!")
+			createOrPurgeDir(targetDir, " targetDir for module "+m.name+" with missing metadata.json")
 		}
-		if check4update {
-			latestForgeModules.RLock()
-			check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
-			latestForgeModules.RUnlock()
-		}
-		if me.version == m.version {
-			Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
-			return
-		}
-		log.Println(funcName + "(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
-		createOrPurgeDir(targetDir, " targetDir for module "+me.name)
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if !fileExists(workDir) {
