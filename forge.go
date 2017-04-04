@@ -474,6 +474,7 @@ func readModuleMetadata(file string) ForgeModule {
 }
 
 func resolveForgeModules(modules map[string]ForgeModule) {
+	defer timeTrack(time.Now(), funcName())
 	if len(modules) <= 0 {
 		Debugf("empty ForgeModule[] found, skipping...")
 		return

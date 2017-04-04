@@ -138,9 +138,6 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
-	mutex.Lock()
-	syncGitTime += duration
-	mutex.Unlock()
 	if allowFail && err != nil {
 		Debugf("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	} else {
@@ -163,4 +160,14 @@ func funcName() string {
 	pc, _, _, _ := runtime.Caller(1)
 	completeFuncname := runtime.FuncForPC(pc).Name()
 	return strings.Split(completeFuncname, ".")[len(strings.Split(completeFuncname, "."))-1]
+}
+
+func timeTrack(start time.Time, name string) {
+	duration := time.Since(start).Seconds()
+	if name == "resolveForgeModules" {
+		syncForgeTime = duration
+	} else if name == "resolveGitRepositories" {
+		syncGitTime = duration
+	}
+	Debugf(name + "() took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 }

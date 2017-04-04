@@ -14,6 +14,7 @@ import (
 )
 
 func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
+	defer timeTrack(time.Now(), funcName())
 	if len(uniqueGitModules) <= 0 {
 		Debugf("uniqueGitModules[] is empty, skipping...")
 		return
