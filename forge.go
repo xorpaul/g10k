@@ -714,6 +714,29 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 						Fatalf(funcName + "(): Can't make " + path + " relative to " + workDir + " Error: " + err.Error())
 					}
 
+					targetInfo, err := os.Lstat(targetDir + target)
+					if err != nil && !os.IsNotExist(err) {
+						Fatalf(funcName + "(): Failed to stat target file " + path + " relative to " + workDir + " Error: " + err.Error())
+					}
+
+					if targetInfo != nil {
+						// target and source are
+						// already hardlinked,
+						// exit early
+						if os.SameFile(info, targetInfo) {
+							return nil
+						}
+
+						//.Remove file if it
+						// exists and is not
+						// already hardlinked to
+						// the target
+						if err := os.Remove(targetDir + path); err != nil {
+							Fatalf(funcName + "(): Failed to remote target file " + path + " relative to " + workDir + " Error: " + err.Error())
+							return err
+						}
+					}
+
 					if info.IsDir() {
 						//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
 						err = os.Mkdir(targetDir+target, os.FileMode(0755))
