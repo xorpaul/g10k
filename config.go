@@ -144,7 +144,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 				}
 			}
 			forgeModuleName = comp[0] + "/" + comp[1]
-			if _, ok := puppetFile.forgeModules[forgeModuleName]; ok {
+			if _, ok := puppetFile.forgeModules[comp[1]]; ok {
 				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + forgeModuleName + " line: " + line)
 			}
 			forgeModuleVersion := "present"
@@ -177,7 +177,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if forceForgeVersions && (forgeModuleVersion == "present" || forgeModuleVersion == "latest") {
 				Fatalf("Error: Found " + forgeModuleVersion + " setting for forge module in " + pf + " for module " + forgeModuleName + " line: " + line + " and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')")
 			}
-			puppetFile.forgeModules[forgeModuleName] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
+			if _, ok := puppetFile.gitModules[comp[1]]; ok {
+				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
+			}
+			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
@@ -252,6 +255,9 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						}
 					}
 
+				}
+				if _, ok := puppetFile.forgeModules[gitModuleName]; ok {
+					Fatalf("Error: Git Puppet module with same name found in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
 				puppetFile.gitModules[gitModuleName] = gm
 			}

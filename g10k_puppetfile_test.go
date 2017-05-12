@@ -168,9 +168,9 @@ func TestReadPuppetfile(t *testing.T) {
 		branch: "foo", ignoreUnreachable: true, fallback: fallbackMapExampleFull}
 
 	fm := make(map[string]ForgeModule)
-	fm["puppetlabs/apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt"}
-	fm["puppetlabs/ntp"] = ForgeModule{version: "present", author: "puppetlabs", name: "ntp"}
-	fm["puppetlabs/stdlib"] = ForgeModule{version: "latest", author: "puppetlabs", name: "stdlib"}
+	fm["apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt"}
+	fm["ntp"] = ForgeModule{version: "present", author: "puppetlabs", name: "ntp"}
+	fm["stdlib"] = ForgeModule{version: "latest", author: "puppetlabs", name: "stdlib"}
 
 	expected := Puppetfile{moduleDir: "external_modules", gitModules: gm, forgeModules: fm, source: "test", forgeCacheTtl: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
 
@@ -284,15 +284,19 @@ func TestReadPuppetfileLink(t *testing.T) {
 	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Found conflicting git attributes :branch, :link, in tests/TestReadPuppetfileLink for module example_module line: mod 'example_module',:git => 'git@somehost.com/foo/example-module.git',:branch => 'foo',:link => true")
 }
 
+func TestReadPuppetfileDuplicateForgeGitModule(t *testing.T) {
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Git Puppet module with same name found in tests/TestReadPuppetfileDuplicateForgeGitModule for module bar line: mod 'bar',:git => 'https://github.com/foo/bar.git'")
+}
+
 func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 
 	fm := make(map[string]ForgeModule)
-	fm["puppetlabs/ntp"] = ForgeModule{version: "6.0.0", author: "puppetlabs", name: "ntp", sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
-	fm["puppetlabs/stdlib"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "stdlib", sha256sum: "433c69fb99a46185e81619fadb70e0961bce2f4e952294a16e61364210d1519d"}
-	fm["puppetlabs/apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt", sha256sum: "a09290c207bbfed7f42dd0356ff4dee16e138c7f9758d2134a21aeb66e14072f"}
-	fm["puppetlabs/concat"] = ForgeModule{version: "2.2.0", author: "puppetlabs", name: "concat", sha256sum: "ec0407abab71f57e106ade6ed394410d08eec29bdad4c285580e7b56514c5194"}
+	fm["ntp"] = ForgeModule{version: "6.0.0", author: "puppetlabs", name: "ntp", sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
+	fm["stdlib"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "stdlib", sha256sum: "433c69fb99a46185e81619fadb70e0961bce2f4e952294a16e61364210d1519d"}
+	fm["apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt", sha256sum: "a09290c207bbfed7f42dd0356ff4dee16e138c7f9758d2134a21aeb66e14072f"}
+	fm["concat"] = ForgeModule{version: "2.2.0", author: "puppetlabs", name: "concat", sha256sum: "ec0407abab71f57e106ade6ed394410d08eec29bdad4c285580e7b56514c5194"}
 
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 
@@ -306,7 +310,7 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 	fm := make(map[string]ForgeModule)
-	fm["pcfens/filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
+	fm["filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 	if !equalPuppetfile(got, expected) {
 		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
@@ -319,7 +323,7 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 
 	fm := make(map[string]ForgeModule)
-	fm["mayflower/php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
+	fm["php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
 
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 

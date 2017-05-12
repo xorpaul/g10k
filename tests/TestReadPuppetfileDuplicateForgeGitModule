@@ -1,0 +1,3 @@
+mod 'foo/bar', :latest
+mod 'bar',
+  :git => 'https://github.com/foo/bar.git'

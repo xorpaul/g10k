@@ -632,7 +632,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	mutex.Lock()
 	syncForgeCount++
 	mutex.Unlock()
-	moduleName := strings.Replace(name, "/", "-", -1)
+	moduleName := m.author + "-" + m.name
 	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
 	targetDir := moduleDir + m.name
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
