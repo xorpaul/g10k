@@ -3,6 +3,6 @@
 ignore_unreachable_modules: true
 
 sources:
-  example:
+  failing:
     remote: 'https://github.com/xorpaul/g10k-failing-env.git'
     basedir: '/tmp/failing/'
