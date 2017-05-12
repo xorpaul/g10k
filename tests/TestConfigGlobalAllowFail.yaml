@@ -1,0 +1,8 @@
+---
+:cachedir: '/tmp/g10k'
+ignore_unreachable_modules: true
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-failing-env.git'
+    basedir: '/tmp/failing/'

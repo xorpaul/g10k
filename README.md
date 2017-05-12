@@ -203,6 +203,26 @@ WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source '
 
 This can be helpful if you use a dedicated hiera repository/g10k source and you want to ensure that you always have a matching branch, see [#45](https://github.com/xorpaul/g10k/issues/45)
 
+- By default g10k fails if one of your Puppet environments could not be completely populated (e.g. if one of your Puppet Git module branches doesn't exist anymore). You can change this by setting `ignore_unreachable_modules` to true in your g10k config:
+
+```
+---
+:cachedir: '/tmp/g10k'
+ignore_unreachable_modules: true
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-failing-env.git'
+    basedir: '/tmp/failing/'
+```
+
+If you then call g10k with that config file and at least the `info` verbosity level, you should get: 
+
+```
+Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
+```
+
+See [#57](https://github.com/xorpaul/g10k/issues/57) for details.
 
 # building
 ```

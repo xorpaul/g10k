@@ -160,6 +160,33 @@ func TestResolvStatic(t *testing.T) {
 
 }
 
+func TestConfigGlobalAllowFail(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	info = true
+	config = readConfigfile("tests/" + funcName + ".yaml")
+
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 0)
+	}
+	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. Output was: %s", string(out))
+	}
+}
+
 func TestInvalidFilesizeForgemodule(t *testing.T) {
 	ts := spinUpFakeForge(t, "tests/fake-forge/invalid-filesize-puppetlabs-ntp-metadata.json")
 	defer ts.Close()

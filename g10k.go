@@ -51,14 +51,15 @@ type LatestForgeModules struct {
 
 // ConfigSettings contains the key value pairs from the g10k config file
 type ConfigSettings struct {
-	CacheDir        string `yaml:"cachedir"`
-	ForgeCacheDir   string
-	ModulesCacheDir string
-	EnvCacheDir     string
-	Git             Git
-	Forge           Forge
-	Sources         map[string]Source
-	Timeout         int `yaml:"timeout"`
+	CacheDir                 string `yaml:"cachedir"`
+	ForgeCacheDir            string
+	ModulesCacheDir          string
+	EnvCacheDir              string
+	Git                      Git
+	Forge                    Forge
+	Sources                  map[string]Source
+	Timeout                  int  `yaml:"timeout"`
+	IgnoreUnreachableModules bool `yaml:"ignore_unreachable_modules"`
 }
 
 type Forge struct {

@@ -259,6 +259,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 				if _, ok := puppetFile.forgeModules[gitModuleName]; ok {
 					Fatalf("Error: Git Puppet module with same name found in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
+				if config.IgnoreUnreachableModules {
+					Debugf("Setting :ignore_unreachable for Git module " + gitModuleName)
+					gm.ignoreUnreachable = true
+				}
 				puppetFile.gitModules[gitModuleName] = gm
 			}
 		}

@@ -59,7 +59,7 @@ func resolvePuppetEnvironment(envBranch string) {
 							Debugf("Resolving branch: " + branch)
 
 							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(branch, "/", "_", -1) + "/"
-							if sa.Prefix == "false" {
+							if sa.Prefix == "false" || sa.Prefix == "" {
 								targetDir = sa.Basedir + strings.Replace(branch, "/", "_", -1) + "/"
 							} else if sa.Prefix == "true" {
 								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
