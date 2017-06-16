@@ -52,9 +52,8 @@ func Warnf(s string) {
 
 // Fatalf is a helper function for fatal logging
 func Fatalf(s string) {
-	color.Set(color.FgRed)
-	log.Fatal(s)
-	color.Unset()
+	color.Red(s)
+	os.Exit(1)
 }
 
 // fileExists checks if the given file exists and return a bool
