@@ -3,7 +3,3 @@ language: go
 go:
   - 1.8
   - tip
-
-notifications:
-  email:
-    - xorpaul@gmail.com
