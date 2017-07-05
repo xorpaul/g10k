@@ -686,14 +686,14 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		var targetDirDevice, workDirDevice uint64
 		if fileInfo, err := os.Stat(targetDir); err == nil {
 			if fileInfo.Sys() != nil {
-				targetDirDevice = fileInfo.Sys().(*syscall.Stat_t).Dev
+				targetDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
 			}
 		} else {
 			Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
 		}
 		if fileInfo, err := os.Stat(workDir); err == nil {
 			if fileInfo.Sys() != nil {
-				workDirDevice = fileInfo.Sys().(*syscall.Stat_t).Dev
+				workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
 			}
 		} else {
 			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
