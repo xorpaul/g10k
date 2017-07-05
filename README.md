@@ -48,6 +48,10 @@ cd /tmp/$RDIR/ ; time r10k puppetfile install
 ```
 
 
+# installation
+
+Just grep the most recent stable release here:
+https://github.com/xorpaul/g10k/releases
 
 
 ## Usage Docs
