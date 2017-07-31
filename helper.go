@@ -134,6 +134,12 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
 	er := ExecResult{0, string(out)}
+	if err != nil {
+		msg, ok := err.(*exec.ExitError)
+		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+		Debugf(fmt.Sprintf("Error message: %v", err))
+		Debugf(fmt.Sprintf("er.returnCode, ok: %q, %q", er.returnCode, ok))
+	}
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}

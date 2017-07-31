@@ -11,37 +11,38 @@ import (
 )
 
 var (
-	debug                  bool
-	verbose                bool
-	info                   bool
-	quiet                  bool
-	force                  bool
-	usemove                bool
-	pfMode                 bool
-	dryRun                 bool
-	check4update           bool
-	checkSum               bool
-	moduleDirParam         string
-	cacheDirParam          string
-	branchParam            string
-	config                 ConfigSettings
-	wg                     sync.WaitGroup
-	mutex                  sync.Mutex
-	empty                  struct{}
-	syncGitCount           int
-	syncForgeCount         int
-	needSyncGitCount       int
-	needSyncForgeCount     int
-	syncGitTime            float64
-	syncForgeTime          float64
-	ioGitTime              float64
-	ioForgeTime            float64
-	forgeJsonParseTime     float64
-	metadataJsonParseTime  float64
-	gmetadataJsonParseTime float64
-	buildtime              string
-	uniqueForgeModules     map[string]ForgeModule
-	latestForgeModules     LatestForgeModules
+	debug                     bool
+	verbose                   bool
+	info                      bool
+	quiet                     bool
+	force                     bool
+	usemove                   bool
+	pfMode                    bool
+	dryRun                    bool
+	check4update              bool
+	checkSum                  bool
+	moduleDirParam            string
+	cacheDirParam             string
+	branchParam               string
+	config                    ConfigSettings
+	wg                        sync.WaitGroup
+	mutex                     sync.Mutex
+	empty                     struct{}
+	syncGitCount              int
+	syncForgeCount            int
+	needSyncGitCount          int
+	needSyncForgeCount        int
+	syncGitTime               float64
+	syncForgeTime             float64
+	ioGitTime                 float64
+	ioForgeTime               float64
+	forgeJsonParseTime        float64
+	metadataJsonParseTime     float64
+	gmetadataJsonParseTime    float64
+	buildtime                 string
+	uniqueForgeModules        map[string]ForgeModule
+	latestForgeModules        LatestForgeModules
+	maxNbConcurrentGoroutines int
 )
 
 type LatestForgeModules struct {
@@ -141,6 +142,7 @@ func main() {
 	flag.StringVar(&branchParam, "branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
 	flag.StringVar(&moduleDirParam, "moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
 	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
+	flag.IntVar(&maxNbConcurrentGoroutines, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
 	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
 	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
