@@ -57,7 +57,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	for url, gm := range uniqueGitModules {
 		Debugf("git repo url " + url)
 		privateKey := gm.privateKey
-		go func(url string, privateKey string, gm GitModule) {
+		go func(url string, privateKey string, gm GitModule, bar *uiprogress.Bar) {
 			// Try to receive from the concurrentGoroutines channel. When we have something,
 			// it means we can start a new goroutine because another one finished.
 			// Otherwise, it will block the execution until an execution
@@ -78,8 +78,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 
 			doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
-
-		}(url, privateKey, gm)
+		}(url, privateKey, gm, bar)
 		done <- true
 	}
 

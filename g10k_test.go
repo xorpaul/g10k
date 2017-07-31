@@ -124,7 +124,7 @@ func TestResolvStatic(t *testing.T) {
 	purgeDir("./example/", "TestResolvStatic()")
 	config = readConfigfile("tests/TestConfigStatic.yaml")
 	// increase maxworker to finish the test quicker
-	maxworker = 500
+	config.Maxworker = 500
 	resolvePuppetEnvironment("static")
 
 	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")

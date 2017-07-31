@@ -479,7 +479,6 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 		Debugf("empty ForgeModule[] found, skipping...")
 		return
 	}
-	var wgForge sync.WaitGroup
 	bar := uiprogress.AddBar(len(modules)).AppendCompleted().PrependElapsed()
 	bar.PrependFunc(func(b *uiprogress.Bar) string {
 		return fmt.Sprintf("Resolving Forge modules (%d/%d)", b.Current(), len(modules))
@@ -514,7 +513,6 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 	}()
 
 	for m, fm := range modules {
-		wgForge.Add(1)
 		go func(m string, fm ForgeModule, bar *uiprogress.Bar) {
 			// Try to receive from the concurrentGoroutines channel. When we have something,
 			// it means we can start a new goroutine because another one finished.
