@@ -487,9 +487,11 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 	// Dummy channel to coordinate the number of concurrent goroutines.
 	// This channel should be buffered otherwise we will be immediately blocked
 	// when trying to fill it.
-	concurrentGoroutines := make(chan struct{}, maxNbConcurrentGoroutines)
-	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
-	for i := 0; i < maxNbConcurrentGoroutines; i++ {
+
+	Debugf("Resolving " + strconv.Itoa(len(modules)) + " Forge modules with " + strconv.Itoa(config.Maxworker) + " workers")
+	concurrentGoroutines := make(chan struct{}, config.Maxworker)
+	// Fill the dummy channel with config.Maxworker empty struct.
+	for i := 0; i < config.Maxworker; i++ {
 		concurrentGoroutines <- struct{}{}
 	}
 
@@ -507,8 +509,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 			// Say that another goroutine can now start.
 			concurrentGoroutines <- struct{}{}
 		}
-		// We have collected all the jobs, the program
-		// can now terminate  8.6s with git (13.7s sync, I/O 1.2s)
+		// We have collected all the jobs, the program can now terminate
 		waitForAllJobs <- true
 	}()
 

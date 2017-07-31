@@ -25,10 +25,11 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	// Dummy channel to coordinate the number of concurrent goroutines.
 	// This channel should be buffered otherwise we will be immediately blocked
 	// when trying to fill it.
-	maxNbConcurrentGoroutines := 1
-	concurrentGoroutines := make(chan struct{}, maxNbConcurrentGoroutines)
-	// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
-	for i := 0; i < maxNbConcurrentGoroutines; i++ {
+
+	Debugf("Resolving " + strconv.Itoa(len(uniqueGitModules)) + " Git modules with " + strconv.Itoa(config.Maxworker) + " workers")
+	concurrentGoroutines := make(chan struct{}, config.Maxworker)
+	// Fill the dummy channel with config.Maxworker empty struct.
+	for i := 0; i < config.Maxworker; i++ {
 		concurrentGoroutines <- struct{}{}
 	}
 

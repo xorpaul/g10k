@@ -40,7 +40,7 @@ func TestConfigPrefix(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5}
+		Sources: s, Timeout: 5, Maxworker: 50}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
@@ -60,7 +60,7 @@ func TestConfigForceForgeVersions(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5}
+		Sources: s, Timeout: 5, Maxworker: 50}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
@@ -80,7 +80,7 @@ func TestConfigAddWarning(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5}
+		Sources: s, Timeout: 5, Maxworker: 50}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
@@ -123,6 +123,8 @@ func TestResolvStatic(t *testing.T) {
 	purgeDir("./cache/", "TestResolvStatic()")
 	purgeDir("./example/", "TestResolvStatic()")
 	config = readConfigfile("tests/TestConfigStatic.yaml")
+	// increase maxworker to finish the test quicker
+	maxworker = 500
 	resolvePuppetEnvironment("static")
 
 	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
@@ -214,7 +216,7 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
-	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache"}
+	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache", Maxworker: 500}
 	defer purgeDir(pf.workDir, "TestInvalidMetadataForgemodule")
 	defer purgeDir(config.ForgeCacheDir, "TestInvalidMetadataForgemodule")
 
@@ -267,7 +269,7 @@ func TestInvalidMd5sumForgemodule(t *testing.T) {
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
-	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache"}
+	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache", Maxworker: 500}
 	defer purgeDir(pf.workDir, "TestInvalidMetadataForgemodule")
 	defer purgeDir(config.ForgeCacheDir, "TestInvalidMetadataForgemodule")
 
@@ -313,7 +315,7 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
-	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache"}
+	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache", Maxworker: 500}
 	defer purgeDir(pf.workDir, "TestInvalidMetadataForgemodule")
 	defer purgeDir(config.ForgeCacheDir, "TestInvalidMetadataForgemodule")
 
