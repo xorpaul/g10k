@@ -58,27 +58,37 @@ https://github.com/xorpaul/g10k/releases
 ```
 Usage of ./g10k:
   -branch string
-    	which git branch of the Puppet environment to update, e.g. core_foobar
+        which git branch of the Puppet environment to update, e.g. core_foobar
+  -cachedir string
+        allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules
   -check4update
-    	only check if the is newer version of the Puppet module avaialable. Does implicitly set parameter dryrun to true
+        only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true
+  -checksum
+        get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!
   -config string
-    	which config file to use
+        which config file to use
   -debug
-    	log debug output, defaults to false
+        log debug output, defaults to false
   -dryrun
-    	do not modify anything, just print what would be changed
+        do not modify anything, just print what would be changed
   -force
-    	purge the Puppet environment directory and do a full sync
+        purge the Puppet environment directory and do a full sync
   -info
-    	log info output, defaults to false
+        log info output, defaults to false
+  -maxworker int
+        how many Goroutines are allowed to run in parallel for Git and Forge module resolving (default 50)
+  -moduledir string
+        allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted
   -puppetfile
-    	install all modules from Puppetfile in cwd
+        install all modules from Puppetfile in cwd
+  -quiet
+        no output, defaults to false
   -usemove
-    	do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Uses simple move instead of hard links and purge the Forge cache directory after each run!
+        do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! Var(&Useful for g10k runs inside a Docker container)
   -verbose
-    	log verbose output, defaults to false
+        log verbose output, defaults to false
   -version
-    	show build time and version number
+        show build time and version number
 ```
 
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
