@@ -64,6 +64,21 @@ func fileExists(file string) bool {
 	return true
 }
 
+// dirExists checks if the given dir exists and return a bool
+func isDir(dir string) bool {
+	fi, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		return false
+	} else {
+		if fi.Mode().IsDir() {
+			return true
+		} else {
+			fmt.Println("Should fail here")
+			return false
+		}
+	}
+}
+
 // checkDirAndCreate tests if the given directory exists and tries to create it
 func checkDirAndCreate(dir string, name string) string {
 	if !dryRun {
@@ -72,6 +87,10 @@ func checkDirAndCreate(dir string, name string) string {
 				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name){
 				if err := os.MkdirAll(dir, 0777); err != nil {
 					Fatalf("checkDirAndCreate(): Error: failed to create directory: " + dir)
+				}
+			} else {
+				if !isDir(dir) {
+					Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not a directory! Exiting!")
 				}
 			}
 		} else {
