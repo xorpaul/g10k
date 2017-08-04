@@ -238,14 +238,6 @@ Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreach
 
 See [#57](https://github.com/xorpaul/g10k/issues/57) for details.
 
-# building
-```
-# only initially needed to resolve all dependencies
-go get
-# actually compiling the binary with the current date as build time
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -ldflags "-s -w -X main.buildtime=$BUILDTIME"
-```
-
 - abort g10k run if source repository is unreachable
 
 ```
@@ -266,6 +258,15 @@ WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git d
 WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)
 ```
 with an exit code 1
+
+# building
+```
+# only initially needed to resolve all dependencies
+go get
+# actually compiling the binary with the current date as build time
+BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -ldflags "-s -w -X main.buildtime=$BUILDTIME"
+```
+
 
 # execute example with debug output
 ```
