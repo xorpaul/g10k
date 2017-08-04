@@ -110,7 +110,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	}
 
 	if er.returnCode != 0 {
-		fmt.Println("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
+		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		return false
 	}
 	return true

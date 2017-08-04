@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -8,6 +9,21 @@ import (
 
 	"github.com/henvic/uiprogress"
 )
+
+// sourceSanityCheck is a validation function that checks if the given source has all neccessary attributes (basedir, remote, SSH key exists if given)
+func sourceSanityCheck(source string, sa Source) {
+	if len(sa.PrivateKey) > 0 {
+		if _, err := os.Stat(sa.PrivateKey); err != nil {
+			Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + " for source " + source + " in config file " + configFile + " Error: " + err.Error())
+		}
+	}
+	if len(sa.Basedir) <= 0 {
+		Fatalf("resolvePuppetEnvironment(): config setting basedir is not set for source " + source + " in config file " + configFile)
+	}
+	if len(sa.Remote) <= 0 {
+		Fatalf("resolvePuppetEnvironment(): config setting remote is not set for source " + source + " in config file " + configFile)
+	}
+}
 
 func resolvePuppetEnvironment(envBranch string) {
 	allPuppetfiles := make(map[string]Puppetfile)
@@ -20,12 +36,10 @@ func resolvePuppetEnvironment(envBranch string) {
 			}
 
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
-			Debugf("Puppet environment: " + source + " (remote=" + sa.Remote + ", basedir=" + sa.Basedir + ", private_key=" + sa.PrivateKey + ", prefix=" + sa.Prefix + ")")
-			if len(sa.PrivateKey) > 0 {
-				if _, err := os.Stat(sa.PrivateKey); err != nil {
-					Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + "error: " + err.Error())
-				}
-			}
+			Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
+
+			// check for a valid source that has all neccessary attributes (basedir, remote, SSH key exists if given)
+			sourceSanityCheck(source, sa)
 
 			workDir := config.EnvCacheDir + source + ".git"
 			// check if sa.Basedir exists
@@ -82,6 +96,11 @@ func resolvePuppetEnvironment(envBranch string) {
 				}
 				if sa.WarnMissingBranch && !foundBranch {
 					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+				}
+			} else {
+				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
+				if sa.ExitIfUnreachable == true {
+					os.Exit(1)
 				}
 			}
 		}(source, sa)

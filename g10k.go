@@ -24,6 +24,7 @@ var (
 	moduleDirParam         string
 	cacheDirParam          string
 	branchParam            string
+	configFile             string
 	config                 ConfigSettings
 	wg                     sync.WaitGroup
 	mutex                  sync.Mutex
@@ -81,6 +82,7 @@ type Source struct {
 	PrivateKey         string `yaml:"private_key"`
 	ForceForgeVersions bool   `yaml:"force_forge_versions"`
 	WarnMissingBranch  bool   `yaml:"warn_if_branch_is_missing"`
+	ExitIfUnreachable  bool   `yaml:"exit_if_unreachable"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile
@@ -156,7 +158,7 @@ func main() {
 	flag.BoolVar(&quiet, "quiet", false, "no output, defaults to false")
 	flag.Parse()
 
-	configFile := *configFileFlag
+	configFile = *configFileFlag
 	version := *versionFlag
 
 	if version {

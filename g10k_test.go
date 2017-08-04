@@ -369,3 +369,56 @@ func TestModuleDirOverride(t *testing.T) {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.moduleDir)
 	}
 }
+
+func TestResolvConfigExitIfUnreachable(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigExitIfUnreachable.yaml")
+	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachable()")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 1 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 1)
+	}
+	//fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing")
+	}
+}
+
+func TestResolvConfigExitIfUnreachableFalse(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigExitIfUnreachableFalse.yaml")
+	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachableFalse()")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 1)
+	}
+	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing")
+	}
+}

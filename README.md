@@ -246,6 +246,27 @@ go get
 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -ldflags "-s -w -X main.buildtime=$BUILDTIME"
 ```
 
+- abort g10k run if source repository is unreachable
+
+```
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'git://github.com/xorpaul/g10k-environment-unavailable.git'
+    basedir: '/tmp/example/'
+    exit_if_unreachable: true
+```
+
+If you then call g10k with that config file. You should get:
+
+```
+WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!
+WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)
+```
+with an exit code 1
+
 # execute example with debug output
 ```
 ./g10k -debug -config test.yaml
