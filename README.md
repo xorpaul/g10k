@@ -81,6 +81,8 @@ Usage of ./g10k:
         allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted
   -puppetfile
         install all modules from Puppetfile in cwd
+  -puppetfilelocation string
+        which Puppetfile to use in -puppetfile mode (default "./Puppetfile")
   -quiet
         no output, defaults to false
   -usemove

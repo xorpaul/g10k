@@ -18,6 +18,7 @@ var (
 	force                  bool
 	usemove                bool
 	pfMode                 bool
+	pfLocation             string
 	dryRun                 bool
 	check4update           bool
 	checkSum               bool
@@ -147,6 +148,7 @@ func main() {
 	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
 	flag.IntVar(&maxworker, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
 	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
+	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
 	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
 	flag.BoolVar(&usemove, "usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! Var(&Useful for g10k runs inside a Docker container)")
@@ -195,7 +197,7 @@ func main() {
 		}
 	} else {
 		if pfMode {
-			Debugf("Trying to use as Puppetfile: ./Puppetfile")
+			Debugf("Trying to use as Puppetfile: " + pfLocation)
 			sm := make(map[string]Source)
 			sm["cmdlineparam"] = Source{Basedir: "."}
 			cachedir := "/tmp/g10k"
@@ -212,8 +214,8 @@ func main() {
 			//config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Forge:{Baseurl: "https://forgeapi.puppetlabs.com"}, Sources: sm}
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker}
-			target = "./Puppetfile"
-			puppetfile := readPuppetfile("./Puppetfile", "", "cmdlineparam", false)
+			target = pfLocation
+			puppetfile := readPuppetfile(target, "", "cmdlineparam", false)
 			puppetfile.workDir = "."
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
