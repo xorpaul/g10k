@@ -140,19 +140,18 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
-			//fmt.Println("Found Forge module ", forgeModuleName, " with version", fm.version)
+			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
 			fm.baseUrl = pf.forgeBaseURL
 			fm.cacheTtl = pf.forgeCacheTtl
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
-			if _, ok := uniqueForgeModules[forgeModuleName+"-"+fm.version]; !ok {
-				uniqueForgeModules[forgeModuleName+"-"+fm.version] = fm
+			if _, ok := uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version]; !ok {
+				uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version] = fm
 			}
 		}
 	}
 	if !debug && !verbose && !info && !quiet {
 		uiprogress.Start()
 	}
-	//fmt.Println(uniqueGitModules)
 	var wgResolve sync.WaitGroup
 	wgResolve.Add(2)
 	go func() {

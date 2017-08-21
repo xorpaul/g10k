@@ -232,6 +232,9 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 					}
 					gitModuleAttribute := a[1]
 					if gitModuleAttribute == "git" {
+						if strings.Contains(a[2], "ProxyCommand") {
+							Fatalf("Error: Found ProxyCommand option in git url in " + pf + " for module " + gitModuleName + " line: " + line)
+						}
 						gm.git = a[2]
 					} else if gitModuleAttribute == "branch" {
 						gm.branch = a[2]
