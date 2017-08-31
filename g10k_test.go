@@ -514,7 +514,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git remote update --prune exit status 1\nOutput: Fetching origin\nfatal: unable to access 'https://.com/puppetlabs/puppetlabs-firewall.git/': Could not resolve host: .com\nerror: Could not fetch origin") {
+	if !strings.Contains(string(out), "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git remote update --prune exit status 1\nOutput: Fetching origin\nfatal: unable to access 'https://.com/puppetlabs/puppetlabs-firewall.git/': Could") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
 	}
 	if fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
