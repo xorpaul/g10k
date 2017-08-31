@@ -587,3 +587,39 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was not missing")
 	}
 }
+
+func TestResolvePuppetfileInstallPath(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	purgeDir("/tmp/example", funcName)
+	purgeDir(config.ForgeCacheDir, funcName)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("install_path")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+	metadataFile := "/tmp/example/install_path/external/sensu/metadata.json"
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resulting module was missing %s", metadataFile)
+	}
+
+	metadata := readModuleMetadata(metadataFile)
+	//fmt.Println(metadata)
+	if metadata.version != "2.0.0" {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resolved metadata.json is unexpected %s", metadataFile)
+	}
+}

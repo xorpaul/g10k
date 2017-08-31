@@ -193,8 +193,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			wg.Add(1)
 			go func(gitName string, gitModule GitModule) {
 				defer wg.Done()
-				//fmt.Println(gitModule)
-				//fmt.Println("source: " + source)
 				targetDir := moduleDir + "/" + gitName + "/"
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
@@ -219,8 +217,12 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						tree = envBranch
 					}
 				}
+
+				if len(gitModule.installPath) > 0 {
+					targetDir = basedir + "/" + gitModule.installPath + "/" + gitName + "/"
+				}
+
 				success := false
-				//fmt.Println(gitModule.fallback)
 				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
 				if len(gitModule.fallback) > 0 {
 					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable)

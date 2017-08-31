@@ -108,14 +108,14 @@ func createOrPurgeDir(dir string, callingFunction string) {
 	if !dryRun {
 		if !fileExists(dir) {
 			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
-			os.Mkdir(dir, 0777)
+			os.MkdirAll(dir, 0777)
 		} else {
 			Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 			if err := os.RemoveAll(dir); err != nil {
 				log.Print("createOrPurgeDir(): error: removing dir failed", err)
 			}
 			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
-			os.Mkdir(dir, 0777)
+			os.MkdirAll(dir, 0777)
 		}
 	}
 }

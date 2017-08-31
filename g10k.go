@@ -123,6 +123,7 @@ type GitModule struct {
 	link              bool
 	ignoreUnreachable bool
 	fallback          []string
+	installPath       string
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded

@@ -123,7 +123,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	//moduleName := ""
 	//nextLineAttr := false
@@ -248,6 +248,8 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						gm.commit = a[2]
 					} else if gitModuleAttribute == "ref" {
 						gm.ref = a[2]
+					} else if gitModuleAttribute == "install_path" {
+						gm.installPath = a[2]
 					} else if gitModuleAttribute == "link" {
 						link, err := strconv.ParseBool(a[2])
 						if err != nil {
