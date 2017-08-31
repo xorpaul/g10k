@@ -133,13 +133,28 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	for env, pf := range allPuppetfiles {
 		Debugf("Resolving " + env)
 		//fmt.Println(pf)
-		for _, gitModule := range pf.gitModules {
+		for gitName, gitModule := range pf.gitModules {
+			if len(moduleParam) > 0 {
+				if gitName != moduleParam {
+					Debugf("Skipping git module " + gitName + ", because parameter -module is set to " + moduleParam)
+					delete(pf.gitModules, gitName)
+					continue
+				}
+			}
+
 			gitModule.privateKey = pf.privateKey
 			if _, ok := uniqueGitModules[gitModule.git]; !ok {
 				uniqueGitModules[gitModule.git] = gitModule
 			}
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
+			if len(moduleParam) > 0 {
+				if forgeModuleName != moduleParam {
+					Debugf("Skipping forge module " + forgeModuleName + ", because parameter -module is set to " + moduleParam)
+					delete(pf.forgeModules, forgeModuleName)
+					continue
+				}
+			}
 			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
 			fm.baseUrl = pf.forgeBaseURL
 			fm.cacheTtl = pf.forgeCacheTtl
@@ -193,8 +208,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			wg.Add(1)
 			go func(gitName string, gitModule GitModule) {
 				defer wg.Done()
-				//fmt.Println(gitModule)
-				//fmt.Println("source: " + source)
 				targetDir := moduleDir + "/" + gitName + "/"
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
@@ -219,8 +232,12 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						tree = envBranch
 					}
 				}
+
+				if len(gitModule.installPath) > 0 {
+					targetDir = basedir + "/" + gitModule.installPath + "/" + gitName + "/"
+				}
+
 				success := false
-				//fmt.Println(gitModule.fallback)
 				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
 				if len(gitModule.fallback) > 0 {
 					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable)
@@ -264,7 +281,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	}
 	wg.Wait()
 	//fmt.Println(uniqueForgeModules)
-	if len(exisitingModuleDirs) > 0 {
+	if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 		for d := range exisitingModuleDirs {
 			Debugf("Removing unmanaged file " + d)
 			if err := os.RemoveAll(d); err != nil {

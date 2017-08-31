@@ -33,7 +33,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		moduleVersion = "latest"
 	}
 	if moduleVersion == "latest" {
-		if !fileExists(workDir) {
+		if !isDir(workDir) {
 			Debugf("" + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(moduleName, "false", fm)
@@ -85,7 +85,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 	} else if moduleVersion == "present" {
 		// ensure that a latest version this module exists
 		latestDir := config.ForgeCacheDir + moduleName + "-latest"
-		if !fileExists(latestDir) {
+		if !isDir(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
 				Debugf("we got " + fm.author + "-" + fm.name + "-" + fm.version + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
@@ -97,7 +97,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		}
 		Debugf("Nothing to do for module " + fm.author + "-" + fm.name + "-" + fm.version + ", because " + latestDir + " exists")
 	} else {
-		if !fileExists(workDir) {
+		if !isDir(workDir) {
 			fr.needToGet = true
 		} else {
 			Debugf("Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
@@ -112,11 +112,12 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 			Debugf("Trying to remove: " + workDir)
 			_ = os.Remove(workDir)
 		} else {
+			// os.Readlink error is okay
 			versionDir, _ := os.Readlink(workDir)
 			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
 				Debugf("No reason to re-symlink again")
 			} else {
-				if fileExists(workDir) {
+				if isDir(workDir) {
 					Debugf("Trying to remove symlink: " + workDir)
 					_ = os.Remove(workDir)
 				}
@@ -368,7 +369,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 
-	if !fileExists(config.ForgeCacheDir + name + "-" + version) {
+	if !isDir(config.ForgeCacheDir + name + "-" + version) {
 		baseUrl := config.Forge.Baseurl
 		if len(fm.baseUrl) > 0 {
 			baseUrl = fm.baseUrl
@@ -693,7 +694,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		m.version = "latest"
 
 	}
-	if fileExists(targetDir) {
+	if isDir(targetDir) {
 		if fileExists(targetDir + "metadata.json") {
 			me := readModuleMetadata(targetDir + "metadata.json")
 			if m.version == "latest" {
@@ -723,7 +724,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		}
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
-	if !fileExists(workDir) {
+	if !isDir(workDir) {
 		if config.UseCacheFallback {
 			Warnf("Failed to use " + workDir + " Trying to use latest cached version of module " + moduleName)
 			workDir = getLatestCachedModule(m)
@@ -732,7 +733,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		}
 	}
 
-	if !fileExists(workDir) {
+	if !isDir(workDir) {
 		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
 	}
 
@@ -802,7 +803,7 @@ func getLatestCachedModule(m ForgeModule) string {
 	latest := "//"
 	version := "latest"
 	latestDir := config.ForgeCacheDir + m.author + "-" + m.name + "-latest"
-	if !fileExists(latestDir) {
+	if !isDir(latestDir) {
 
 		globPath := config.ForgeCacheDir + m.author + "-" + m.name + "-*"
 		Debugf("Glob'ing with path " + globPath)

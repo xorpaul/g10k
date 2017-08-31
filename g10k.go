@@ -26,6 +26,7 @@ var (
 	moduleDirParam         string
 	cacheDirParam          string
 	branchParam            string
+	moduleParam            string
 	configFile             string
 	config                 ConfigSettings
 	wg                     sync.WaitGroup
@@ -123,6 +124,7 @@ type GitModule struct {
 	link              bool
 	ignoreUnreachable bool
 	fallback          []string
+	installPath       string
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded
@@ -146,6 +148,7 @@ func main() {
 		versionFlag    = flag.Bool("version", false, "show build time and version number")
 	)
 	flag.StringVar(&branchParam, "branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+	flag.StringVar(&moduleParam, "module", "", "which module of the Puppet environment to update, e.g. stdlib")
 	flag.StringVar(&moduleDirParam, "moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
 	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
 	flag.IntVar(&maxworker, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")

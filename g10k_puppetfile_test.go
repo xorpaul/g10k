@@ -82,7 +82,8 @@ func equalGitModule(a, b GitModule) bool {
 		a.commit != b.commit ||
 		a.ref != b.ref ||
 		a.link != b.link ||
-		a.ignoreUnreachable != b.ignoreUnreachable {
+		a.ignoreUnreachable != b.ignoreUnreachable ||
+		a.installPath != b.installPath {
 		return false
 	}
 	if len(a.fallback) != len(b.fallback) {
@@ -326,6 +327,22 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 	fm["php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
 
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+
+	if !equalPuppetfile(got, expected) {
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileInstallPath(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false)
+
+	gm := make(map[string]GitModule)
+	gm["sensu"] = GitModule{git: "https://github.com/sensu/sensu-puppet.git", commit: "8f4fc5780071c4895dec559eafc6030511b0caaa", installPath: "external"}
+
+	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
+	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)

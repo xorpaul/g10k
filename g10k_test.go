@@ -188,6 +188,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. Output was: %s", string(out))
 	}
+	info = false
 }
 
 func TestInvalidFilesizeForgemodule(t *testing.T) {
@@ -369,6 +370,7 @@ func TestModuleDirOverride(t *testing.T) {
 	if moduleDirParam != got.moduleDir {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.moduleDir)
 	}
+	moduleDirParam = ""
 }
 
 func TestResolvConfigExitIfUnreachable(t *testing.T) {
@@ -586,4 +588,145 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 	if fileExists("/tmp/example/single_fail_forge/modules/firewall/metadata.json") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was not missing")
 	}
+}
+
+func TestResolvePuppetfileInstallPath(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	purgeDir("/tmp/example", funcName)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("install_path")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+	metadataFile := "/tmp/example/install_path/external/sensu/metadata.json"
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resulting module was missing %s", metadataFile)
+	}
+
+	metadata := readModuleMetadata(metadataFile)
+	//fmt.Println(metadata)
+	if metadata.version != "2.0.0" {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resolved metadata.json is unexpected %s", metadataFile)
+	}
+}
+
+func TestResolvePuppetfileSingleModuleForge(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	sensuDir := "/tmp/example/single_module/modules/sensu"
+	metadataFile := sensuDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		moduleParam = "stdlib"
+		//debug = true
+		resolvePuppetEnvironment("single_module")
+		return
+	} else {
+		purgeDir("/tmp/example", funcName)
+		resolvePuppetEnvironment("single_module")
+		if !fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resolved metadata.json is missing %s", metadataFile)
+		}
+		purgeDir(sensuDir, funcName)
+		if fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() error while purging directory with file %s", metadataFile)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	moduleParam = "stdlib"
+	if fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() error found file %s of a module that should not be there, because -module is set to %s", metadataFile, moduleParam)
+	}
+
+	if !fileExists(strings.Replace(metadataFile, "sensu", "firewall", -1)) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s of a module that should be there, despite -module being set to %s", strings.Replace(metadataFile, "sensu", "firewall", -1), moduleParam)
+	}
+
+	if !fileExists(strings.Replace(metadataFile, "sensu", "concat", -1)) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s of a module that should be there, despite -module being set to %s", strings.Replace(metadataFile, "sensu", "concat", -1), moduleParam)
+	}
+
+	moduleParam = ""
+}
+
+func TestResolvePuppetfileSingleModuleGit(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	concatDir := "/tmp/example/single_module/modules/concat"
+	metadataFile := concatDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		moduleParam = "firewall"
+		//debug = true
+		resolvePuppetEnvironment("single_module")
+		return
+	} else {
+		purgeDir("/tmp/example", funcName)
+		resolvePuppetEnvironment("single_module")
+		if !fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+		}
+		purgeDir(concatDir, funcName)
+		if fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() error while purging directory with file %s", metadataFile)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	moduleParam = "firewall"
+	if fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() error found file %s of a module that should not be there, because -module is set to %s", metadataFile, moduleParam)
+	}
+
+	if !fileExists(strings.Replace(metadataFile, "concat", "stdlib", -1)) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s of a module that should be there, despite -module being set to %s", strings.Replace(metadataFile, "concat", "concat", -1), moduleParam)
+	}
+
+	if !fileExists(strings.Replace(metadataFile, "concat", "sensu", -1)) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s of a module that should be there, despite -module being set to %s", strings.Replace(metadataFile, "concat", "concat", -1), moduleParam)
+	}
+	moduleParam = ""
+
 }

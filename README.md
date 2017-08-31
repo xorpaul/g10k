@@ -77,6 +77,8 @@ Usage of ./g10k:
         log info output, defaults to false
   -maxworker int
         how many Goroutines are allowed to run in parallel for Git and Forge module resolving (default 50)
+  -module string
+        which module of the Puppet environment to update, e.g. stdlib
   -moduledir string
         allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted
   -puppetfile
@@ -178,6 +180,16 @@ WARNING: calculated sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55
 ```
 
 (The Forge module retry count in case the Puppetlabs Forge provided MD5 sum, file archive size or SHA256 sum doesn't match defaults to `1`, but will be user configurable later.)
+
+- override g10k cache directory with environment variable
+
+You can use the following environment variable to make g10k use a different cache directory:
+
+```
+g10k_cachedir=/var/tmp g10k ...
+```
+
+This will also override the `-cachedir` parameter.
 
 
 # additional g10k config features compared to r10k
