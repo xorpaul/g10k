@@ -85,6 +85,8 @@ Usage of ./g10k:
         which Puppetfile to use in -puppetfile mode (default "./Puppetfile")
   -quiet
         no output, defaults to false
+  -usecachefallback
+        if g10k should try to use its cache for sources and modules instead of failing
   -usemove
         do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! Var(&Useful for g10k runs inside a Docker container)
   -verbose
@@ -260,6 +262,29 @@ WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git d
 WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)
 ```
 with an exit code 1
+
+- g10k can use the cached version of Forge and git modules if their sources are currently not available:
+
+```
+---
+:cachedir: '/tmp/g10k'
+use_cache_fallback: true
+
+sources:
+  example:
+    remote: 'git://github.com/xorpaul/g10k-environment-unavailable.git'
+    basedir: '/tmp/example/'
+```
+
+If you then call g10k with that config file and your github.com repository is unavailable your g10k run tries to find a suitable cached version of your modules:
+
+```
+WARN: git repository https://github.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!
+WARN: Trying to use cache for https://github.com/puppetlabs/puppetlabs-firewall.git git repository
+```
+if your g10k did manage to at least once cache this git repository.
+
+If there is no useable cache available your g10k run still fails.
 
 # building
 ```

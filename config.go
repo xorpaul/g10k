@@ -56,6 +56,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.Timeout = 5
 	}
 
+	if usecacheFallback {
+		config.UseCacheFallback = true
+	}
+
 	// set default max Go routines for Forge and Git module resolution if none is given
 	if maxworker == 0 {
 		config.Maxworker = 50

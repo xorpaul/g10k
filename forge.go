@@ -163,7 +163,13 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	before := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		Fatalf("queryForgeAPI(): Error while issuing the HTTP request to " + url + " Error: " + err.Error())
+		if config.UseCacheFallback {
+			Warnf("Forge API error, trying to use cache for module " + fm.author + "/" + name)
+			_ = getLatestCachedModule(fm)
+			return ForgeResult{false, "", "", 0}
+		} else {
+			Fatalf("queryForgeAPI(): Error while issuing the HTTP request to " + url + " Error: " + err.Error())
+		}
 	}
 	duration := time.Since(before).Seconds()
 	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
@@ -173,7 +179,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	mutex.Unlock()
 	defer resp.Body.Close()
 
-	if resp.Status == "200 OK" {
+	if strings.TrimSpace(resp.Status) == "200 OK" {
 		// need to get latest version
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -194,7 +200,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 
 		Debugf("found version " + version + " for " + name + "-latest")
 		latestForgeModules.Lock()
-		latestForgeModules.m[name] = version
+		latestForgeModules.m[fm.author+"-"+fm.name] = version
 		latestForgeModules.Unlock()
 
 		lastCheckedFile := config.ForgeCacheDir + name + "-latest-last-checked"
@@ -204,7 +210,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 
 		return ForgeResult{true, version, modulemd5sum, moduleFilesize}
 
-	} else if resp.Status == "304 Not Modified" {
+	} else if strings.TrimSpace(resp.Status) == "304 Not Modified" {
 		Debugf("Got 304 nothing to do for module " + name)
 		return ForgeResult{false, "", "", 0}
 	} else {
@@ -241,7 +247,7 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 	}
 	defer resp.Body.Close()
 
-	if resp.Status == "200 OK" {
+	if strings.TrimSpace(resp.Status) == "200 OK" {
 		body, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
@@ -389,7 +395,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		}
 		defer resp.Body.Close()
 
-		if resp.Status == "200 OK" {
+		if strings.TrimSpace(resp.Status) == "200 OK" {
 			wgForgeModule.Add(1)
 			go func() {
 				defer wgForgeModule.Done()
@@ -691,6 +697,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 		if fileExists(targetDir + "metadata.json") {
 			me := readModuleMetadata(targetDir + "metadata.json")
 			if m.version == "latest" {
+				//fmt.Println(latestForgeModules)
+				//fmt.Println("checking latestForgeModules for key", moduleName)
 				latestForgeModules.RLock()
 				if _, ok := latestForgeModules.m[moduleName]; ok {
 					Debugf("using version " + latestForgeModules.m[moduleName] + " for " + moduleName + "-" + m.version)
@@ -716,66 +724,136 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
 	if !fileExists(workDir) {
-		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
-	} else {
-		Infof("Need to sync " + targetDir)
-		var targetDirDevice, workDirDevice uint64
-		if fileInfo, err := os.Stat(targetDir); err == nil {
-			if fileInfo.Sys() != nil {
-				targetDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
-			}
+		if config.UseCacheFallback {
+			Warnf("Failed to use " + workDir + " Trying to use latest cached version of module " + moduleName)
+			workDir = getLatestCachedModule(m)
 		} else {
-			Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
-		}
-		if fileInfo, err := os.Stat(workDir); err == nil {
-			if fileInfo.Sys() != nil {
-				workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
-			}
-		} else {
-			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
-		}
-
-		if targetDirDevice != workDirDevice {
-			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
-		}
-
-		mutex.Lock()
-		needSyncForgeCount++
-		mutex.Unlock()
-		if !dryRun {
-			hardlink := func(path string, info os.FileInfo, err error) error {
-				if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
-					target, err := filepath.Rel(workDir, path)
-					if err != nil {
-						Fatalf(funcName + "(): Can't make " + path + " relative to " + workDir + " Error: " + err.Error())
-					}
-
-					if info.IsDir() {
-						//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
-						err = os.Mkdir(targetDir+target, os.FileMode(0755))
-						if err != nil {
-							Fatalf(funcName + "(): error while Mkdir() " + targetDir + target + " Error: " + err.Error())
-						}
-					} else {
-						//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
-						err = os.Link(path, targetDir+target)
-						if err != nil {
-							Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + target + " Error: " + err.Error())
-						}
-					}
-				}
-				return nil
-			}
-			c := make(chan error)
-			Debugf(funcName + "() filepath.Walk'ing directory " + workDir)
-			before := time.Now()
-			go func() { c <- filepath.Walk(workDir, hardlink) }()
-			<-c // Walk done
-			duration := time.Since(before).Seconds()
-			mutex.Lock()
-			ioForgeTime += duration
-			mutex.Unlock()
-			Verbosef("Populating " + targetDir + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
 		}
 	}
+
+	if !fileExists(workDir) {
+		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
+	}
+
+	Infof("Need to sync " + targetDir)
+	var targetDirDevice, workDirDevice uint64
+	if fileInfo, err := os.Stat(targetDir); err == nil {
+		if fileInfo.Sys() != nil {
+			targetDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
+		}
+	} else {
+		Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
+	}
+	if fileInfo, err := os.Stat(workDir); err == nil {
+		if fileInfo.Sys() != nil {
+			workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
+		}
+	} else {
+		Fatalf(funcName + "(): Error while os.Stat file " + workDir)
+	}
+
+	if targetDirDevice != workDirDevice {
+		Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
+	}
+
+	mutex.Lock()
+	needSyncForgeCount++
+	mutex.Unlock()
+	if !dryRun {
+		hardlink := func(path string, info os.FileInfo, err error) error {
+			if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
+				target, err := filepath.Rel(workDir, path)
+				if err != nil {
+					Fatalf(funcName + "(): Can't make " + path + " relative to " + workDir + " Error: " + err.Error())
+				}
+
+				if info.IsDir() {
+					//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
+					err = os.Mkdir(targetDir+target, os.FileMode(0755))
+					if err != nil {
+						Fatalf(funcName + "(): error while Mkdir() " + targetDir + target + " Error: " + err.Error())
+					}
+				} else {
+					//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
+					err = os.Link(path, targetDir+target)
+					if err != nil {
+						Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + target + " Error: " + err.Error())
+					}
+				}
+			}
+			return nil
+		}
+		c := make(chan error)
+		Debugf(funcName + "() filepath.Walk'ing directory " + workDir)
+		before := time.Now()
+		go func() { c <- filepath.Walk(workDir, hardlink) }()
+		<-c // Walk done
+		duration := time.Since(before).Seconds()
+		mutex.Lock()
+		ioForgeTime += duration
+		mutex.Unlock()
+		Verbosef("Populating " + targetDir + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	}
+}
+
+// getLatestCachedModule returns the most recent version of the module that is requested
+func getLatestCachedModule(m ForgeModule) string {
+	latest := "//"
+	version := "latest"
+	latestDir := config.ForgeCacheDir + m.author + "-" + m.name + "-latest"
+	if !fileExists(latestDir) {
+
+		globPath := config.ForgeCacheDir + m.author + "-" + m.name + "-*"
+		Debugf("Glob'ing with path " + globPath)
+		matches, err := filepath.Glob(globPath)
+		if len(matches) == 0 {
+			Fatalf("Could not find any cached version for Forge module " + m.author + "-" + m.name)
+		}
+		Debugf("found potential module versions:" + strings.Join(matches, " "))
+		if err != nil {
+			Fatalf("Failed to glob the latest cached module with glob path " + globPath + " Error: " + err.Error())
+		}
+		//fmt.Println(matches)
+		for _, m := range matches {
+			if isDir(m) {
+				Debugf("Comparing " + latest + " < " + m)
+				if latest < m {
+					Debugf("Setting " + latest + " to " + m)
+					latest = m
+				}
+			}
+		}
+
+		absolutePath, err := filepath.Abs(latest)
+		if err != nil {
+			Fatalf("Error while resolving absolute file path for " + latest + " Error: " + err.Error())
+		}
+		Debugf("trying to create symlink " + latestDir + " pointing to " + latest)
+		if err := os.Symlink(absolutePath, latestDir); err != nil {
+			Fatalf("Error while creating symlink " + latestDir + " pointing to " + absolutePath + err.Error())
+		}
+		version = strings.Split(latest, m.author+"-"+m.name+"-")[1]
+	} else {
+		versionDir, err := os.Readlink(latestDir)
+		if err != nil {
+			Fatalf("Error while reading symlink " + latestDir + " " + err.Error())
+		}
+
+		version = strings.Split(versionDir, m.author+"-"+m.name+"-")[1]
+		latest = config.ForgeCacheDir + m.author + "-" + m.name + "-" + version
+	}
+
+	if latest == "//" {
+		Fatalf("Found no usable cache for module " + m.author + "-" + m.name)
+	}
+
+	//fmt.Println("version: ", version)
+	latestForgeModules.Lock()
+	latestForgeModules.m[m.author+"-"+m.name] = version
+	latestForgeModules.Unlock()
+
+	Warnf("Using cached version " + version + " for " + m.author + "-" + m.name + "-latest")
+
+	return latest
 }

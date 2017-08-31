@@ -99,7 +99,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + url + " " + workDir
-	if fileExists(workDir) {
+	if isDir(workDir) {
 		gitCmd = "git --git-dir " + workDir + " remote update --prune"
 	}
 
@@ -111,6 +111,9 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 
 	if er.returnCode != 0 {
 		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
+		if config.UseCacheFallback {
+			Warnf("WARN: Trying to use cache for " + url + " git repository")
+		}
 		return false
 	}
 	return true
@@ -120,12 +123,17 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
+	if !isDir(srcDir) {
+		if config.UseCacheFallback {
+			Fatalf("Could not find cached git module " + srcDir)
+		}
+	}
 	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + tree + "'"
 	er := executeCommand(logCmd, config.Timeout, allowFail)
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true
-	if er.returnCode != 0 && allowFail {
-		if ignoreUnreachable {
+	if er.returnCode != 0 {
+		if allowFail && ignoreUnreachable {
 			Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
 			purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
 		}

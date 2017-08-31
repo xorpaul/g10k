@@ -73,7 +73,6 @@ func isDir(dir string) bool {
 		if fi.Mode().IsDir() {
 			return true
 		} else {
-			fmt.Println("Should fail here")
 			return false
 		}
 	}
@@ -156,13 +155,13 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
-	if allowFail && err != nil {
+	if (allowFail || config.UseCacheFallback) && err != nil {
 		Debugf("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	} else {
 		Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	}
 	if err != nil {
-		if !allowFail {
+		if !allowFail && !config.UseCacheFallback {
 			Fatalf("executeCommand(): git command failed: " + command + " " + err.Error() + "\nOutput: " + string(out) +
 				"\nIf you are using GitLab be sure that you added your deploy key to your repository")
 		} else {

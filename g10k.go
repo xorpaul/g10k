@@ -17,6 +17,7 @@ var (
 	quiet                  bool
 	force                  bool
 	usemove                bool
+	usecacheFallback       bool
 	pfMode                 bool
 	pfLocation             string
 	dryRun                 bool
@@ -64,6 +65,7 @@ type ConfigSettings struct {
 	Timeout                  int  `yaml:"timeout"`
 	IgnoreUnreachableModules bool `yaml:"ignore_unreachable_modules"`
 	Maxworker                int
+	UseCacheFallback         bool `yaml:"use_cache_fallback"`
 }
 
 type Forge struct {
@@ -158,6 +160,7 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "log verbose output, defaults to false")
 	flag.BoolVar(&info, "info", false, "log info output, defaults to false")
 	flag.BoolVar(&quiet, "quiet", false, "no output, defaults to false")
+	flag.BoolVar(&usecacheFallback, "usecachefallback", false, "if g10k should try to use its cache for sources and modules instead of failing")
 	flag.Parse()
 
 	configFile = *configFileFlag
@@ -186,6 +189,9 @@ func main() {
 		if pfMode {
 			Fatalf("Error: -puppetfile parameter is not allowed with -config parameter!")
 		}
+		if usecacheFallback {
+			config.UseCacheFallback = true
+		}
 		Debugf("Using as config file: " + configFile)
 		config = readConfigfile(configFile)
 		target = configFile
@@ -213,7 +219,7 @@ func main() {
 			}
 			//config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Forge:{Baseurl: "https://forgeapi.puppetlabs.com"}, Sources: sm}
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false)
 			puppetfile.workDir = "."

@@ -1,5 +1,6 @@
 ---
 :cachedir: '/tmp/g10k'
+use_cache_fallback: false
 
 sources:
   example:
