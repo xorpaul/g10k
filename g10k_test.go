@@ -836,3 +836,56 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 	debug = false
 
 }
+
+func TestResolvePuppetfileControlBranch(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	apacheDir := "/tmp/example/foobar_control_branch/modules/apache"
+	metadataFile := apacheDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("control_branch")
+		return
+	} else {
+		purgeDir("/tmp/example", funcName)
+		resolvePuppetEnvironment("control_branch")
+		if !fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+		}
+		purgeDir(apacheDir, funcName)
+		if fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() error while purging directory with file %s", metadataFile)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git with branch control_branch") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+	}
+
+	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master' took") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+	}
+
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", metadataFile)
+	}
+
+	moduleParam = ""
+	debug = false
+
+}

@@ -246,7 +246,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 
 				if len(gitModule.fallback) > 0 {
-					Debugf("jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj")
 					if !success {
 						for i, fallbackBranch := range gitModule.fallback {
 							if i == len(gitModule.fallback)-1 {

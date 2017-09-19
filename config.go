@@ -248,6 +248,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						}
 						gm.git = a[2]
 					} else if gitModuleAttribute == "branch" {
+						if a[2] == ":control_branch" || a[2] == "control_branch" {
+							if strings.HasPrefix(a[2], ":") {
+								a[2] = strings.TrimLeft(a[2], ":")
+							}
+							gm.link = true
+						}
 						gm.branch = a[2]
 					} else if gitModuleAttribute == "tag" {
 						gm.tag = a[2]
