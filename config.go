@@ -130,7 +130,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	//moduleName := ""
 	//nextLineAttr := false
@@ -269,7 +269,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + gitModuleAttribute + " to boolean. In " + pf + " for module " + gitModuleName + " line: " + line)
 						}
 						gm.ignoreUnreachable = ignoreUnreachable
-					} else if gitModuleAttribute == "fallback" {
+					} else if gitModuleAttribute == "fallback" || gitModuleAttribute == "default_branch" {
 						mapSize := strings.Count(a[2], "|") + 1
 						gm.fallback = make([]string, mapSize)
 						for i, fallbackBranch := range strings.Split(a[2], "|") {

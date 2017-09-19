@@ -239,14 +239,21 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 
 				success := false
 				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
-				if len(gitModule.fallback) > 0 {
+
+				if gitModule.link {
+					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
 					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable)
+				}
+
+				if len(gitModule.fallback) > 0 {
+					Debugf("jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj")
 					if !success {
 						for i, fallbackBranch := range gitModule.fallback {
 							if i == len(gitModule.fallback)-1 {
 								// last try
 								gitModule.ignoreUnreachable = true
 							}
+							Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
 							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable)
 							if success {
 								break
