@@ -208,7 +208,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			wg.Add(1)
 			go func(gitName string, gitModule GitModule) {
 				defer wg.Done()
-				targetDir := moduleDir + "/" + gitName + "/"
+				targetDir := moduleDir + gitName + "/"
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
 				if len(gitModule.branch) > 0 {
