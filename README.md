@@ -112,6 +112,7 @@ If you are in environment branch `dev` then g10k would try to check out this mod
 This helps to be able to use the same Puppetfile over multiple environment branches and makes merges easier.
 See https://github.com/xorpaul/g10k/issues/6 for details.
 
+Now also supports the r10k setting name `:branch => :control_branch` See [#73](https://github.com/xorpaul/g10k/issues/73)
 
 - only clone if branch/tag/commit exists
 ```
@@ -156,6 +157,8 @@ Tip: You can see which branch was used, when using the `-verbose` parameter:
 2016/11/08 14:16:40 Executing git --git-dir ./tmp/https-__github.com_puppetlabs_puppetlabs-stdlib.git log -n1 --pretty=format:%H master took 0.00299s
 Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git (1.1s sync, I/O 0.0s) and Forge (0.0s query+download, I/O 0.0s)
 ```
+
+Now also supports the r10k setting name `:default_branch => 'master'` See [#73](https://github.com/xorpaul/g10k/issues/73)
 
 - additional Forge attribute `:sha256sum`:
 
