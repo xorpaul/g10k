@@ -143,8 +143,8 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	if len(fm.baseUrl) > 0 {
 		baseUrl = fm.baseUrl
 	}
-	//url := baseUrl + "/v3/modules?query=" + name
-	url := baseUrl + "/v3/releases?module=" + name + "&owner=" + fm.author + "&sort_by=release_date&limit=1"
+	url := baseUrl + "/v3/modules?query=" + fm.name + "&owner=" + fm.author + "&show_deleted=false&limit=1"
+	//url := baseUrl + "/v3/releases?module=" + name + "&owner=" + fm.author + "&sort_by=release_date&limit=1"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())
@@ -154,7 +154,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
-	req.Header.Set("Connection", "close")
+	req.Header.Set("Connection", "keep-alive")
 
 	proxyURL, err := http.ProxyFromEnvironment(req)
 	if err != nil {
@@ -188,7 +188,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		}
 
 		before := time.Now()
-		currentRelease := gjson.Get(string(body), "results.0").Map()
+		currentRelease := gjson.Get(string(body), "results.0.current_release").Map()
 
 		duration := time.Since(before).Seconds()
 		version := currentRelease["version"].String()
