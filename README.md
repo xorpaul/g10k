@@ -1,15 +1,27 @@
 [![Build Status](https://travis-ci.org/xorpaul/g10k.svg?branch=master)](https://travis-ci.org/xorpaul/g10k) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
 # g10k
-My r10k fork written in Go, designed to work as a drop-in replacement* in place of [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
+My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
 ### Why fork?
   - Lack of caching/version-pre-checking in current r10k implementation hurt perfomance beyond a certain # of modules per Puppetfile
   - We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice (fixed in r10k [2.2.0](https://github.com/puppetlabs/r10k/blob/master/CHANGELOG.mkd#220 ))
   - Good excuse to try Go ;)
 
-### Changes breaking 'true' drop-in replacement capability
+### Changes breaking complete r10k compatibility
   - No SVN support
   - No 'local'-Modules support
+  - Forge modules must be specified like this:
+
+```
+mod 'theforeman/puppet'
+
+```
+  - Git modules must be specified like this:
+```
+mod 'apache',
+  :git => 'https://github.com/puppetlabs/puppetlabs-apache.git'
+
+```
 
 ### Non-breaking changes to r10k
   - Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective version only once
