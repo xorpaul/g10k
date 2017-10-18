@@ -303,7 +303,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			if err == io.EOF {
 				break
 			}
-			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader " + err.Error())
+			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + err.Error())
 		}
 
 		// get the individual filename and extract to the current directory
