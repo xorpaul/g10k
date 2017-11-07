@@ -68,10 +68,19 @@ func readConfigfile(configFile string) ConfigSettings {
 	}
 
 	// set default max Go routines for Forge and Git module resolution if none is given
-	if maxworker == 0 {
-		config.Maxworker = 50
-	} else {
+	if !(config.Maxworker > 0) {
 		config.Maxworker = maxworker
+	}
+	if maxworker != 50 {
+		config.Maxworker = maxworker
+	}
+
+	// set default max Go routines for Forge and Git module extracting
+	if !(config.MaxExtractworker > 0) {
+		config.MaxExtractworker = maxExtractworker
+	}
+	if maxExtractworker != 20 {
+		config.MaxExtractworker = maxExtractworker
 	}
 
 	return config

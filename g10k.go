@@ -29,7 +29,6 @@ var (
 	moduleParam            string
 	configFile             string
 	config                 ConfigSettings
-	wg                     sync.WaitGroup
 	mutex                  sync.Mutex
 	empty                  struct{}
 	syncGitCount           int
@@ -47,6 +46,7 @@ var (
 	uniqueForgeModules     map[string]ForgeModule
 	latestForgeModules     LatestForgeModules
 	maxworker              int
+	maxExtractworker       int
 )
 
 type LatestForgeModules struct {
@@ -65,7 +65,8 @@ type ConfigSettings struct {
 	Sources                  map[string]Source
 	Timeout                  int  `yaml:"timeout"`
 	IgnoreUnreachableModules bool `yaml:"ignore_unreachable_modules"`
-	Maxworker                int
+	Maxworker                int  `yaml:"maxworker"`
+	MaxExtractworker         int  `yaml:"maxextractworker"`
 	UseCacheFallback         bool `yaml:"use_cache_fallback"`
 }
 
@@ -152,6 +153,7 @@ func main() {
 	flag.StringVar(&moduleDirParam, "moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
 	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
 	flag.IntVar(&maxworker, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
+	flag.IntVar(&maxExtractworker, "maxextractworker", 20, "how many Goroutines are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip)")
 	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
 	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
@@ -170,7 +172,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k Version 1.0 Build time:", buildtime, "UTC")
+		fmt.Println("g10k Version 0.4 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
@@ -222,7 +224,7 @@ func main() {
 			}
 			//config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Forge:{Baseurl: "https://forgeapi.puppetlabs.com"}, Sources: sm}
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false)
 			puppetfile.workDir = "."
@@ -254,7 +256,7 @@ func main() {
 	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
 
 	if !check4update && !quiet {
-		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "workers")
+		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolv and", strconv.Itoa(config.MaxExtractworker), "extract workers")
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)

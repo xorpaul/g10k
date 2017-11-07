@@ -168,9 +168,8 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 			Warnf("Forge API error, trying to use cache for module " + fm.author + "/" + name)
 			_ = getLatestCachedModule(fm)
 			return ForgeResult{false, "", "", 0}
-		} else {
-			Fatalf("queryForgeAPI(): Error while issuing the HTTP request to " + url + " Error: " + err.Error())
 		}
+		Fatalf("queryForgeAPI(): Error while issuing the HTTP request to " + url + " Error: " + err.Error())
 	}
 	duration := time.Since(before).Seconds()
 	Verbosef("Querying Forge API " + url + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")

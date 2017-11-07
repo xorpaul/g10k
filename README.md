@@ -65,6 +65,10 @@ cd /tmp/$RDIR/ ; time r10k puppetfile install
 You can just grab the most recent stable release here:
 https://github.com/xorpaul/g10k/releases
 
+- Before using g10k with a large Puppet setup with many modules, be sure to increase the amount of open file handles (nfiles) and number of child processes (nproc), see limits.conf(5) for details.
+- If you are using a private Git or Forge server think about adjusting the `-maxworker` parameter/config setting before DOSing your own infrastructure ;) (default 50)
+- To protect your local machine use `-maxextractworker` parameter/config setting with wich you can limit the number of Goroutines that are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip) (default 20)
+
 
 ## Usage Docs
 ```
@@ -87,6 +91,8 @@ Usage of ./g10k:
         purge the Puppet environment directory and do a full sync
   -info
         log info output, defaults to false
+  -maxextractworker int
+        how many Goroutines are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip) (default 20)
   -maxworker int
         how many Goroutines are allowed to run in parallel for Git and Forge module resolving (default 50)
   -module string
