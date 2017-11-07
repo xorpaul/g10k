@@ -41,7 +41,7 @@ func TestConfigPrefix(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5, Maxworker: 50}
+		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
@@ -61,7 +61,7 @@ func TestConfigForceForgeVersions(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5, Maxworker: 50}
+		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
@@ -81,7 +81,7 @@ func TestConfigAddWarning(t *testing.T) {
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
 		Git:     Git{privateKey: "", username: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
-		Sources: s, Timeout: 5, Maxworker: 50}
+		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20}
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
