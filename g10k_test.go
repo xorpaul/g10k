@@ -109,7 +109,7 @@ func TestResolvConfigAddWarning(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	if !strings.Contains(string(out), "WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
 
@@ -139,7 +139,7 @@ func TestResolvStatic(t *testing.T) {
 		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
 	}
 	if !strings.Contains(string(out), "") {
-		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	Debugf("hashdeep output:" + string(out))
 
@@ -240,7 +240,7 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 		t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", exitCode)
 	}
 	if !strings.Contains(string(out), "WARNING: calculated file size 760 for /tmp/forge_cachepuppetlabs-ntp-6.0.0.tar.gz does not match expected file size 1337") {
-		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 }
@@ -396,7 +396,7 @@ func TestResolvConfigExitIfUnreachable(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
 
@@ -422,7 +422,7 @@ func TestResolvConfigExitIfUnreachableFalse(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
 
@@ -468,7 +468,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!\nWARN: Trying to use cache for https://.com/puppetlabs/puppetlabs-firewall.git git repository") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was missing")
@@ -517,7 +517,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git remote update --prune exit status 1\nOutput: Fetching origin\nfatal: unable to access 'https://.com/puppetlabs/puppetlabs-firewall.git/': Could") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was not missing")
@@ -551,7 +551,7 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "Forge API error, trying to use cache for module puppetlabs/puppetlabs-firewall\nUsing cached version 1.9.0 for puppetlabs-firewall-latest") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if !fileExists("/tmp/example/single_fail_forge/modules/firewall/metadata.json") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was missing")
@@ -583,7 +583,7 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "Forge API error, trying to use cache for module puppetlabs/puppetlabs-firewall\nCould not find any cached version for Forge module puppetlabs-firewall") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if fileExists("/tmp/example/single_fail_forge/modules/firewall/metadata.json") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was not missing")
@@ -768,11 +768,11 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 	//fmt.Println(string(out))
 
 	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git with branch noooopee") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !strings.Contains(string(out), "executeCommand(): Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git rev-parse --verify 'foooooobbaar'") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !fileExists(metadataFile) {
@@ -821,11 +821,11 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 	//fmt.Println(string(out))
 
 	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git with branch default_branch") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master' took") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !fileExists(metadataFile) {
@@ -874,11 +874,11 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 	//fmt.Println(string(out))
 
 	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git with branch control_branch") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master' took") {
-		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out:", string(out))
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
 	if !fileExists(metadataFile) {

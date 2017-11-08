@@ -118,7 +118,7 @@ func checkExitCodeAndOutputOfReadPuppetfileSubprocess(t *testing.T, forceForgeVe
 		t.Errorf("readPuppetfile() terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
 	if !strings.Contains(string(out), expectedOutput) {
-		t.Errorf("readPuppetfile() terminated with the correct exit code, but the expected output was missing. out: ", string(out))
+		t.Errorf("readPuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
 
