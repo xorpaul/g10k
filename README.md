@@ -105,10 +105,12 @@ Usage of ./g10k:
         which Puppetfile to use in -puppetfile mode (default "./Puppetfile")
   -quiet
         no output, defaults to false
+  -retrygitcommands
+        if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing
   -usecachefallback
         if g10k should try to use its cache for sources and modules instead of failing
   -usemove
-        do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! Var(&Useful for g10k runs inside a Docker container)
+        do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)
   -verbose
         log verbose output, defaults to false
   -version
@@ -246,7 +248,7 @@ sources:
     warn_if_branch_is_missing: true
 ```
 
-If you then call g10k with that config file and the following parameter `-branch nonExistingBranch`. You should get:
+If you then call g10k with this config file and the following parameter `-branch nonExistingBranch`. You should get:
 
 ```
 WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)
@@ -267,7 +269,7 @@ sources:
     basedir: '/tmp/failing/'
 ```
 
-If you then call g10k with that config file and at least the `info` verbosity level, you should get: 
+If you then call g10k with this config file and at least the `info` verbosity level, you should get: 
 
 ```
 Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
@@ -288,7 +290,7 @@ sources:
     exit_if_unreachable: true
 ```
 
-If you then call g10k with that config file. You should get:
+If you then call g10k with this config file. You should get:
 
 ```
 WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!
@@ -309,7 +311,7 @@ sources:
     basedir: '/tmp/example/'
 ```
 
-If you then call g10k with that config file and your github.com repository is unavailable your g10k run tries to find a suitable cached version of your modules:
+If you then call g10k with this config file and your github.com repository is unavailable your g10k run tries to find a suitable cached version of your modules:
 
 ```
 WARN: git repository https://github.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!
@@ -319,6 +321,26 @@ if your g10k did manage to at least once cache this git repository.
 
 If there is no useable cache available your g10k run still fails.
 
+- You can let g10k retry to git clone or update the local repository if it failed before and was left in a corrupted state:
+
+```
+---
+:cachedir: '/tmp/g10k'
+retry_git_commands: true
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+```
+
+If you then call g10k with this config file and have a corrupted local Git repository, g10k deletes the local cache and retries the Git clone command once:
+
+```
+WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git remote update --prune deleting local cached repository and retrying...
+```
+
+See [#76](https://github.com/xorpaul/g10k/issues/76) for details.
 # building
 ```
 # only initially needed to resolve all dependencies

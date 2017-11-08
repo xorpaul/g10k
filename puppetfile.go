@@ -40,17 +40,14 @@ func resolvePuppetEnvironment(envBranch string) {
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
 			Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
 
-			// check for a valid source that has all neccessary attributes (basedir, remote, SSH key exists if given)
+			// check for a valid source that has all neccessary attributes (basedir, remote, SSH key exist if given)
 			sourceSanityCheck(source, sa)
 
 			workDir := config.EnvCacheDir + source + ".git"
 			// check if sa.Basedir exists
 			checkDirAndCreate(sa.Basedir, "basedir")
 
-			//if !strings.Contains(source, "hiera") && !strings.Contains(source, "files") {
-			//	gitKey = sa.PrivateKey
-			//}
-			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true); success {
+			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true, 1); success {
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)

@@ -67,6 +67,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.UseCacheFallback = true
 	}
 
+	if retryGitCommands {
+		config.RetryGitCommands = true
+	}
+
 	// set default max Go routines for Forge and Git module resolution if none is given
 	if !(config.Maxworker > 0) {
 		config.Maxworker = maxworker

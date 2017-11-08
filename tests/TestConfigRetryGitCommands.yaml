@@ -1,0 +1,8 @@
+---
+:cachedir: '/tmp/g10k'
+retry_git_commands: true
+
+sources:
+  example:
+    remote: 'git://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'

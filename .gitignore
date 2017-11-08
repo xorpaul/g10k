@@ -1,2 +1,9 @@
 *.swp
 g10k
+.modules/
+Puppetfile*
+cache/
+example/
+*.zip
+modules/
+tmp/
