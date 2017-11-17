@@ -110,14 +110,15 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	}
 
 	if er.returnCode != 0 {
-		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		if config.UseCacheFallback {
+			Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 			Warnf("WARN: Trying to use cache for " + url + " git repository")
 		} else if config.RetryGitCommands && retryCount > 0 {
 			Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
 			return doMirrorOrUpdate(url, workDir, sshPrivateKey, false, retryCount-1)
 		}
+		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		return false
 	}
 	return true

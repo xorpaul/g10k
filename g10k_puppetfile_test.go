@@ -24,8 +24,9 @@ func equalPuppetfile(a, b Puppetfile) bool {
 	}
 
 	if len(a.gitModules) != len(b.gitModules) ||
-		len(a.forgeModules) != len(b.forgeModules) {
-		Debugf("size of gitModules or forgeModules isn't equal!")
+		len(a.forgeModules) != len(b.forgeModules) ||
+		len(a.localModules) != len(b.localModules) {
+		Debugf("size of gitModules or forgeModules or localModules isn't equal!")
 		return false
 	}
 
@@ -48,6 +49,13 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		//fmt.Println("checking Forge module: ", forgeModuleName, fm)
 		if !equalForgeModule(fm, b.forgeModules[forgeModuleName]) {
 			Debugf("forge module " + forgeModuleName + " isn't equal!")
+			return false
+		}
+	}
+
+	for localModuleName, _ := range a.localModules {
+		if _, ok := b.localModules[localModuleName]; !ok {
+			Debugf("local module " + localModuleName + " missing!")
 			return false
 		}
 	}
@@ -342,6 +350,23 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 	gm["sensu"] = GitModule{git: "https://github.com/sensu/sensu-puppet.git", commit: "8f4fc5780071c4895dec559eafc6030511b0caaa", installPath: "external"}
 
 	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileLocalModule(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false)
+
+	lm := make(map[string]struct{})
+	lm["localstuff"] = empty
+	lm["localstuff2"] = empty
+
+	expected := Puppetfile{moduleDir: "modules", localModules: lm, source: "test"}
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {

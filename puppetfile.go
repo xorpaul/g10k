@@ -284,6 +284,19 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				mutex.Unlock()
 			}(forgeModuleName, fm)
 		}
+		for localModuleName, _ := range pf.localModules {
+			wg.Add()
+			go func(localModuleName string) {
+				defer wg.Done()
+				// remove this module from the exisitingModuleDirs map
+				mutex.Lock()
+				if _, ok := exisitingModuleDirs[moduleDir+localModuleName]; ok {
+					Debugf("Not deleting " + moduleDir + localModuleName + " as it is declared as a local module")
+					delete(exisitingModuleDirs, moduleDir+localModuleName)
+				}
+				mutex.Unlock()
+			}(localModuleName)
+		}
 	}
 	wg.Wait()
 	//fmt.Println(uniqueForgeModules)

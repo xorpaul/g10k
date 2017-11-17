@@ -677,7 +677,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	moduleName := m.author + "-" + m.name
 	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
 	targetDir := moduleDir + m.name
-	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	if m.version == "present" {
 		if fileExists(targetDir + "metadata.json") {
 			Debugf("Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
@@ -737,6 +736,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 
 	Infof("Need to sync " + targetDir)
+	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	var targetDirDevice, workDirDevice uint64
 	if fileInfo, err := os.Stat(targetDir); err == nil {
 		if fileInfo.Sys() != nil {

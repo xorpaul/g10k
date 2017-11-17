@@ -940,3 +940,54 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	//	t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code and the correct output, but the resulting module was missing")
 	//}
 }
+
+func TestResolvePuppetfileLocalModules(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("local_modules")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	if !strings.Contains(string(out), "Need to sync /tmp/example/foobar_local_modules/modules/stdlib") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing 1. out: %s", string(out))
+	}
+
+	if !strings.Contains(string(out), "DEBUG Not deleting /tmp/example/foobar_local_modules/modules/localstuff as it is declared as a local module") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing 2. out: %s", string(out))
+	}
+
+	if !strings.Contains(string(out), "DEBUG Not deleting /tmp/example/foobar_local_modules/modules/localstuff2 as it is declared as a local module") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing 3. out: %s", string(out))
+	}
+
+	file1 := "/tmp/example/foobar_local_modules/modules/localstuff/foobar3"
+	if !fileExists(file1) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", file1)
+	}
+
+	file2 := "/tmp/example/foobar_local_modules/modules/localstuff2/foobar"
+	if !fileExists(file2) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", file2)
+	}
+
+	moduleParam = ""
+	debug = false
+
+}
