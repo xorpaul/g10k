@@ -9,7 +9,6 @@ My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r1
 
 ### Changes breaking complete r10k compatibility
   - No SVN support
-  - No 'local'-Modules support
   - Forge modules must be specified like this:
 
 ```
