@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -71,12 +72,13 @@ func resolvePuppetEnvironment(envBranch string) {
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(branch, "/", "_", -1) + "/"
+							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(branch, "/", "_", -1)
 							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(branch, "/", "_", -1) + "/"
+								targetDir = sa.Basedir + strings.Replace(branch, "/", "_", -1)
 							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1) + "/"
+								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1)
 							}
+							targetDir = normalizeDir(targetDir)
 
 							syncToModuleDir(workDir, targetDir, branch, false, false)
 							if !fileExists(targetDir + "Puppetfile") {
@@ -141,6 +143,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					continue
 				}
 			}
+			if gitModule.local {
+				continue
+			}
 
 			gitModule.privateKey = pf.privateKey
 			if _, ok := uniqueGitModules[gitModule.git]; !ok {
@@ -185,7 +190,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		moduleDir := pf.workDir + pf.moduleDir
 		var envBranch string
 		if pfMode {
-			moduleDir = basedir + "/" + pf.moduleDir
+			moduleDir = normalizeDir(basedir) + pf.moduleDir
 		} else {
 			envBranch = strings.Replace(env, pf.source+"_", "", 1)
 		}
@@ -205,10 +210,32 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			mutex.Unlock()
 		}
 		for gitName, gitModule := range pf.gitModules {
+			if gitModule.local {
+				Debugf("Not deleting " + moduleDir + gitName + " as it is declared as a local module")
+				// remove this module from the exisitingModuleDirs map
+				moduleDirectory := moduleDir + gitName
+				if len(gitModule.installPath) > 0 {
+					moduleDirectory = normalizeDir(basedir) + normalizeDir(gitModule.installPath) + gitName
+				}
+				moduleDirectory = normalizeDir(moduleDirectory)
+				mutex.Lock()
+				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
+					delete(exisitingModuleDirs, moduleDirectory)
+				}
+				for existingDir, _ := range exisitingModuleDirs {
+					rel, _ := filepath.Rel(existingDir, moduleDirectory)
+					if len(rel) > 0 && !strings.Contains(rel, "..") {
+						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
+						delete(exisitingModuleDirs, existingDir)
+					}
+				}
+				mutex.Unlock()
+				continue
+			}
 			wg.Add()
 			go func(gitName string, gitModule GitModule) {
 				defer wg.Done()
-				targetDir := moduleDir + gitName + "/"
+				targetDir := normalizeDir(moduleDir + gitName)
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
 				if len(gitModule.branch) > 0 {
@@ -234,9 +261,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 
 				if len(gitModule.installPath) > 0 {
-					targetDir = basedir + "/" + gitModule.installPath + "/" + gitName + "/"
+					targetDir = basedir + normalizeDir(gitModule.installPath) + gitName
 				}
-
+				targetDir = normalizeDir(targetDir)
 				success := false
 				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
 
@@ -264,9 +291,21 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 
 				// remove this module from the exisitingModuleDirs map
+				moduleDirectory := moduleDir + gitName
+				if len(gitModule.installPath) > 0 {
+					moduleDirectory = normalizeDir(basedir) + normalizeDir(gitModule.installPath) + gitName
+				}
+				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
-				if _, ok := exisitingModuleDirs[moduleDir+gitName]; ok {
-					delete(exisitingModuleDirs, moduleDir+gitName)
+				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
+					delete(exisitingModuleDirs, moduleDirectory)
+				}
+				for existingDir, _ := range exisitingModuleDirs {
+					rel, _ := filepath.Rel(existingDir, moduleDirectory)
+					if len(rel) > 0 && !strings.Contains(rel, "..") {
+						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
+						delete(exisitingModuleDirs, existingDir)
+					}
 				}
 				mutex.Unlock()
 			}(gitName, gitModule)
@@ -283,19 +322,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				mutex.Unlock()
 			}(forgeModuleName, fm)
-		}
-		for localModuleName, _ := range pf.localModules {
-			wg.Add()
-			go func(localModuleName string) {
-				defer wg.Done()
-				// remove this module from the exisitingModuleDirs map
-				mutex.Lock()
-				if _, ok := exisitingModuleDirs[moduleDir+localModuleName]; ok {
-					Debugf("Not deleting " + moduleDir + localModuleName + " as it is declared as a local module")
-					delete(exisitingModuleDirs, moduleDir+localModuleName)
-				}
-				mutex.Unlock()
-			}(localModuleName)
 		}
 	}
 	wg.Wait()

@@ -79,6 +79,18 @@ func isDir(dir string) bool {
 	}
 }
 
+// normalizeDir removes from the given directory path multiple redundant slashes and adds a trailing slash
+func normalizeDir(dir string) string {
+	if strings.Count(dir, "//") > 0 {
+		dir = normalizeDir(strings.Replace(dir, "//", "/", -1))
+	} else {
+		if !strings.HasSuffix(dir, "/") {
+			dir = dir + "/"
+		}
+	}
+	return dir
+}
+
 // checkDirAndCreate tests if the given directory exists and tries to create it
 func checkDirAndCreate(dir string, name string) string {
 	if !dryRun {
@@ -98,9 +110,7 @@ func checkDirAndCreate(dir string, name string) string {
 			Fatalf("checkDirAndCreate(): Error: dir setting '" + name + "' missing! Exiting!")
 		}
 	}
-	if !strings.HasSuffix(dir, "/") {
-		dir = dir + "/"
-	}
+	dir = normalizeDir(dir)
 	Debugf("Using as " + name + ": " + dir)
 	return dir
 }

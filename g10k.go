@@ -102,7 +102,6 @@ type Puppetfile struct {
 	privateKey    string
 	source        string
 	workDir       string
-	localModules  map[string]struct{}
 }
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
@@ -129,6 +128,7 @@ type GitModule struct {
 	ignoreUnreachable bool
 	fallback          []string
 	installPath       string
+	local             bool
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded

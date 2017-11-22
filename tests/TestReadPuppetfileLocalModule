@@ -3,3 +3,8 @@ mod 'localstuff',
 
 mod 'localstuff2', :local => true
 mod 'localstuff3', :local => false
+
+# issue #82
+mod 'external', # Ensure external folder isn't purged by g10k
+  :local        => true,
+  :install_path => 'modules'

@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func equalPuppetfile(a, b Puppetfile) bool {
@@ -24,9 +26,8 @@ func equalPuppetfile(a, b Puppetfile) bool {
 	}
 
 	if len(a.gitModules) != len(b.gitModules) ||
-		len(a.forgeModules) != len(b.forgeModules) ||
-		len(a.localModules) != len(b.localModules) {
-		Debugf("size of gitModules or forgeModules or localModules isn't equal!")
+		len(a.forgeModules) != len(b.forgeModules) {
+		Debugf("size of gitModules or forgeModules isn't equal!")
 		return false
 	}
 
@@ -49,13 +50,6 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		//fmt.Println("checking Forge module: ", forgeModuleName, fm)
 		if !equalForgeModule(fm, b.forgeModules[forgeModuleName]) {
 			Debugf("forge module " + forgeModuleName + " isn't equal!")
-			return false
-		}
-	}
-
-	for localModuleName, _ := range a.localModules {
-		if _, ok := b.localModules[localModuleName]; !ok {
-			Debugf("local module " + localModuleName + " missing!")
 			return false
 		}
 	}
@@ -144,6 +138,8 @@ func TestCommentPuppetfile(t *testing.T) {
 	got := preparePuppetfile("tests/TestCommentPuppetfile")
 
 	if !expected.MatchString(got) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Error("Expected", expected, "got", got)
 	}
 }
@@ -184,6 +180,8 @@ func TestReadPuppetfile(t *testing.T) {
 	expected := Puppetfile{moduleDir: "external_modules", gitModules: gm, forgeModules: fm, source: "test", forgeCacheTtl: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
 
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
 	}
 }
@@ -310,6 +308,8 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
 	}
 }
@@ -322,6 +322,8 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 	fm["filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
 	}
 
@@ -337,6 +339,8 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
 
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
 	}
 }
@@ -353,6 +357,8 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
 	}
 }
@@ -362,14 +368,18 @@ func TestReadPuppetfileLocalModule(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 
-	lm := make(map[string]struct{})
-	lm["localstuff"] = empty
-	lm["localstuff2"] = empty
+	gm := make(map[string]GitModule)
+	gm["localstuff"] = GitModule{local: true}
+	gm["localstuff2"] = GitModule{local: true}
+	gm["localstuff3"] = GitModule{local: false}
+	gm["external"] = GitModule{local: true, installPath: "modules"}
 
-	expected := Puppetfile{moduleDir: "modules", localModules: lm, source: "test"}
+	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
 	}
 }

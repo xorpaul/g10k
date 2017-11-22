@@ -721,7 +721,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 			createOrPurgeDir(targetDir, " targetDir for module "+m.name+" with missing metadata.json")
 		}
 	}
-	workDir := config.ForgeCacheDir + moduleName + "-" + m.version + "/"
+	workDir := normalizeDir(config.ForgeCacheDir + moduleName + "-" + m.version)
 	if !isDir(workDir) {
 		if config.UseCacheFallback {
 			Warnf("Failed to use " + workDir + " Trying to use latest cached version of module " + moduleName)

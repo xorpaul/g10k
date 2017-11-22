@@ -141,7 +141,6 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
-	puppetFile.localModules = make(map[string]struct{})
 	Debugf("Trying to parse: " + pf)
 
 	n := preparePuppetfile(pf)
@@ -151,9 +150,8 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
-	reLocalModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,\\s*:(?:local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	//moduleName := ""
 	//nextLineAttr := false
@@ -222,14 +220,6 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
 			}
 			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
-		} else if m := reLocalModule.FindStringSubmatch(line); len(m) > 1 {
-			local, err := strconv.ParseBool(m[2])
-			if err != nil {
-				Fatalf("Error: Can not convert local parameter value " + m[2] + " of module " + m[1] + " to boolean. In " + pf + " line: " + line)
-			}
-			if local {
-				puppetFile.localModules[m[1]] = empty
-			}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
@@ -240,7 +230,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if len(m[2]) > 1 {
 				gitModuleAttributes := m[2]
 				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
-				if strings.Count(gitModuleAttributes, ":git") < 1 {
+				if strings.Count(gitModuleAttributes, ":git") < 1 && strings.Count(gitModuleAttributes, ":local") < 1 {
 					Fatalf("Error: Missing :git url in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
 				if strings.Count(gitModuleAttributes, ",") > 3 {
@@ -312,6 +302,14 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						for i, fallbackBranch := range strings.Split(a[2], "|") {
 							//fmt.Println("--------> ", i, strings.TrimSpace(fallbackBranch))
 							gm.fallback[i] = strings.TrimSpace(fallbackBranch)
+						}
+					} else if gitModuleAttribute == "local" {
+						local, err := strconv.ParseBool(a[2])
+						if err != nil {
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + gitModuleAttribute + " to boolean. In " + pf + " for module " + gitModuleName + " line: " + line)
+						}
+						if local {
+							gm.local = true
 						}
 					}
 
