@@ -175,8 +175,11 @@ func main() {
 	configFile = *configFileFlag
 	version := *versionFlag
 
+	tag_out, _ := exec.Command("git", "describe", "--tags").Output()
+	tag_version := string(tag_out[1:len(tag_out)-1])
+
 	if version {
-		fmt.Println("g10k version 0.4.3 Build time:", buildtime, "UTC")
+		fmt.Printf("g10k version %s Build time: buildtime UTC\n", tag_version)
 		os.Exit(0)
 	}
 
