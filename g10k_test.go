@@ -93,7 +93,7 @@ func TestResolvConfigAddWarning(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigAddWarning.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("nonExistingBranch")
+		resolvePuppetEnvironment("nonExistingBranch", false, "")
 		return
 	}
 
@@ -127,7 +127,7 @@ func TestResolvStatic(t *testing.T) {
 	config = readConfigfile("tests/TestConfigStatic.yaml")
 	// increase maxworker to finish the test quicker
 	config.Maxworker = 500
-	resolvePuppetEnvironment("static")
+	resolvePuppetEnvironment("static", false, "")
 
 	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
 	out, err := cmd.CombinedOutput()
@@ -170,7 +170,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 	config = readConfigfile("tests/" + funcName + ".yaml")
 
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("")
+		resolvePuppetEnvironment("", false, "")
 		return
 	}
 
@@ -379,7 +379,7 @@ func TestResolvConfigExitIfUnreachable(t *testing.T) {
 	config = readConfigfile("tests/TestConfigExitIfUnreachable.yaml")
 	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachable()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single")
+		resolvePuppetEnvironment("single", false, "")
 		return
 	}
 
@@ -406,7 +406,7 @@ func TestResolvConfigExitIfUnreachableFalse(t *testing.T) {
 	config = readConfigfile("tests/TestConfigExitIfUnreachableFalse.yaml")
 	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachableFalse()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single")
+		resolvePuppetEnvironment("single", false, "")
 		return
 	}
 
@@ -432,7 +432,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/" + funcName + ".yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail")
+		resolvePuppetEnvironment("single_fail", false, "")
 		return
 	} else {
 
@@ -481,7 +481,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/" + funcName + ".yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail")
+		resolvePuppetEnvironment("single_fail", false, "")
 		return
 	} else {
 
@@ -530,7 +530,7 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail_forge")
+		resolvePuppetEnvironment("single_fail_forge", false, "")
 		return
 	} else {
 		fm := ForgeModule{version: "1.9.0", author: "puppetlabs", name: "firewall"}
@@ -566,7 +566,7 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 	purgeDir("/tmp/example", funcName)
 	purgeDir(config.ForgeCacheDir, funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail_forge")
+		resolvePuppetEnvironment("single_fail_forge", false, "")
 		return
 	}
 
@@ -597,7 +597,7 @@ func TestResolvePuppetfileInstallPath(t *testing.T) {
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	purgeDir("/tmp/example", funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("install_path")
+		resolvePuppetEnvironment("install_path", false, "")
 		return
 	}
 
@@ -637,8 +637,8 @@ func TestResolvePuppetfileInstallPathTwice(t *testing.T) {
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	purgeDir("/tmp/example", funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("install_path")
-		resolvePuppetEnvironment("install_path")
+		resolvePuppetEnvironment("install_path", false, "")
+		resolvePuppetEnvironment("install_path", false, "")
 		return
 	}
 
@@ -681,11 +681,11 @@ func TestResolvePuppetfileSingleModuleForge(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		moduleParam = "stdlib"
 		//debug = true
-		resolvePuppetEnvironment("single_module")
+		resolvePuppetEnvironment("single_module", false, "")
 		return
 	} else {
 		purgeDir("/tmp/example", funcName)
-		resolvePuppetEnvironment("single_module")
+		resolvePuppetEnvironment("single_module", false, "")
 		if !fileExists(metadataFile) {
 			t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the resolved metadata.json is missing %s", metadataFile)
 		}
@@ -734,11 +734,11 @@ func TestResolvePuppetfileSingleModuleGit(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		moduleParam = "firewall"
 		//debug = true
-		resolvePuppetEnvironment("single_module")
+		resolvePuppetEnvironment("single_module", false, "")
 		return
 	} else {
 		purgeDir("/tmp/example", funcName)
-		resolvePuppetEnvironment("single_module")
+		resolvePuppetEnvironment("single_module", false, "")
 		if !fileExists(metadataFile) {
 			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
 		}
@@ -786,11 +786,11 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 	metadataFile := aptDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("fallback")
+		resolvePuppetEnvironment("fallback", false, "")
 		return
 	} else {
 		purgeDir("/tmp/example", funcName)
-		resolvePuppetEnvironment("fallback")
+		resolvePuppetEnvironment("fallback", false, "")
 		if !fileExists(metadataFile) {
 			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
 		}
@@ -839,11 +839,11 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 	metadataFile := apacheDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("default_branch")
+		resolvePuppetEnvironment("default_branch", false, "")
 		return
 	} else {
 		purgeDir("/tmp/example", funcName)
-		resolvePuppetEnvironment("default_branch")
+		resolvePuppetEnvironment("default_branch", false, "")
 		if !fileExists(metadataFile) {
 			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
 		}
@@ -892,11 +892,11 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 	metadataFile := apacheDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("control_branch")
+		resolvePuppetEnvironment("control_branch", false, "")
 		return
 	} else {
 		purgeDir("/tmp/example", funcName)
-		resolvePuppetEnvironment("control_branch")
+		resolvePuppetEnvironment("control_branch", false, "")
 		if !fileExists(metadataFile) {
 			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
 		}
@@ -942,7 +942,7 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/" + funcName + ".yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_git")
+		resolvePuppetEnvironment("single_git", false, "")
 		return
 	} else {
 
@@ -993,7 +993,7 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("local_modules")
+		resolvePuppetEnvironment("local_modules", false, "")
 		return
 	}
 
