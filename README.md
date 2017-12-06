@@ -114,10 +114,14 @@ Usage of ./g10k:
         log verbose output, defaults to false
   -version
         show build time and version number
+  -tags
+        to also clone tags as well as branches
+  -outputname string
+        overwrite the output name if either -tag or -branch is specified
 ```
 
-Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
-  
+Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged.
+
 
 # additional Puppetfile features
 
@@ -268,7 +272,7 @@ sources:
     basedir: '/tmp/failing/'
 ```
 
-If you then call g10k with this config file and at least the `info` verbosity level, you should get: 
+If you then call g10k with this config file and at least the `info` verbosity level, you should get:
 
 ```
 Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...

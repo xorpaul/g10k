@@ -27,7 +27,7 @@ func sourceSanityCheck(source string, sa Source) {
 	}
 }
 
-func resolvePuppetEnvironment(envBranch string) {
+func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
 	for source, sa := range config.Sources {
@@ -52,7 +52,16 @@ func resolvePuppetEnvironment(envBranch string) {
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
-				branches := strings.Split(strings.TrimSpace(er.output), "\n")
+				output_branches := er.output
+				output_tags := ""
+
+				if (tags == true) {
+					er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
+					output_tags = er.output
+				}
+
+				branches := strings.Split(strings.TrimSpace(output_branches + output_tags), "\n")
+
 
 				foundBranch := false
 				for _, branch := range branches {
@@ -72,11 +81,17 @@ func resolvePuppetEnvironment(envBranch string) {
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(branch, "/", "_", -1)
+							renamed_branch := branch
+							if (len(outputNameTag) > 0) && (len(envBranch) > 0) {
+								renamed_branch = outputNameTag
+								Debugf("Renaming branch " + branch + " to " + renamed_branch)
+							}
+
+							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamed_branch, "/", "_", -1)
 							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(branch, "/", "_", -1)
+								targetDir = sa.Basedir + strings.Replace(renamed_branch, "/", "_", -1)
 							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(branch, "/", "_", -1)
+								targetDir = sa.Basedir + source + "_" + strings.Replace(renamed_branch, "/", "_", -1)
 							}
 							targetDir = normalizeDir(targetDir)
 
