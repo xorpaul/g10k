@@ -62,7 +62,6 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 				branches := strings.Split(strings.TrimSpace(output_branches + output_tags), "\n")
 
-
 				foundBranch := false
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
@@ -81,17 +80,17 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
 
-							renamed_branch := branch
+							renamedBranch := branch
 							if (len(outputNameTag) > 0) && (len(envBranch) > 0) {
-								renamed_branch = outputNameTag
-								Debugf("Renaming branch " + branch + " to " + renamed_branch)
+								renamedBranch = outputNameTag
+								Debugf("Renaming branch " + branch + " to " + renamedBranch)
 							}
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamed_branch, "/", "_", -1)
+							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)
 							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(renamed_branch, "/", "_", -1)
+								targetDir = sa.Basedir + strings.Replace(renamedBranch, "/", "_", -1)
 							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(renamed_branch, "/", "_", -1)
+								targetDir = sa.Basedir + source + "_" + strings.Replace(renamedBranch, "/", "_", -1)
 							}
 							targetDir = normalizeDir(targetDir)
 
