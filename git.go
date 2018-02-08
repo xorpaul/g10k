@@ -180,6 +180,12 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			mutex.Lock()
 			ioGitTime += duration
 			mutex.Unlock()
+
+			err = cmd.Wait()
+			if err != nil {
+				Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + tree + " Error: " + err.Error())
+			}
+
 			Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 
 			er = executeCommand(logCmd, config.Timeout, false)
