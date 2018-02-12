@@ -142,7 +142,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	if len(fm.baseUrl) > 0 {
 		baseUrl = fm.baseUrl
 	}
-	url := baseUrl + "/v3/modules?query=" + fm.name + "&owner=" + fm.author + "&show_deleted=false&limit=1"
+	url := baseUrl + "/v3/modules/" + fm.author + "-" + fm.name
 	//url := baseUrl + "/v3/releases?module=" + name + "&owner=" + fm.author + "&sort_by=release_date&limit=1"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -186,7 +186,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		}
 
 		before := time.Now()
-		currentRelease := gjson.Get(string(body), "results.0.current_release").Map()
+		currentRelease := gjson.Get(string(body), "current_release").Map()
 
 		duration := time.Since(before).Seconds()
 		version := currentRelease["version"].String()
@@ -212,8 +212,11 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	} else if strings.TrimSpace(resp.Status) == "304 Not Modified" {
 		Debugf("Got 304 nothing to do for module " + name)
 		return ForgeResult{false, "", "", 0}
+	} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
+		Fatalf("Received 404 from Forge for module " + name + " using URL " + url + " Does the module really exist and is it correctly named?")
+		return ForgeResult{false, "", "", 0}
 	} else {
-		Debugf("Unexpected response code " + resp.Status)
+		Fatalf("Unexpected response code " + resp.Status)
 		return ForgeResult{false, "", "", 0}
 	}
 }
