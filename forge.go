@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -714,7 +713,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 				Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
 				return
 			}
-			log.Println(funcName + "(): Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
+			Infof("Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
 			createOrPurgeDir(targetDir, " targetDir for module "+me.name)
 		} else {
 			Debugf("Need to purge " + targetDir + ", because it exists without a metadata.json. This shouldn't happen!")
