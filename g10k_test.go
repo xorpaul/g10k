@@ -818,7 +818,7 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	if !strings.Contains(string(out), "executeCommand(): Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git rev-parse --verify 'foooooobbaar'") {
+	if !strings.Contains(string(out), "executeCommand(): Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git rev-parse --verify 'foooooobbaar^{object}'") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -871,7 +871,7 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master' took") {
+	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master^{object}' took") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -924,7 +924,7 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master' took") {
+	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master^{object}' took") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -1031,6 +1031,40 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 	file2 := "/tmp/example/foobar_local_modules/modules/localstuff2/foobar"
 	if !fileExists(file2) {
 		t.Errorf("resolvePuppetEnvironment() error missing file %s", file2)
+	}
+
+	moduleParam = ""
+	debug = false
+
+}
+
+func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("invalid_git_object")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	//fmt.Println(string(out))
+	if 1 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
+	}
+
+	expectingString := "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git rev-parse --verify '0000000000000000000000000000000000000000^{object}' exit status 128"
+	if !strings.Contains(string(out), expectingString) {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s\nExpecting string: %s", string(out), expectingString)
 	}
 
 	moduleParam = ""
