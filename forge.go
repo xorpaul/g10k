@@ -680,10 +680,10 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
 	targetDir := moduleDir + m.name
 	if m.version == "present" {
-		if fileExists(targetDir + "metadata.json") {
-			Debugf("Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
+		if fileExists(targetDir + "/metadata.json") {
+			Debugf("Nothing to do, found existing Forge module: " + targetDir + "/metadata.json")
 			if check4update {
-				me := readModuleMetadata(targetDir + "metadata.json")
+				me := readModuleMetadata(targetDir + "/metadata.json")
 				latestForgeModules.RLock()
 				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
 				latestForgeModules.RUnlock()
@@ -695,8 +695,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 
 	}
 	if isDir(targetDir) {
-		if fileExists(targetDir + "metadata.json") {
-			me := readModuleMetadata(targetDir + "metadata.json")
+		if fileExists(targetDir + "/metadata.json") {
+			me := readModuleMetadata(targetDir + "/metadata.json")
 			if m.version == "latest" {
 				//fmt.Println(latestForgeModules)
 				//fmt.Println("checking latestForgeModules for key", moduleName)
@@ -772,15 +772,15 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 
 				if info.IsDir() {
 					//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
-					err = os.Mkdir(targetDir+target, os.FileMode(0755))
+					err = os.Mkdir(targetDir+"/"+target, os.FileMode(0755))
 					if err != nil {
-						Fatalf(funcName + "(): error while Mkdir() " + targetDir + target + " Error: " + err.Error())
+						Fatalf(funcName + "(): error while Mkdir() " + targetDir + "/" + target + " Error: " + err.Error())
 					}
 				} else {
 					//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
-					err = os.Link(path, targetDir+target)
+					err = os.Link(path, targetDir+"/"+target)
 					if err != nil {
-						Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + target + " Error: " + err.Error())
+						Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
 					}
 				}
 			}
