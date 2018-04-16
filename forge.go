@@ -340,6 +340,11 @@ func unTar(r io.Reader, targetBaseDir string) {
 
 			writer.Close()
 
+			err = os.Chtimes(targetFilename, header.AccessTime, header.ChangeTime)
+			if err != nil {
+				Fatalf(funcName + "(): error while Chtimes() " + filename + err.Error())
+			}
+
 		case tar.TypeSymlink:
 			if os.Symlink(header.Linkname, targetFilename) != nil {
 				Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
