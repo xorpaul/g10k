@@ -274,10 +274,10 @@ sources:
     basedir: '/tmp/failing/'
 ```
 
-If you then call g10k with this config file and at least the `info` verbosity level, you should get:
+If you then call g10k with this config file and `debug` verbosity level, you should get:
 
 ```
-Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
+DEBUG: Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
 ```
 
 See [#57](https://github.com/xorpaul/g10k/issues/57) for details.
