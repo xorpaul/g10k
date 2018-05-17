@@ -133,7 +133,13 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			Fatalf("Could not find cached git module " + srcDir)
 		}
 	}
-	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + tree + "^{object}'"
+	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + tree
+	if config.GitObjectSyntaxNotSupported != true {
+		logCmd = logCmd + "^{object}'"
+	} else {
+		logCmd = logCmd + "'"
+	}
+
 	er := executeCommand(logCmd, config.Timeout, allowFail)
 	hashFile := targetDir + "/.latest_commit"
 	needToSync := true

@@ -59,19 +59,20 @@ type LatestForgeModules struct {
 
 // ConfigSettings contains the key value pairs from the g10k config file
 type ConfigSettings struct {
-	CacheDir                 string `yaml:"cachedir"`
-	ForgeCacheDir            string
-	ModulesCacheDir          string
-	EnvCacheDir              string
-	Git                      Git
-	Forge                    Forge
-	Sources                  map[string]Source
-	Timeout                  int  `yaml:"timeout"`
-	IgnoreUnreachableModules bool `yaml:"ignore_unreachable_modules"`
-	Maxworker                int  `yaml:"maxworker"`
-	MaxExtractworker         int  `yaml:"maxextractworker"`
-	UseCacheFallback         bool `yaml:"use_cache_fallback"`
-	RetryGitCommands         bool `yaml:"retry_git_commands"`
+	CacheDir                    string `yaml:"cachedir"`
+	ForgeCacheDir               string
+	ModulesCacheDir             string
+	EnvCacheDir                 string
+	Git                         Git
+	Forge                       Forge
+	Sources                     map[string]Source
+	Timeout                     int  `yaml:"timeout"`
+	IgnoreUnreachableModules    bool `yaml:"ignore_unreachable_modules"`
+	Maxworker                   int  `yaml:"maxworker"`
+	MaxExtractworker            int  `yaml:"maxextractworker"`
+	UseCacheFallback            bool `yaml:"use_cache_fallback"`
+	RetryGitCommands            bool `yaml:"retry_git_commands"`
+	GitObjectSyntaxNotSupported bool `yaml:"git_object_syntax_not_supported"`
 }
 
 type Forge struct {
