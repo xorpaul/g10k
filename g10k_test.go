@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestForgeChecksum(t *testing.T) {
@@ -1044,7 +1045,7 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("invalid_git_object")
+		resolvePuppetEnvironment("invalid_git_object", false, "")
 		return
 	}
 
@@ -1065,6 +1066,107 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 	expectingString := "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git rev-parse --verify '0000000000000000000000000000000000000000^{object}' exit status 128"
 	if !strings.Contains(string(out), expectingString) {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s\nExpecting string: %s", string(out), expectingString)
+	}
+
+	moduleParam = ""
+	debug = false
+
+}
+
+func TestUnTarPreserveTimestamp(t *testing.T) {
+	purgeDir("/tmp/example/", "TestUnTarPreserveTimestamp()")
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("master", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	gitFile := "/tmp/example/foobar_master/external_modules/apt/metadata.json"
+	if fileExists(gitFile) {
+		if fileInfo, err := os.Stat(gitFile); err == nil {
+			//fmt.Println("fileInfo", fileInfo.ModTime())
+			if fileInfo.ModTime().Before(time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)) {
+				t.Errorf("ModTime of file %s is incorrect: %s", gitFile, fileInfo.ModTime())
+			}
+		}
+	} else {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", gitFile)
+	}
+
+	forgeFile := "/tmp/example/foobar_master/external_modules/stdlib/metadata.json"
+	if fileExists(forgeFile) {
+		if fileInfo, err := os.Stat(forgeFile); err == nil {
+			//fmt.Println("fileInfo", fileInfo.ModTime())
+			if fileInfo.ModTime().Before(time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)) {
+				t.Errorf("ModTime of file %s is incorrect: %s", forgeFile, fileInfo.ModTime())
+			}
+		}
+	} else {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", forgeFile)
+	}
+}
+
+func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigGitObjectSyntaxNotSupported.yaml")
+	aptDir := "/tmp/example/foobar_fallback/modules/apt"
+	metadataFile := aptDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("fallback", false, "")
+		return
+	} else {
+		purgeDir("/tmp/example", funcName)
+		resolvePuppetEnvironment("fallback", false, "")
+		if !fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+		}
+		purgeDir(aptDir, funcName)
+		if fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() error while purging directory with file %s", metadataFile)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git with branch noooopee") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if !strings.Contains(string(out), "executeCommand(): Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git rev-parse --verify 'foooooobbaar'") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", metadataFile)
 	}
 
 	moduleParam = ""
