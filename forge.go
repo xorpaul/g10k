@@ -322,6 +322,12 @@ func unTar(r io.Reader, targetBaseDir string) {
 				Fatalf(funcName + "(): error while MkdirAll() " + filename + err.Error())
 			}
 
+			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
+
+			if err != nil {
+				Fatalf(funcName + "(): error while Chtimes() " + filename + err.Error())
+			}
+
 		case tar.TypeReg:
 			// handle normal file
 			//fmt.Println("Untarring :", filename)
@@ -338,12 +344,12 @@ func unTar(r io.Reader, targetBaseDir string) {
 				Fatalf(funcName + "(): error while Chmod() " + filename + err.Error())
 			}
 
-			writer.Close()
-
-			err = os.Chtimes(targetFilename, header.AccessTime, header.ChangeTime)
+			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
 			if err != nil {
 				Fatalf(funcName + "(): error while Chtimes() " + filename + err.Error())
 			}
+
+			writer.Close()
 
 		case tar.TypeSymlink:
 			if os.Symlink(header.Linkname, targetFilename) != nil {
