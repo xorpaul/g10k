@@ -120,6 +120,10 @@ Usage of ./g10k:
 
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged.
 
+## Using g10k behind a proxy
+Set the environment variables `http_proxy` or `https_proxy` to make g10k use a proxy.
+E.g. ```http_proxy=http://proxy.domain.tld:8080 ./g10k -puppetfile```
+See https://golang.org/pkg/net/http/#ProxyFromEnvironment for details.
 
 # additional Puppetfile features
 
