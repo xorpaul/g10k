@@ -348,6 +348,7 @@ WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_pup
 See [#76](https://github.com/xorpaul/g10k/issues/76) for details.
 
 - Autocorrecting Puppet environment names
+
 Like in [r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches) for each source in your g10k config you can set the attribute `invalid_branches` with the following values:
 
   * `correct_and_warn`: Non-word characters will be replaced with underscores and a warning will be emitted.
@@ -373,6 +374,7 @@ If you then call g10k with this config file and have a branch named something li
 See [#81](https://github.com/xorpaul/g10k/issues/81) for details.
 
 - Support for older Git versions, like on CentOS 6
+
 To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91) 
 g10k will skip this sanity check when the g10k config setting `git_object_syntax_not_supported` is set to `true` (defaults to `false`)
 Example:
