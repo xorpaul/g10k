@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -55,16 +56,21 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				output_branches := er.output
 				output_tags := ""
 
-				if (tags == true) {
+				if tags == true {
 					er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
 					output_tags = er.output
 				}
 
-				branches := strings.Split(strings.TrimSpace(output_branches + output_tags), "\n")
+				branches := strings.Split(strings.TrimSpace(output_branches+output_tags), "\n")
 
 				foundBranch := false
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
+					reInvalidCharacters := regexp.MustCompile("\\W")
+					if sa.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
+						Warnf("Ignoring branch " + branch + ", because it contains invalid characters")
+						continue
+					}
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
 						Debugf("Skipping branch " + branch)
@@ -84,6 +90,16 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 							if (len(outputNameTag) > 0) && (len(envBranch) > 0) {
 								renamedBranch = outputNameTag
 								Debugf("Renaming branch " + branch + " to " + renamedBranch)
+							}
+
+							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+								oldBranch := renamedBranch
+								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
+								if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+									Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
+								} else {
+									Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
+								}
 							}
 
 							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)

@@ -167,10 +167,10 @@ func TestResolvStatic(t *testing.T) {
 
 func TestConfigGlobalAllowFail(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	info = true
 	config = readConfigfile("tests/" + funcName + ".yaml")
 
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
 		resolvePuppetEnvironment("", false, "")
 		return
 	}
@@ -190,7 +190,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules/sensu/ but ignore-unreachable is set. Continuing...") {
 		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. Output was: %s", string(out))
 	}
-	info = false
+	debug = false
 }
 
 func TestInvalidFilesizeForgemodule(t *testing.T) {
@@ -1172,4 +1172,113 @@ func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
 	moduleParam = ""
 	debug = false
 
+}
+
+func TestAutoCorrectEnvironmentNames(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/" + funcName + ".yaml")
+	resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+
+	firewallDir := "/tmp/example/single_autocorrect___fooo/modules/firewall"
+	metadataFile := firewallDir + "/metadata.json"
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	moduleParam = ""
+	debug = false
+
+}
+
+func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/" + funcName + ".yaml")
+	resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+
+	firewallDir := "/tmp/example/single_autocorrect-%-fooo/modules/firewall"
+	metadataFile := firewallDir + "/metadata.json"
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	moduleParam = ""
+	debug = false
+
+}
+
+func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/" + funcName + ".yaml")
+	firewallDir := "/tmp/example/single_autocorrect___fooo/modules/firewall"
+	metadataFile := firewallDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !strings.Contains(string(out), "Renaming branch single_autocorrect-%-fooo to single_autocorrect___fooo") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	moduleParam = ""
+	debug = false
+
+}
+
+func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/" + funcName + ".yaml")
+	firewallDir := "/tmp/example/single_autocorrect-%-fooo/modules/firewall"
+	metadataFile := firewallDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !strings.Contains(string(out), "Ignoring branch single_autocorrect-%-fooo, because it contains invalid characters") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() branch with invalid characters exists, which should have been skipped: %s", metadataFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	moduleParam = ""
+	debug = false
 }
