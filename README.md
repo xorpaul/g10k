@@ -13,13 +13,11 @@ My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r1
 
 ```
 mod 'theforeman/puppet'
-
 ```
   - Git modules must be specified like this:
 ```
 mod 'apache',
   :git => 'https://github.com/puppetlabs/puppetlabs-apache.git'
-
 ```
 
 ### Non-breaking changes to r10k
@@ -98,6 +96,8 @@ Usage of ./g10k:
         which module of the Puppet environment to update, e.g. stdlib
   -moduledir string
         allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted
+  -outputname string
+        overwrite the environment name if -branch is specified
   -puppetfile
         install all modules from Puppetfile in cwd
   -puppetfilelocation string
@@ -106,6 +106,8 @@ Usage of ./g10k:
         no output, defaults to false
   -retrygitcommands
         if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing
+  -tags
+        to pull tags as well as branches
   -usecachefallback
         if g10k should try to use its cache for sources and modules instead of failing
   -usemove
@@ -114,10 +116,6 @@ Usage of ./g10k:
         log verbose output, defaults to false
   -version
         show build time and version number
-  -tags
-        to also clone tags as well as branches
-  -outputname string
-        overwrite the output name if either -tag or -branch is specified
 ```
 
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged.
