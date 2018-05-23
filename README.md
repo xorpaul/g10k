@@ -86,6 +86,8 @@ Usage of ./g10k:
         do not modify anything, just print what would be changed
   -force
         purge the Puppet environment directory and do a full sync
+  -gitobjectsyntaxnotsupported
+        if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax
   -info
         log info output, defaults to false
   -maxextractworker int
@@ -375,7 +377,7 @@ See [#81](https://github.com/xorpaul/g10k/issues/81) for details.
 
 - Support for older Git versions, like on CentOS 6
 
-To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91) 
+To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91)
 g10k will skip this sanity check when the g10k config setting `git_object_syntax_not_supported` is set to `true` (defaults to `false`)
 Example:
 ```

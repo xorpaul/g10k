@@ -11,45 +11,46 @@ import (
 )
 
 var (
-	debug                  bool
-	verbose                bool
-	info                   bool
-	quiet                  bool
-	force                  bool
-	usemove                bool
-	usecacheFallback       bool
-	retryGitCommands       bool
-	pfMode                 bool
-	pfLocation             string
-	dryRun                 bool
-	check4update           bool
-	checkSum               bool
-	moduleDirParam         string
-	cacheDirParam          string
-	branchParam            string
-	tags                   bool
-	outputNameParam        string
-	moduleParam            string
-	configFile             string
-	config                 ConfigSettings
-	mutex                  sync.Mutex
-	empty                  struct{}
-	syncGitCount           int
-	syncForgeCount         int
-	needSyncGitCount       int
-	needSyncForgeCount     int
-	syncGitTime            float64
-	syncForgeTime          float64
-	ioGitTime              float64
-	ioForgeTime            float64
-	forgeJsonParseTime     float64
-	metadataJsonParseTime  float64
-	gmetadataJsonParseTime float64
-	buildtime              string
-	uniqueForgeModules     map[string]ForgeModule
-	latestForgeModules     LatestForgeModules
-	maxworker              int
-	maxExtractworker       int
+	debug                       bool
+	verbose                     bool
+	info                        bool
+	quiet                       bool
+	force                       bool
+	usemove                     bool
+	usecacheFallback            bool
+	retryGitCommands            bool
+	pfMode                      bool
+	pfLocation                  string
+	dryRun                      bool
+	check4update                bool
+	checkSum                    bool
+	gitObjectSyntaxNotSupported bool
+	moduleDirParam              string
+	cacheDirParam               string
+	branchParam                 string
+	tags                        bool
+	outputNameParam             string
+	moduleParam                 string
+	configFile                  string
+	config                      ConfigSettings
+	mutex                       sync.Mutex
+	empty                       struct{}
+	syncGitCount                int
+	syncForgeCount              int
+	needSyncGitCount            int
+	needSyncForgeCount          int
+	syncGitTime                 float64
+	syncForgeTime               float64
+	ioGitTime                   float64
+	ioForgeTime                 float64
+	forgeJsonParseTime          float64
+	metadataJsonParseTime       float64
+	gmetadataJsonParseTime      float64
+	buildtime                   string
+	uniqueForgeModules          map[string]ForgeModule
+	latestForgeModules          LatestForgeModules
+	maxworker                   int
+	maxExtractworker            int
 )
 
 type LatestForgeModules struct {
@@ -176,6 +177,7 @@ func main() {
 	flag.BoolVar(&quiet, "quiet", false, "no output, defaults to false")
 	flag.BoolVar(&usecacheFallback, "usecachefallback", false, "if g10k should try to use its cache for sources and modules instead of failing")
 	flag.BoolVar(&retryGitCommands, "retrygitcommands", false, "if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing")
+	flag.BoolVar(&gitObjectSyntaxNotSupported, "gitobjectsyntaxnotsupported", false, "if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax")
 	flag.Parse()
 
 	configFile = *configFileFlag

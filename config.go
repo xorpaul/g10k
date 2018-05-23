@@ -71,6 +71,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.RetryGitCommands = true
 	}
 
+	if gitObjectSyntaxNotSupported {
+		config.GitObjectSyntaxNotSupported = true
+	}
+
 	// set default max Go routines for Forge and Git module resolution if none is given
 	if !(config.Maxworker > 0) {
 		config.Maxworker = maxworker

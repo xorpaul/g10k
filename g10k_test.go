@@ -1174,6 +1174,60 @@ func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
 
 }
 
+func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
+	quiet = true
+	gitObjectSyntaxNotSupported = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	aptDir := "/tmp/example/foobar_fallback/modules/apt"
+	metadataFile := aptDir + "/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		resolvePuppetEnvironment("fallback", false, "")
+		return
+	} else {
+		purgeDir("/tmp/example", funcName)
+		resolvePuppetEnvironment("fallback", false, "")
+		if !fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() expected module metadata.json is missing %s", metadataFile)
+		}
+		purgeDir(aptDir, funcName)
+		if fileExists(metadataFile) {
+			t.Errorf("resolvePuppetEnvironment() error while purging directory with file %s", metadataFile)
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
+
+	if !strings.Contains(string(out), "Trying to resolve /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git with branch noooopee") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if !strings.Contains(string(out), "executeCommand(): Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apt.git rev-parse --verify 'foooooobbaar'") {
+		t.Errorf("resolvePuppetEnvironment() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
+	if !fileExists(metadataFile) {
+		t.Errorf("resolvePuppetEnvironment() error missing file %s", metadataFile)
+	}
+
+	moduleParam = ""
+	debug = false
+
+}
+
 func TestAutoCorrectEnvironmentNames(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/" + funcName + ".yaml")
