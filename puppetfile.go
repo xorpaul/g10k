@@ -112,7 +112,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 							syncToModuleDir(workDir, targetDir, branch, false, false)
 							if !fileExists(targetDir + "Puppetfile") {
-								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exitst")
+								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
 								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions)
 								puppetfile.workDir = targetDir
