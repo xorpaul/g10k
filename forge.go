@@ -186,9 +186,12 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		}
 
 		before := time.Now()
-		currentRelease := gjson.Get(string(body), "current_release").Map()
-
+		jsonBody := string(body)
+		currentRelease := gjson.Get(jsonBody, "current_release").Map()
+		deprecatedTimestamp := gjson.Get(jsonBody, "deprecated_at")
+		successorModule := gjson.Get(jsonBody, "superseded_by").Map()
 		duration := time.Since(before).Seconds()
+
 		version := currentRelease["version"].String()
 		modulemd5sum := currentRelease["file_md5"].String()
 		moduleFilesize := currentRelease["file_size"].Int()
@@ -196,6 +199,14 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 		mutex.Lock()
 		forgeJsonParseTime += duration
 		mutex.Unlock()
+
+		if deprecatedTimestamp.Exists() && deprecatedTimestamp.String() != "null" {
+			supersededText := ""
+			if successorModule["slug"].Exists() {
+				supersededText = " The author has suggested " + successorModule["slug"].String() + " as its replacement"
+			}
+			Warnf("WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText)
+		}
 
 		Debugf("found version " + version + " for " + name + "-latest")
 		latestForgeModules.Lock()
