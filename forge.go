@@ -227,7 +227,7 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 	forgeJsonParseTime += duration
 	mutex.Unlock()
 
-	if deprecatedTimestamp.Exists() && deprecatedTimestamp.String() != "null" {
+	if deprecatedTimestamp.Exists() && deprecatedTimestamp.Value() != nil {
 		supersededText := ""
 		if successorModule["slug"].Exists() {
 			supersededText = " The author has suggested " + successorModule["slug"].String() + " as its replacement"
