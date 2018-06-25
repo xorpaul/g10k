@@ -1336,3 +1336,47 @@ func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
 	moduleParam = ""
 	debug = false
 }
+
+func TestLastCheckedFile(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	lastCheckedFile := "/tmp/g10k/forge/puppetlabs-inifile-latest-last-checked"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single_cache", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("resolvePuppetEnvironment() terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !fileExists(lastCheckedFile) {
+		t.Errorf("resolvePuppetEnvironment() Forge cache file missing: %s", lastCheckedFile)
+	}
+
+	fm := ForgeModule{version: "latest", name: "inifile", author: "puppetlabs", fileSize: 0, cacheTtl: 0}
+	json, _ := ioutil.ReadFile(lastCheckedFile)
+	latestForgeModules.m = make(map[string]string)
+
+	result := parseForgeAPIResult(string(json), fm)
+	result2 := queryForgeAPI(fm)
+
+	if !equalForgeResult(result, result2) {
+		t.Errorf("Forge result is not the same! a: %v b: %v", result, result2)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	purgeDir("/tmp/g10k", funcName)
+	moduleParam = ""
+	debug = false
+}

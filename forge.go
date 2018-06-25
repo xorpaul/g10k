@@ -35,7 +35,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		if !isDir(workDir) {
 			Debugf("" + workDir + " does not exist, fetching module")
 			// check forge API what the latest version is
-			fr = queryForgeAPI(moduleName, "false", fm)
+			fr = queryForgeAPI(fm)
 			if fr.needToGet {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
 					Debugf("no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
@@ -68,6 +68,14 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 						latestForgeModules.Lock()
 						latestForgeModules.m[moduleName] = me.version
 						latestForgeModules.Unlock()
+
+						// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
+						json, err := ioutil.ReadFile(lastCheckedFile)
+						if err != nil {
+							Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
+						}
+						_ = parseForgeAPIResult(string(json), fm)
+
 						return
 					}
 				}
@@ -77,7 +85,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 			// XXX: disable adding If-Modified-Since header for now
 			// because then the latestForgeModules does not get set with the actual module version for latest
 			// maybe if received 304 get the actual version from the -latest symlink
-			fr = queryForgeAPI(moduleName, "false", fm)
+			fr = queryForgeAPI(fm)
 			//fmt.Println(needToGet)
 		}
 
@@ -136,21 +144,15 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 
 }
 
-func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
-	//url := "https://forgeapi.puppetlabs.com:443/v3/modules/" + strings.Replace(name, "/", "-", -1)
+func queryForgeAPI(fm ForgeModule) ForgeResult {
 	baseUrl := config.Forge.Baseurl
 	if len(fm.baseUrl) > 0 {
 		baseUrl = fm.baseUrl
 	}
 	url := baseUrl + "/v3/modules/" + fm.author + "-" + fm.name
-	//url := baseUrl + "/v3/releases?module=" + name + "&owner=" + fm.author + "&sort_by=release_date&limit=1"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())
-	}
-	if fileInfo, err := os.Stat(file); err == nil {
-		Debugf("adding If-Modified-Since:" + string(fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT")) + " to Forge query")
-		req.Header.Set("If-Modified-Since", fileInfo.ModTime().Format("Mon, 02 Jan 2006 15:04:05 GMT"))
 	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 	req.Header.Set("Connection", "keep-alive")
@@ -164,7 +166,7 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 	resp, err := client.Do(req)
 	if err != nil {
 		if config.UseCacheFallback {
-			Warnf("Forge API error, trying to use cache for module " + fm.author + "/" + name)
+			Warnf("Forge API error, trying to use cache for module " + fm.author + "/" + fm.author + "-" + fm.name)
 			_ = getLatestCachedModule(fm)
 			return ForgeResult{false, "", "", 0}
 		}
@@ -185,51 +187,66 @@ func queryForgeAPI(name string, file string, fm ForgeModule) ForgeResult {
 			Fatalf("queryForgeAPI(): Error while reading response body for Forge module " + fm.name + " from " + url + ": " + err.Error())
 		}
 
-		before := time.Now()
-		jsonBody := string(body)
-		currentRelease := gjson.Get(jsonBody, "current_release").Map()
-		deprecatedTimestamp := gjson.Get(jsonBody, "deprecated_at")
-		successorModule := gjson.Get(jsonBody, "superseded_by").Map()
-		duration := time.Since(before).Seconds()
+		json := string(body)
+		fr := parseForgeAPIResult(json, fm)
 
-		version := currentRelease["version"].String()
-		modulemd5sum := currentRelease["file_md5"].String()
-		moduleFilesize := currentRelease["file_size"].Int()
-
-		mutex.Lock()
-		forgeJsonParseTime += duration
-		mutex.Unlock()
-
-		if deprecatedTimestamp.Exists() && deprecatedTimestamp.String() != "null" {
-			supersededText := ""
-			if successorModule["slug"].Exists() {
-				supersededText = " The author has suggested " + successorModule["slug"].String() + " as its replacement"
-			}
-			Warnf("WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText)
-		}
-
-		Debugf("found version " + version + " for " + name + "-latest")
-		latestForgeModules.Lock()
-		latestForgeModules.m[fm.author+"-"+fm.name] = version
-		latestForgeModules.Unlock()
-
-		lastCheckedFile := config.ForgeCacheDir + name + "-latest-last-checked"
+		lastCheckedFile := config.ForgeCacheDir + fm.author + "-" + fm.name + "-latest-last-checked"
 		Debugf("writing last-checked file " + lastCheckedFile)
 		f, _ := os.Create(lastCheckedFile)
 		defer f.Close()
+		f.WriteString(json)
 
-		return ForgeResult{true, version, modulemd5sum, moduleFilesize}
+		return ForgeResult{true, fr.versionNumber, fr.md5sum, fr.fileSize}
 
 	} else if strings.TrimSpace(resp.Status) == "304 Not Modified" {
-		Debugf("Got 304 nothing to do for module " + name)
+		Debugf("Got 304 nothing to do for module " + fm.author + "-" + fm.name)
 		return ForgeResult{false, "", "", 0}
 	} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
-		Fatalf("Received 404 from Forge for module " + name + " using URL " + url + " Does the module really exist and is it correctly named?")
+		Fatalf("Received 404 from Forge for module " + fm.author + "-" + fm.name + " using URL " + url + " Does the module really exist and is it correctly named?")
 		return ForgeResult{false, "", "", 0}
 	} else {
 		Fatalf("Unexpected response code " + resp.Status)
 		return ForgeResult{false, "", "", 0}
 	}
+}
+
+// parseForgeAPIResult parses the JSON response of the Forge API
+func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
+
+	before := time.Now()
+	currentRelease := gjson.Get(json, "current_release").Map()
+	deprecatedTimestamp := gjson.Get(json, "deprecated_at")
+	successorModule := gjson.Get(json, "superseded_by").Map()
+	duration := time.Since(before).Seconds()
+
+	version := currentRelease["version"].String()
+	modulemd5sum := currentRelease["file_md5"].String()
+	moduleFilesize := currentRelease["file_size"].Int()
+
+	mutex.Lock()
+	forgeJsonParseTime += duration
+	mutex.Unlock()
+
+	if deprecatedTimestamp.Exists() && deprecatedTimestamp.String() != "null" {
+		supersededText := ""
+		if successorModule["slug"].Exists() {
+			supersededText = " The author has suggested " + successorModule["slug"].String() + " as its replacement"
+		}
+		// check the verbosity level
+		// otherwise these warnings mess up the progress bars
+		if info || debug {
+			Warnf("WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText)
+		} else {
+			forgeModuleDeprecationNotice += "WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText + "\n"
+		}
+	}
+
+	Debugf("found version " + version + " for " + fm.name + "-latest")
+	latestForgeModules.Lock()
+	latestForgeModules.m[fm.author+"-"+fm.name] = version
+	latestForgeModules.Unlock()
+
+	return ForgeResult{true, version, modulemd5sum, moduleFilesize}
 }
 
 // getMetadataForgeModule queries the configured Puppet Forge and return
@@ -241,7 +258,7 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 	url := baseUrl + "/v3/releases/" + fm.author + "-" + fm.name + "-" + fm.version
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
-	req.Header.Set("Connection", "close")
+	req.Header.Set("Connection", "keep-alive")
 	proxyURL, err := http.ProxyFromEnvironment(req)
 	if err != nil {
 		Fatalf("getMetadataForgeModule(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())

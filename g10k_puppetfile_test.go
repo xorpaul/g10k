@@ -57,6 +57,17 @@ func equalPuppetfile(a, b Puppetfile) bool {
 	return true
 }
 
+func equalForgeResult(a, b ForgeResult) bool {
+	if &a == &b {
+		return true
+	}
+	if a.needToGet != b.needToGet || a.versionNumber != b.versionNumber ||
+		a.fileSize != b.fileSize {
+		return false
+	}
+	return true
+}
+
 func equalForgeModule(a, b ForgeModule) bool {
 	if &a == &b {
 		return true

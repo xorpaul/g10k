@@ -6,51 +6,53 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	debug                       bool
-	verbose                     bool
-	info                        bool
-	quiet                       bool
-	force                       bool
-	usemove                     bool
-	usecacheFallback            bool
-	retryGitCommands            bool
-	pfMode                      bool
-	pfLocation                  string
-	dryRun                      bool
-	check4update                bool
-	checkSum                    bool
-	gitObjectSyntaxNotSupported bool
-	moduleDirParam              string
-	cacheDirParam               string
-	branchParam                 string
-	tags                        bool
-	outputNameParam             string
-	moduleParam                 string
-	configFile                  string
-	config                      ConfigSettings
-	mutex                       sync.Mutex
-	empty                       struct{}
-	syncGitCount                int
-	syncForgeCount              int
-	needSyncGitCount            int
-	needSyncForgeCount          int
-	syncGitTime                 float64
-	syncForgeTime               float64
-	ioGitTime                   float64
-	ioForgeTime                 float64
-	forgeJsonParseTime          float64
-	metadataJsonParseTime       float64
-	gmetadataJsonParseTime      float64
-	buildtime                   string
-	uniqueForgeModules          map[string]ForgeModule
-	latestForgeModules          LatestForgeModules
-	maxworker                   int
-	maxExtractworker            int
+	debug                        bool
+	verbose                      bool
+	info                         bool
+	quiet                        bool
+	force                        bool
+	usemove                      bool
+	usecacheFallback             bool
+	retryGitCommands             bool
+	pfMode                       bool
+	pfLocation                   string
+	dryRun                       bool
+	check4update                 bool
+	checkSum                     bool
+	gitObjectSyntaxNotSupported  bool
+	moduleDirParam               string
+	cacheDirParam                string
+	branchParam                  string
+	tags                         bool
+	outputNameParam              string
+	moduleParam                  string
+	configFile                   string
+	config                       ConfigSettings
+	mutex                        sync.Mutex
+	empty                        struct{}
+	syncGitCount                 int
+	syncForgeCount               int
+	needSyncGitCount             int
+	needSyncForgeCount           int
+	syncGitTime                  float64
+	syncForgeTime                float64
+	ioGitTime                    float64
+	ioForgeTime                  float64
+	forgeJsonParseTime           float64
+	metadataJsonParseTime        float64
+	gmetadataJsonParseTime       float64
+	buildtime                    string
+	uniqueForgeModules           map[string]ForgeModule
+	latestForgeModules           LatestForgeModules
+	maxworker                    int
+	maxExtractworker             int
+	forgeModuleDeprecationNotice string
 )
 
 type LatestForgeModules struct {
@@ -237,7 +239,6 @@ func main() {
 			} else {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
-			//config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Forge:{Baseurl: "https://forgeapi.puppetlabs.com"}, Sources: sm}
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			target = pfLocation
@@ -256,21 +257,13 @@ func main() {
 		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
 	}
 
-	// DEBUG
-	//pf := make(map[string]Puppetfile)
-	//pf["core_fullmanaged"] = readPuppetfile("/tmp/core/core_fullmanaged/", "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/portal_envs")
-	//pf["itodsi_corosync"] = readPuppetfile("/tmp/itodsi/itodsi_corosync/", "/home/andpaul/dev/go/src/github.com/xorpaul/g10k/portal_envs")
-	//resolvePuppetfile(pf)
-	//resolveGitRepositories(config)
-	//resolveForgeModules(configSettings.forge)
-	//doModuleInstallOrNothing("camptocamp-postfix-1.2.2", "/tmp/g10k/camptocamp-postfix-1.2.2")
-	//doModuleInstallOrNothing("saz-resolv_conf-latest")
-	//readModuleMetadata("/tmp/g10k/forge/camptocamp-postfix-1.2.2/metadata.json")
-
 	Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJsonParseTime, 'f', 4, 64) + " seconds")
 	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
 
 	if !check4update && !quiet {
+		if len(forgeModuleDeprecationNotice) > 0 {
+			Warnf(strings.TrimSuffix(forgeModuleDeprecationNotice, "\n"))
+		}
 		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolv and", strconv.Itoa(config.MaxExtractworker), "extract workers")
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {

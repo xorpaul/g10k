@@ -46,11 +46,7 @@ func Infof(s string) {
 // Warnf is a helper function for warning logging
 func Warnf(s string) {
 	color.Set(color.FgYellow)
-	if !debug && !verbose && !info && !quiet {
-		fmt.Println(s + "\n")
-	} else {
-		fmt.Println(s)
-	}
+	fmt.Println(s)
 	color.Unset()
 }
 
