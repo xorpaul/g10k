@@ -397,6 +397,16 @@ func unTar(r io.Reader, targetBaseDir string) {
 			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
 		}
 	}
+	// tarball produced by git archive has trailing nulls in the stream which are not
+	// read by the module, when removed this can cause the git archive to hang trying
+	// to output the nulls into a full pipe buffer, avoid this by discarding the rest
+	// until the stream ends.
+	buf := make([]byte, 4096)
+	nread, err := r.Read(buf)
+	for nread > 0 && err == nil {
+		Infof(fmt.Sprintf("Discarded %d bytes of trailing data", nread))
+		nread, err = r.Read(buf)
+	}
 }
 
 func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {
