@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/henvic/uiprogress"
+	"github.com/xorpaul/uiprogress"
 )
 
 func resolveGitRepositories(uniqueGitModules map[string]GitModule) {

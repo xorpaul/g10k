@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/henvic/uiprogress"
+	"github.com/xorpaul/uiprogress"
 	"github.com/remeh/sizedwaitgroup"
 	"golang.org/x/crypto/ssh/terminal"
 )

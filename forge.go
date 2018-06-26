@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/henvic/uiprogress"
 	"github.com/klauspost/pgzip"
 	"github.com/tidwall/gjson"
+	"github.com/xorpaul/uiprogress"
 )
 
 func doModuleInstallOrNothing(fm ForgeModule) {
@@ -237,7 +237,9 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 		if info || debug {
 			Warnf("WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText)
 		} else {
+			mutex.Lock()
 			forgeModuleDeprecationNotice += "WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText + "\n"
+			mutex.Unlock()
 		}
 	}
 
@@ -396,6 +398,16 @@ func unTar(r io.Reader, targetBaseDir string) {
 		default:
 			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
 		}
+	}
+	// tarball produced by git archive has trailing nulls in the stream which are not
+	// read by the module, when removed this can cause the git archive to hang trying
+	// to output the nulls into a full pipe buffer, avoid this by discarding the rest
+	// until the stream ends.
+	buf := make([]byte, 4096)
+	nread, err := r.Read(buf)
+	for nread > 0 && err == nil {
+		Infof(fmt.Sprintf("Discarded %d bytes of trailing data", nread))
+		nread, err = r.Read(buf)
 	}
 }
 
