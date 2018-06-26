@@ -156,6 +156,12 @@
 			"revisionTime": "2018-06-07T14:09:07Z"
 		},
 		{
+			"checksumSHA1": "j8XekJrlbHvjlUYE8uZjDHWmCxs=",
+			"path": "github.com/xorpaul/uiprogress",
+			"revision": "d0567a9d84a1c40dd7568115ea66f4887bf57b33",
+			"revisionTime": "2017-02-24T06:39:37Z"
+		},
+		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "a49355c7e3f8fe157a85be2f77e6e269a0f89602",
