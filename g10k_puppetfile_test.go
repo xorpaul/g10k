@@ -114,7 +114,7 @@ func checkExitCodeAndOutputOfReadPuppetfileSubprocess(t *testing.T, forceForgeVe
 	pc, _, _, _ := runtime.Caller(1)
 	testFunctionName := strings.Split(runtime.FuncForPC(pc).Name(), ".")[len(strings.Split(runtime.FuncForPC(pc).Name(), "."))-1]
 	if os.Getenv("TEST_FOR_CRASH_"+testFunctionName) == "1" {
-		readPuppetfile("tests/"+testFunctionName, "", "test", forceForgeVersions)
+		readPuppetfile("tests/"+testFunctionName, "", "test", forceForgeVersions, false)
 		return
 	}
 
@@ -157,7 +157,7 @@ func TestCommentPuppetfile(t *testing.T) {
 
 func TestReadPuppetfile(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
 	fallbackMapExample := make([]string, 1)
 	fallbackMapExample[0] = "master"
@@ -214,7 +214,7 @@ func TestFallbackPuppetfile(t *testing.T) {
 		branch: "master", ignoreUnreachable: false, fallback: fallbackMapAnother}
 
 	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
-	got := readPuppetfile("tests/TestFallbackPuppetfile", "", "test", false)
+	got := readPuppetfile("tests/TestFallbackPuppetfile", "", "test", false, false)
 
 	if !equalGitModule(got.gitModules["example_module"], expected.gitModules["example_module"]) {
 		t.Error("Expected gitModules:", expected.gitModules["example_module"], ", but got gitModules:", got.gitModules["example_module"])
@@ -234,7 +234,7 @@ func TestForgeCacheTtlPuppetfile(t *testing.T) {
 	}
 
 	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTtl: 50 * time.Minute}
-	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTtlPuppetfile", "", "test", false)
+	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTtlPuppetfile", "", "test", false, false)
 
 	if gotPuppetfile.forgeCacheTtl != expectedPuppetfile.forgeCacheTtl {
 		t.Error("Expected for forgeCacheTtl", expectedPuppetfile.forgeCacheTtl, "got", gotPuppetfile.forgeCacheTtl)
@@ -308,7 +308,7 @@ func TestReadPuppetfileDuplicateForgeGitModule(t *testing.T) {
 
 func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
 	fm["ntp"] = ForgeModule{version: "6.0.0", author: "puppetlabs", name: "ntp", sha256sum: "a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944"}
@@ -328,7 +328,7 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 	fm := make(map[string]ForgeModule)
 	fm["filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
 	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
@@ -342,7 +342,7 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 
 func TestReadPuppetfileForgeDash(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
 	fm["php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
@@ -359,7 +359,7 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 func TestReadPuppetfileInstallPath(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
 	gm := make(map[string]GitModule)
 	gm["sensu"] = GitModule{git: "https://github.com/sensu/sensu-puppet.git", commit: "8f4fc5780071c4895dec559eafc6030511b0caaa", installPath: "external"}
@@ -377,13 +377,49 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 func TestReadPuppetfileLocalModule(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readPuppetfile("tests/"+funcName, "", "test", false)
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
 	gm := make(map[string]GitModule)
 	gm["localstuff"] = GitModule{local: true}
 	gm["localstuff2"] = GitModule{local: true}
 	gm["localstuff3"] = GitModule{local: false}
 	gm["external"] = GitModule{local: true, installPath: "modules"}
+
+	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileForgeNotationGitModule(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
+
+	gm := make(map[string]GitModule)
+	gm["elasticsearch"] = GitModule{git: "https://github.com/elastic/puppet-elasticsearch.git", branch: "5.x"}
+
+	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileGitSlashNotation(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
+
+	gm := make(map[string]GitModule)
+	gm["puppetboard"] = GitModule{git: "https://github.com/nibalizer/puppet-module-puppetboard.git", ref: "2.7.1"}
 
 	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
 	//fmt.Println(got)

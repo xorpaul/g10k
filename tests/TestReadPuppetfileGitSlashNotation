@@ -1,0 +1,3 @@
+mod 'nibalizer/puppetboard',
+  :git => 'https://github.com/nibalizer/puppet-module-puppetboard.git',
+  :ref => '2.7.1'
