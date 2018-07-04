@@ -406,7 +406,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 	buf := make([]byte, 4096)
 	nread, err := r.Read(buf)
 	for nread > 0 && err == nil {
-		Infof(fmt.Sprintf("Discarded %d bytes of trailing data", nread))
+		Debugf(fmt.Sprintf("Discarded %d bytes of trailing data from tar", nread))
 		nread, err = r.Read(buf)
 	}
 }
