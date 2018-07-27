@@ -157,13 +157,22 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
+	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
 	//moduleName := ""
 	//nextLineAttr := false
 
-	for _, line := range strings.Split(n, "\n") {
+	lines := strings.Split(n, "\n")
+	for i, line := range lines {
 		//fmt.Println("found line ---> ", line)
 		if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
 			Fatalf("Error: trailing comma found in " + pf + " somewhere here: " + line)
+		}
+		if m := reDanglingAttribute.FindStringSubmatch(line); len(m) >= 1 {
+			previousLine := ""
+			if i-1 >= 0 {
+				previousLine = lines[i-1]
+			}
+			Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.moduleDir = m[1]

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
@@ -121,6 +122,9 @@ func checkExitCodeAndOutputOfReadPuppetfileSubprocess(t *testing.T, forceForgeVe
 	cmd := exec.Command(os.Args[0], "-test.run="+testFunctionName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+testFunctionName+"=1")
 	out, err := cmd.CombinedOutput()
+	if debug {
+		fmt.Print(string(out))
+	}
 
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -393,4 +397,12 @@ func TestReadPuppetfileLocalModule(t *testing.T) {
 		spew.Dump(got)
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
 	}
+}
+
+func TestReadPuppetfileMissingTrailingComma(t *testing.T) {
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
+}
+
+func TestReadPuppetfileMissingTrailingComma2(t *testing.T) {
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
