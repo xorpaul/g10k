@@ -1,3 +1,11 @@
+mod 'puppetlabs/stdlib'
+
 mod 'nibalizer/puppetboard',
   :git => 'https://github.com/nibalizer/puppet-module-puppetboard.git',
   :ref => '2.7.1'
+
+# Until my PRs to fix Issues #947 and #949 are merged.
+#
+mod 'elastic/elasticsearch',
+  :git => 'https://github.com/alexharv074/puppet-elasticsearch.git',
+  :ref => 'alex_master'

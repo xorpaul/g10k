@@ -418,10 +418,14 @@ func TestReadPuppetfileGitSlashNotation(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
 
+	fm := make(map[string]ForgeModule)
+	fm["stdlib"] = ForgeModule{version: "present", author: "puppetlabs", name: "stdlib"}
+
 	gm := make(map[string]GitModule)
 	gm["puppetboard"] = GitModule{git: "https://github.com/nibalizer/puppet-module-puppetboard.git", ref: "2.7.1"}
+	gm["elasticsearch"] = GitModule{git: "https://github.com/alexharv074/puppet-elasticsearch.git", ref: "alex_master"}
 
-	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
+	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm, forgeModules: fm}
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {
