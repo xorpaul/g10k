@@ -66,6 +66,13 @@ https://github.com/xorpaul/g10k/releases
 - If you are using a private Git or Forge server think about adjusting the `-maxworker` parameter/config setting before DOSing your own infrastructure ;) (default 50)
 - To protect your local machine use `-maxextractworker` parameter/config setting with wich you can limit the number of Goroutines that are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip) (default 20)
 
+## installation of g10k via Puppet module
+
+User @Conzar was so nice and shared his g10k Puppet module that you can check out here:
+
+* [Puppet Forge](https://forge.puppet.com/landcareresearch/g10k)
+* [Source code](https://bitbucket.org/landcareresearch/puppet-g10k)
+
 
 ## Usage Docs
 ```
