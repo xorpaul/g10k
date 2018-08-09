@@ -173,8 +173,12 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	}
 	if err != nil {
 		if !allowFail && !config.UseCacheFallback && !config.RetryGitCommands {
-			Fatalf("executeCommand(): git command failed: " + command + " " + err.Error() + "\nOutput: " + string(out) +
-				"\nIf you are using GitLab be sure that you added your deploy key to your repository")
+			if cmd == "git" {
+				Fatalf("executeCommand(): git command failed: " + command + " " + err.Error() + "\nOutput: " + string(out) +
+					"\nIf you are using GitLab please ensure that you've added your deploy key to your repository")
+			} else {
+				Fatalf("executeCommand(): command failed: " + command + " " + err.Error() + "\nOutput: " + string(out))
+			}
 		} else {
 			er.returnCode = 1
 			er.output = fmt.Sprint(err)
@@ -198,4 +202,13 @@ func timeTrack(start time.Time, name string) {
 		syncGitTime = duration
 	}
 	Debugf(name + "() took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+}
+
+// checkForAndExecutePostrunCommand check if a `postrun` command was specified in the g10k config and executes it
+func checkForAndExecutePostrunCommand() {
+	if len(config.PostRunCommand) > 0 {
+		postrunCommandString := strings.Join(config.PostRunCommand, " ")
+		er := executeCommand(postrunCommandString, config.Timeout, false)
+		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
+	}
 }
