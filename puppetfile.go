@@ -9,12 +9,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/xorpaul/uiprogress"
 	"github.com/remeh/sizedwaitgroup"
+	"github.com/xorpaul/uiprogress"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-// sourceSanityCheck is a validation function that checks if the given source has all neccessary attributes (basedir, remote, SSH key exists if given)
+// sourceSanityCheck is a validation function that checks if the given source has all necessary attributes (basedir, remote, SSH key exists if given)
 func sourceSanityCheck(source string, sa Source) {
 	if len(sa.PrivateKey) > 0 {
 		if _, err := os.Stat(sa.PrivateKey); err != nil {
@@ -43,7 +43,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
 			Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
 
-			// check for a valid source that has all neccessary attributes (basedir, remote, SSH key exist if given)
+			// check for a valid source that has all necessary attributes (basedir, remote, SSH key exist if given)
 			sourceSanityCheck(source, sa)
 
 			workDir := config.EnvCacheDir + source + ".git"
@@ -54,15 +54,15 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
-				output_branches := er.output
-				output_tags := ""
+				outputBranches := er.output
+				outputTags := ""
 
 				if tags == true {
 					er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
-					output_tags = er.output
+					outputTags = er.output
 				}
 
-				branches := strings.Split(strings.TrimSpace(output_branches+output_tags), "\n")
+				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 
 				foundBranch := false
 				for _, branch := range branches {
@@ -192,8 +192,8 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 			}
 			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
-			fm.baseUrl = pf.forgeBaseURL
-			fm.cacheTtl = pf.forgeCacheTtl
+			fm.baseURL = pf.forgeBaseURL
+			fm.cacheTTL = pf.forgeCacheTTL
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			if _, ok := uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version]; !ok {
 				uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version] = fm
@@ -253,7 +253,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
 					delete(exisitingModuleDirs, moduleDirectory)
 				}
-				for existingDir, _ := range exisitingModuleDirs {
+				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
 						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
@@ -331,7 +331,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
 					delete(exisitingModuleDirs, moduleDirectory)
 				}
-				for existingDir, _ := range exisitingModuleDirs {
+				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
 						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)

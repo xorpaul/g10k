@@ -19,10 +19,10 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		return true
 	}
 	if a.moduleDir != b.moduleDir || a.forgeBaseURL != b.forgeBaseURL ||
-		a.forgeCacheTtl != b.forgeCacheTtl ||
+		a.forgeCacheTTL != b.forgeCacheTTL ||
 		a.privateKey != b.privateKey ||
 		a.source != b.source {
-		Debugf("moduleDir, forgeBaseURL, forgeCacheTtl, privateKey or source isn't equal!")
+		Debugf("moduleDir, forgeBaseURL, forgeCacheTTL, privateKey or source isn't equal!")
 		return false
 	}
 
@@ -78,8 +78,8 @@ func equalForgeModule(a, b ForgeModule) bool {
 		a.md5sum != b.md5sum ||
 		a.sha256sum != b.sha256sum ||
 		a.fileSize != b.fileSize ||
-		a.baseUrl != b.baseUrl ||
-		a.cacheTtl != b.cacheTtl {
+		a.baseURL != b.baseURL ||
+		a.cacheTTL != b.cacheTTL {
 		return false
 	}
 	return true
@@ -192,7 +192,7 @@ func TestReadPuppetfile(t *testing.T) {
 	fm["ntp"] = ForgeModule{version: "present", author: "puppetlabs", name: "ntp"}
 	fm["stdlib"] = ForgeModule{version: "latest", author: "puppetlabs", name: "stdlib"}
 
-	expected := Puppetfile{moduleDir: "external_modules", gitModules: gm, forgeModules: fm, source: "test", forgeCacheTtl: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
+	expected := Puppetfile{moduleDir: "external_modules", gitModules: gm, forgeModules: fm, source: "test", forgeCacheTTL: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
 
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
@@ -229,19 +229,19 @@ func TestFallbackPuppetfile(t *testing.T) {
 	}
 }
 
-func TestForgeCacheTtlPuppetfile(t *testing.T) {
+func TestForgeCacheTTLPuppetfile(t *testing.T) {
 	expected := regexp.MustCompile("(moduledir 'external_modules'\nforge.cacheTtl 50m\n)")
-	got := preparePuppetfile("tests/TestForgeCacheTtlPuppetfile")
+	got := preparePuppetfile("tests/TestForgeCacheTTLPuppetfile")
 
 	if !expected.MatchString(got) {
 		t.Error("Expected", expected, "got", got)
 	}
 
-	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTtl: 50 * time.Minute}
-	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTtlPuppetfile", "", "test", false)
+	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTTL: 50 * time.Minute}
+	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTTLPuppetfile", "", "test", false)
 
-	if gotPuppetfile.forgeCacheTtl != expectedPuppetfile.forgeCacheTtl {
-		t.Error("Expected for forgeCacheTtl", expectedPuppetfile.forgeCacheTtl, "got", gotPuppetfile.forgeCacheTtl)
+	if gotPuppetfile.forgeCacheTTL != expectedPuppetfile.forgeCacheTTL {
+		t.Error("Expected for forgeCacheTTL", expectedPuppetfile.forgeCacheTTL, "got", gotPuppetfile.forgeCacheTTL)
 	}
 
 }
@@ -298,8 +298,8 @@ func TestReadPuppetfileIgnoreUnreachable(t *testing.T) {
 	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "")
 }
 
-func TestReadPuppetfileForgeCacheTtl(t *testing.T) {
-	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Can not convert value 300x of parameter forge.cacheTtl 300x to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In tests/TestReadPuppetfileForgeCacheTtl line: forge.cacheTtl 300x")
+func TestReadPuppetfileForgeCacheTTL(t *testing.T) {
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Can not convert value 300x of parameter forge.cacheTtl 300x to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In tests/TestReadPuppetfileForgeCacheTTL line: forge.cacheTtl 300x")
 }
 
 func TestReadPuppetfileLink(t *testing.T) {

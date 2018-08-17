@@ -44,9 +44,9 @@ var (
 	syncForgeTime                float64
 	ioGitTime                    float64
 	ioForgeTime                  float64
-	forgeJsonParseTime           float64
-	metadataJsonParseTime        float64
-	gmetadataJsonParseTime       float64
+	forgeJSONParseTime           float64
+	metadataJSONParseTime        float64
+	gmetadataJSONParseTime       float64
 	buildtime                    string
 	uniqueForgeModules           map[string]ForgeModule
 	latestForgeModules           LatestForgeModules
@@ -55,6 +55,8 @@ var (
 	forgeModuleDeprecationNotice string
 )
 
+// LatestForgeModules contains a map of unique Forge modules
+// that should be the latest versions of them
 type LatestForgeModules struct {
 	sync.RWMutex
 	m map[string]string
@@ -79,13 +81,16 @@ type ConfigSettings struct {
 	PostRunCommand              []string `yaml:"postrun"`
 }
 
+// Forge is a simple struct that contains the base URL of
+// the Forge that g10k should use. Defaults to: https://forgeapi.puppetlabs.com
 type Forge struct {
 	Baseurl string `yaml:"baseurl"`
 }
 
+// Git is a simple struct that contains the optional SSH private key to
+// use for authentication
 type Git struct {
 	privateKey string `yaml:"private_key"`
-	username   string
 }
 
 // Source contains basic information about a Puppet environment repository
@@ -104,7 +109,7 @@ type Source struct {
 type Puppetfile struct {
 	moduleDir     string
 	forgeBaseURL  string
-	forgeCacheTtl time.Duration
+	forgeCacheTTL time.Duration
 	forgeModules  map[string]ForgeModule
 	gitModules    map[string]GitModule
 	privateKey    string
@@ -119,8 +124,8 @@ type ForgeModule struct {
 	author    string
 	md5sum    string
 	fileSize  int64
-	baseUrl   string
-	cacheTtl  time.Duration
+	baseURL   string
+	cacheTTL  time.Duration
 	sha256sum string
 }
 
@@ -258,8 +263,8 @@ func main() {
 		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
 	}
 
-	Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJsonParseTime, 'f', 4, 64) + " seconds")
-	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJsonParseTime, 'f', 4, 64) + " seconds")
+	Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJSONParseTime, 'f', 4, 64) + " seconds")
+	Debugf("Forge modules metadata.json parsing took " + strconv.FormatFloat(metadataJSONParseTime, 'f', 4, 64) + " seconds")
 
 	if !check4update && !quiet {
 		if len(forgeModuleDeprecationNotice) > 0 {

@@ -34,8 +34,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 		concurrentGoroutines <- struct{}{}
 	}
 
-	// The done channel indicates when a single goroutine has
-	// finished its job.
+	// The done channel indicates when a single goroutine has finished its job.
 	done := make(chan bool)
 	// The waitForAllJobs channel allows the main program
 	// to wait until we have indeed done all the jobs.
@@ -50,8 +49,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 				concurrentGoroutines <- struct{}{}
 			}(gm)
 		}
-		// We have collected all the jobs, the program
-		// can now terminate  8.6s with git (13.7s sync, I/O 1.2s)
+		// We have collected all the jobs, the program can now terminate
 		waitForAllJobs <- true
 	}()
 	wg := sync.WaitGroup{}

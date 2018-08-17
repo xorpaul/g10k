@@ -150,8 +150,8 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	n := preparePuppetfile(pf)
 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtl)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeCacheTTL := regexp.MustCompile("^\\s*(?:forge.cache(?:TTL|Ttl))\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.base(?:URL|Url))\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
@@ -179,12 +179,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
 			//fmt.Println("found forge base URL parameter ---> ", m[1])
-		} else if m := reForgeCacheTtl.FindStringSubmatch(line); len(m) > 1 {
+		} else if m := reForgeCacheTTL.FindStringSubmatch(line); len(m) > 1 {
 			ttl, err := time.ParseDuration(m[1])
 			if err != nil {
 				Fatalf("Error: Can not convert value " + m[1] + " of parameter " + m[0] + " to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In " + pf + " line: " + line)
 			}
-			puppetFile.forgeCacheTtl = ttl
+			puppetFile.forgeCacheTTL = ttl
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			forgeModuleName := strings.TrimSpace(m[1])
 			//fmt.Println("found forge mod name ---> ", forgeModuleName)

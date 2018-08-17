@@ -56,13 +56,13 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 				}
 			}
 		} else {
-			if fm.cacheTtl > 0 {
+			if fm.cacheTTL > 0 {
 				lastCheckedFile := workDir + "-last-checked"
 				//Debugf("checking for " + lastCheckedFile)
 				if fileInfo, err := os.Lstat(lastCheckedFile); err == nil {
 					//Debugf("found " + lastCheckedFile + " with mTime " + fileInfo.ModTime().String())
-					if fileInfo.ModTime().Add(fm.cacheTtl).After(time.Now()) {
-						Debugf("No need to check forge API if latest version of module " + moduleName + " has been updated, because last-checked file " + lastCheckedFile + " is not older than " + fm.cacheTtl.String())
+					if fileInfo.ModTime().Add(fm.cacheTTL).After(time.Now()) {
+						Debugf("No need to check forge API if latest version of module " + moduleName + " has been updated, because last-checked file " + lastCheckedFile + " is not older than " + fm.cacheTTL.String())
 						// need to add the current (cached!) -latest version number to the latestForgeModules, because otherwise we would always sync this module, because 1.4.1 != -latest
 						me := readModuleMetadata(workDir + "/metadata.json")
 						latestForgeModules.Lock()
@@ -145,11 +145,11 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 }
 
 func queryForgeAPI(fm ForgeModule) ForgeResult {
-	baseUrl := config.Forge.Baseurl
-	if len(fm.baseUrl) > 0 {
-		baseUrl = fm.baseUrl
+	baseURL := config.Forge.Baseurl
+	if len(fm.baseURL) > 0 {
+		baseURL = fm.baseURL
 	}
-	url := baseUrl + "/v3/modules/" + fm.author + "-" + fm.name
+	url := baseURL + "/v3/modules/" + fm.author + "-" + fm.name
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())
@@ -204,10 +204,9 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 	} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
 		Fatalf("Received 404 from Forge for module " + fm.author + "-" + fm.name + " using URL " + url + " Does the module really exist and is it correctly named?")
 		return ForgeResult{false, "", "", 0}
-	} else {
-		Fatalf("Unexpected response code " + resp.Status)
-		return ForgeResult{false, "", "", 0}
 	}
+	Fatalf("Unexpected response code " + resp.Status)
+	return ForgeResult{false, "", "", 0}
 }
 
 // parseForgeAPIResult parses the JSON response of the Forge API
@@ -224,7 +223,7 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 	moduleFilesize := currentRelease["file_size"].Int()
 
 	mutex.Lock()
-	forgeJsonParseTime += duration
+	forgeJSONParseTime += duration
 	mutex.Unlock()
 
 	if deprecatedTimestamp.Exists() && deprecatedTimestamp.Value() != nil {
@@ -253,11 +252,11 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 
 // getMetadataForgeModule queries the configured Puppet Forge and return
 func getMetadataForgeModule(fm ForgeModule) ForgeModule {
-	baseUrl := config.Forge.Baseurl
-	if len(fm.baseUrl) > 0 {
-		baseUrl = fm.baseUrl
+	baseURL := config.Forge.Baseurl
+	if len(fm.baseURL) > 0 {
+		baseURL = fm.baseURL
 	}
-	url := baseUrl + "/v3/releases/" + fm.author + "-" + fm.name + "-" + fm.version
+	url := baseURL + "/v3/releases/" + fm.author + "-" + fm.name + "-" + fm.version
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 	req.Header.Set("Connection", "keep-alive")
@@ -294,13 +293,12 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 		Debugf("module: " + fm.author + "/" + fm.name + " modulemd5sum: " + modulemd5sum + " moduleFilesize: " + strconv.FormatInt(moduleFilesize, 10))
 
 		mutex.Lock()
-		forgeJsonParseTime += duration
+		forgeJSONParseTime += duration
 		mutex.Unlock()
 
 		return ForgeModule{md5sum: modulemd5sum, fileSize: moduleFilesize}
-	} else {
-		Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + " " + resp.Status)
 	}
+	Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + " " + resp.Status)
 	return ForgeModule{}
 }
 
@@ -422,11 +420,11 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	fileName := name + "-" + version + ".tar.gz"
 
 	if !isDir(config.ForgeCacheDir + name + "-" + version) {
-		baseUrl := config.Forge.Baseurl
-		if len(fm.baseUrl) > 0 {
-			baseUrl = fm.baseUrl
+		baseURL := config.Forge.Baseurl
+		if len(fm.baseURL) > 0 {
+			baseURL = fm.baseURL
 		}
-		url := baseUrl + "/v3/files/" + fileName
+		url := baseURL + "/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
@@ -516,7 +514,7 @@ func readModuleMetadata(file string) ForgeModule {
 	author := gjson.Get(string(content), "author").String()
 	duration := time.Since(before).Seconds()
 	mutex.Lock()
-	metadataJsonParseTime += duration
+	metadataJSONParseTime += duration
 	mutex.Unlock()
 
 	Debugf("Found in file " + file + " name: " + name + " version: " + version + " author: " + author)
@@ -581,7 +579,7 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 			<-concurrentGoroutines
 			defer bar.Incr()
 			defer wg.Done()
-			Debugf("resolveForgeModules(): Trying to get forge module " + m + " with Forge base url " + fm.baseUrl + " and CacheTtl set to " + fm.cacheTtl.String())
+			Debugf("resolveForgeModules(): Trying to get forge module " + m + " with Forge base url " + fm.baseURL + " and CacheTtl set to " + fm.cacheTTL.String())
 			doModuleInstallOrNothing(fm)
 			done <- true
 		}(m, fm, bar)
@@ -703,20 +701,19 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	if fmm.md5sum != calculatedMd5Sum {
 		Warnf("WARNING: calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does not match expected md5sum " + fmm.md5sum)
 		return true
-	} else {
-		if m.sha256sum != calculatedSha256Sum {
-			Warnf("WARNING: calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does not match expected sha256sum " + m.sha256sum)
-			return true
-		}
-		if fmm.fileSize != calculatedArchiveSize {
-			Warnf("WARNING: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does not match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
-			return true
-		}
-		Debugf("calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
-		Debugf("calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does match expected md5sum " + fmm.md5sum)
-		if m.sha256sum != "" {
-			Debugf("calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does match expected sha256sum " + m.sha256sum)
-		}
+	}
+	if m.sha256sum != calculatedSha256Sum {
+		Warnf("WARNING: calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does not match expected sha256sum " + m.sha256sum)
+		return true
+	}
+	if fmm.fileSize != calculatedArchiveSize {
+		Warnf("WARNING: calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does not match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+		return true
+	}
+	Debugf("calculated file size " + strconv.FormatInt(calculatedArchiveSize, 10) + " for " + fileName + " does match expected file size " + strconv.FormatInt(fmm.fileSize, 10))
+	Debugf("calculated md5sum " + calculatedMd5Sum + " for " + fileName + " does match expected md5sum " + fmm.md5sum)
+	if m.sha256sum != "" {
+		Debugf("calculated sha256sum " + calculatedSha256Sum + " for " + fileName + " does match expected sha256sum " + m.sha256sum)
 	}
 	return false
 

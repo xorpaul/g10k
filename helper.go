@@ -58,7 +58,7 @@ func Fatalf(s string) {
 
 // fileExists checks if the given file exists and return a bool
 func fileExists(file string) bool {
-	//Debugf("checking for file existance " + file)
+	//Debugf("checking for file existence " + file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
 		return false
 	}
@@ -70,13 +70,11 @@ func isDir(dir string) bool {
 	fi, err := os.Stat(dir)
 	if os.IsNotExist(err) {
 		return false
-	} else {
-		if fi.Mode().IsDir() {
-			return true
-		} else {
-			return false
-		}
 	}
+	if fi.Mode().IsDir() {
+		return true
+	}
+	return false
 }
 
 // normalizeDir removes from the given directory path multiple redundant slashes and adds a trailing slash
