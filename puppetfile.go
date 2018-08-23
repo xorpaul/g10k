@@ -116,7 +116,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
 								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions)
-								puppetfile.workDir = targetDir
+								puppetfile.workDir = normalizeDir(targetDir)
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile
 								mutex.Unlock()
@@ -218,29 +218,26 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env + " with workDir " + pf.workDir)
 		basedir := checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
-		moduleDir := pf.workDir + pf.moduleDir
 		var envBranch string
-		if pfMode {
-			moduleDir = normalizeDir(basedir) + pf.moduleDir
-		} else {
+		if !pfMode {
 			envBranch = strings.Replace(env, pf.source+"_", "", 1)
 		}
-		if strings.HasPrefix(pf.moduleDir, "/") {
-			moduleDir = pf.moduleDir
-		}
-		if force {
-			createOrPurgeDir(moduleDir, "resolvePuppetfile()")
-			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for source "+pf.source)
-		} else {
-			moduleDir = checkDirAndCreate(moduleDir, "moduleDir for "+pf.source)
-			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
+
+		for _, moduleDir := range pf.moduleDirs {
+			exisitingModuleDirsFI, _ := ioutil.ReadDir(pf.workDir + moduleDir)
+			moduleDir = normalizeDir(pf.workDir + moduleDir)
+			//fmt.Println("checking dir: ", moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
+				//fmt.Println("adding dir: ", moduleDir+exisitingModuleDir.Name())
 				exisitingModuleDirs[moduleDir+exisitingModuleDir.Name()] = empty
 			}
 			mutex.Unlock()
 		}
+
 		for gitName, gitModule := range pf.gitModules {
+			moduleDir := pf.workDir + gitModule.moduleDir
+			moduleDir = normalizeDir(moduleDir)
 			if gitModule.local {
 				Debugf("Not deleting " + moduleDir + gitName + " as it is declared as a local module")
 				// remove this module from the exisitingModuleDirs map
@@ -343,6 +340,8 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			wg.Add()
+			moduleDir := pf.workDir + fm.moduleDir
+			moduleDir = normalizeDir(moduleDir)
 			go func(forgeModuleName string, fm ForgeModule) {
 				defer wg.Done()
 				syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
@@ -354,8 +353,10 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				mutex.Unlock()
 			}(forgeModuleName, fm)
 		}
+
 	}
 	wg.Wait()
+
 	//fmt.Println(uniqueForgeModules)
 	if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 		for d := range exisitingModuleDirs {

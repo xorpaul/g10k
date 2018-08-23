@@ -18,11 +18,11 @@ func equalPuppetfile(a, b Puppetfile) bool {
 	if &a == &b {
 		return true
 	}
-	if a.moduleDir != b.moduleDir || a.forgeBaseURL != b.forgeBaseURL ||
+	if a.forgeBaseURL != b.forgeBaseURL ||
 		a.forgeCacheTTL != b.forgeCacheTTL ||
 		a.privateKey != b.privateKey ||
 		a.source != b.source {
-		Debugf("moduleDir, forgeBaseURL, forgeCacheTTL, privateKey or source isn't equal!")
+		Debugf("forgeBaseURL, forgeCacheTTL, privateKey or source isn't equal!")
 		return false
 	}
 
@@ -192,7 +192,7 @@ func TestReadPuppetfile(t *testing.T) {
 	fm["ntp"] = ForgeModule{version: "present", author: "puppetlabs", name: "ntp"}
 	fm["stdlib"] = ForgeModule{version: "latest", author: "puppetlabs", name: "stdlib"}
 
-	expected := Puppetfile{moduleDir: "external_modules", gitModules: gm, forgeModules: fm, source: "test", forgeCacheTTL: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
+	expected := Puppetfile{gitModules: gm, forgeModules: fm, source: "test", forgeCacheTTL: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
 
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
@@ -217,7 +217,7 @@ func TestFallbackPuppetfile(t *testing.T) {
 	gm["another_module"] = GitModule{git: "git@somehost.com/foo/another-module.git",
 		branch: "master", ignoreUnreachable: false, fallback: fallbackMapAnother}
 
-	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
+	expected := Puppetfile{gitModules: gm, source: "test"}
 	got := readPuppetfile("tests/TestFallbackPuppetfile", "", "test", false)
 
 	if !equalGitModule(got.gitModules["example_module"], expected.gitModules["example_module"]) {
@@ -237,7 +237,7 @@ func TestForgeCacheTTLPuppetfile(t *testing.T) {
 		t.Error("Expected", expected, "got", got)
 	}
 
-	expectedPuppetfile := Puppetfile{moduleDir: "external_modules", forgeCacheTTL: 50 * time.Minute}
+	expectedPuppetfile := Puppetfile{forgeCacheTTL: 50 * time.Minute}
 	gotPuppetfile := readPuppetfile("tests/TestForgeCacheTTLPuppetfile", "", "test", false)
 
 	if gotPuppetfile.forgeCacheTTL != expectedPuppetfile.forgeCacheTTL {
@@ -320,7 +320,7 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 	fm["apt"] = ForgeModule{version: "2.3.0", author: "puppetlabs", name: "apt", sha256sum: "a09290c207bbfed7f42dd0356ff4dee16e138c7f9758d2134a21aeb66e14072f"}
 	fm["concat"] = ForgeModule{version: "2.2.0", author: "puppetlabs", name: "concat", sha256sum: "ec0407abab71f57e106ade6ed394410d08eec29bdad4c285580e7b56514c5194"}
 
-	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+	expected := Puppetfile{forgeModules: fm, source: "test"}
 
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
@@ -335,7 +335,7 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 	got := readPuppetfile("tests/"+funcName, "", "test", false)
 	fm := make(map[string]ForgeModule)
 	fm["filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
-	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+	expected := Puppetfile{forgeModules: fm, source: "test"}
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
 		spew.Dump(got)
@@ -351,7 +351,7 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 	fm := make(map[string]ForgeModule)
 	fm["php"] = ForgeModule{version: "4.0.0-beta1", author: "mayflower", name: "php"}
 
-	expected := Puppetfile{moduleDir: "modules", forgeModules: fm, source: "test"}
+	expected := Puppetfile{forgeModules: fm, source: "test"}
 
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
@@ -368,7 +368,7 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 	gm := make(map[string]GitModule)
 	gm["sensu"] = GitModule{git: "https://github.com/sensu/sensu-puppet.git", commit: "8f4fc5780071c4895dec559eafc6030511b0caaa", installPath: "external"}
 
-	expected := Puppetfile{moduleDir: "modules", gitModules: gm, source: "test"}
+	expected := Puppetfile{gitModules: gm, source: "test"}
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {
@@ -389,7 +389,7 @@ func TestReadPuppetfileLocalModule(t *testing.T) {
 	gm["localstuff3"] = GitModule{local: false}
 	gm["external"] = GitModule{local: true, installPath: "modules"}
 
-	expected := Puppetfile{moduleDir: "modules", source: "test", gitModules: gm}
+	expected := Puppetfile{source: "test", gitModules: gm}
 	//fmt.Println(got)
 
 	if !equalPuppetfile(got, expected) {

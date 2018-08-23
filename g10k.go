@@ -107,7 +107,6 @@ type Source struct {
 
 // Puppetfile contains the key value pairs from the Puppetfile
 type Puppetfile struct {
-	moduleDir     string
 	forgeBaseURL  string
 	forgeCacheTTL time.Duration
 	forgeModules  map[string]ForgeModule
@@ -115,6 +114,7 @@ type Puppetfile struct {
 	privateKey    string
 	source        string
 	workDir       string
+	moduleDirs    []string
 }
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
@@ -127,6 +127,7 @@ type ForgeModule struct {
 	baseURL   string
 	cacheTTL  time.Duration
 	sha256sum string
+	moduleDir string
 }
 
 // GitModule contains information about a Git Puppet module
@@ -142,6 +143,7 @@ type GitModule struct {
 	fallback          []string
 	installPath       string
 	local             bool
+	moduleDir         string
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded
@@ -233,7 +235,7 @@ func main() {
 		if pfMode {
 			Debugf("Trying to use as Puppetfile: " + pfLocation)
 			sm := make(map[string]Source)
-			sm["cmdlineparam"] = Source{Basedir: "."}
+			sm["cmdlineparam"] = Source{Basedir: "./"}
 			cachedir := "/tmp/g10k"
 			if len(os.Getenv("g10k_cachedir")) > 0 {
 				cachedir = os.Getenv("g10k_cachedir")
@@ -249,7 +251,7 @@ func main() {
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false)
-			puppetfile.workDir = "."
+			puppetfile.workDir = "./"
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)

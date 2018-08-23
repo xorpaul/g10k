@@ -158,7 +158,6 @@ func TestResolvStatic(t *testing.T) {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
-
 	if exitCode != 0 {
 		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
 	}
@@ -386,13 +385,17 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 
 func TestModuleDirOverride(t *testing.T) {
 	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", false)
-	if "external_modules" != got.moduleDir {
-		t.Error("Expected 'external_modules' for module dir, but got", got.moduleDir)
+	//fmt.Println(got.forgeModules["apt"].moduleDir)
+	if "external_modules/" != got.forgeModules["apt"].moduleDir {
+		t.Error("Expected 'external_modules/' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
-	moduleDirParam = "foobar"
+	if "modules/" != got.gitModules["another_module"].moduleDir {
+		t.Error("Expected 'modules/' for module dir, but got", got.gitModules["another_module"].moduleDir)
+	}
+	moduleDirParam = "foobar/"
 	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", false)
-	if moduleDirParam != got.moduleDir {
-		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.moduleDir)
+	if "foobar/" != got.forgeModules["apt"].moduleDir {
+		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
 	moduleDirParam = ""
 }
@@ -1422,6 +1425,59 @@ func TestPostrunCommand(t *testing.T) {
 
 	if !fileExists(touchFile) {
 		t.Errorf("postrun created file missing: %s", touchFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	purgeDir("/tmp/g10k", funcName)
+	moduleParam = ""
+	debug = false
+}
+
+func TestMultipleModuledirs(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPrefix.yaml")
+	moduleDir1File := "/tmp/example/foobar_multiple_moduledir/external_modules/stdlib/metadata.json"
+	moduleDir2File := "/tmp/example/foobar_multiple_moduledir/base_modules/apt/metadata.json"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("multiple_moduledir", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !fileExists(moduleDir1File) {
+		t.Errorf("Module file in moduledir 1 missing: %s", moduleDir1File)
+	}
+
+	if !fileExists(moduleDir2File) {
+		t.Errorf("Module file in moduledir 2 missing: %s", moduleDir2File)
+	}
+
+	unmanagedModule1 := "/tmp/example/foobar_multiple_moduledir/external_modules/foo"
+	unmanagedModule2 := "/tmp/example/foobar_multiple_moduledir/base_modules/bar"
+	checkDirAndCreate(unmanagedModule1, funcName)
+	checkDirAndCreate(unmanagedModule2, funcName)
+
+	resolvePuppetEnvironment("multiple_moduledir", false, "")
+
+	if isDir(unmanagedModule1) {
+		t.Errorf("Unmanaged Module directory 1 is still there and should not be: %s", unmanagedModule1)
+	}
+
+	if isDir(unmanagedModule2) {
+		t.Errorf("Unmanaged Module directory 2 is still there and should not be: %s", unmanagedModule2)
 	}
 
 	purgeDir("/tmp/example", funcName)

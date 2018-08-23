@@ -158,7 +158,8 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
-	//moduleName := ""
+	moduleDir := "modules/"
+	var moduleDirs []string
 	//nextLineAttr := false
 
 	lines := strings.Split(n, "\n")
@@ -175,7 +176,13 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
-			puppetFile.moduleDir = m[1]
+			// moduledir CLI parameter override
+			if len(moduleDirParam) != 0 {
+				moduleDir = moduleDirParam
+			} else {
+				moduleDir = normalizeDir(m[1])
+			}
+			moduleDirs = append(moduleDirs, moduleDir)
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
 			//fmt.Println("found forge base URL parameter ---> ", m[1])
@@ -232,7 +239,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if _, ok := puppetFile.gitModules[comp[1]]; ok {
 				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
 			}
-			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
+			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
@@ -261,7 +268,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 					Fatalf("Error: Found conflicting git attributes " + cga + "in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
 				puppetFile.gitModules[gitModuleName] = GitModule{}
-				gm := GitModule{}
+				gm := GitModule{moduleDir: moduleDir}
 				gitModuleAttributesArray := strings.Split(gitModuleAttributes, ",")
 				//fmt.Println("found git mod attribute array ---> ", gitModuleAttributesArray)
 				//fmt.Println("len(gitModuleAttributesArray) --> ", len(gitModuleAttributesArray))
@@ -339,15 +346,13 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 		}
 
 	}
-	// check if we need to set defaults
-	if len(moduleDirParam) != 0 {
-		puppetFile.moduleDir = moduleDirParam
-	} else {
-		if len(puppetFile.moduleDir) == 0 {
-			puppetFile.moduleDir = "modules"
-		}
+
+	if len(moduleDirs) < 1 {
+		// adding at least the default module directory
+		moduleDirs = append(moduleDirs, moduleDir)
 	}
-	Debugf("Setting moduledir for Puppetfile " + pf + " to " + puppetFile.moduleDir)
+
+	puppetFile.moduleDirs = moduleDirs
 	//fmt.Println(puppetFile)
 	return puppetFile
 }
