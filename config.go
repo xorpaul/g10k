@@ -139,15 +139,20 @@ func preparePuppetfile(pf string) string {
 }
 
 // readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions bool) Puppetfile {
+func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions bool, replacedPuppetfileContent bool) Puppetfile {
 	var puppetFile Puppetfile
+	var n string
 	puppetFile.privateKey = sshKey
 	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
-	Debugf("Trying to parse: " + pf)
-
-	n := preparePuppetfile(pf)
+	if replacedPuppetfileContent {
+		Debugf("Using replaced Puppetfile content, probably because a Git module was found in Forge notation")
+		n = pf
+	} else {
+		Debugf("Trying to parse: " + pf)
+		n = preparePuppetfile(pf)
+	}
 
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeCacheTTL := regexp.MustCompile("^\\s*(?:forge.cache(?:TTL|Ttl))\\s+['\"]?([^'\"]+)['\"]?")
@@ -194,12 +199,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			puppetFile.forgeCacheTTL = ttl
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			forgeModuleName := strings.TrimSpace(m[1])
-			//fmt.Println("found forge mod name ---> ", forgeModuleName)
+			//fmt.Println("found forge mod name ------------------------------> ", forgeModuleName)
 			comp := strings.Split(forgeModuleName, "/")
 			if len(comp) != 2 {
 				comp = strings.Split(forgeModuleName, "-")
 				if len(comp) != 2 {
-					Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt or puppetlabs-apt ,but is: " + m[2] + " in " + pf + " line: " + line)
+					Fatalf("Error: Forge module name is invalid! Should be like puppetlabs/apt or puppetlabs-apt, but is: " + m[2] + " in " + pf + " line: " + line)
 				}
 			}
 			forgeModuleName = comp[0] + "/" + comp[1]
@@ -229,6 +234,22 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						Debugf("found forge attribute ---> " + forgeAttributeName + " with value ---> " + forgeAttributeValue)
 						if forgeAttributeName == ":sha256sum" {
 							forgeChecksum = forgeAttributeValue
+						} else if forgeAttribute == "git" {
+							// try to detect Git modules in Forge <AUTHOR>/<MODULENAME> notation, fixes #104
+							Debugf("Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue)
+							//fmt.Println("line:", line)
+							removeForgeNotationAuthor := strings.Split(line, "/")
+							if len(removeForgeNotationAuthor) < 2 {
+								Fatalf("Error: Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue + ", but something went wrong while trying to remove the author part to make g10k detect it as an Git module module:" + comp[1] + " line: " + line)
+							} else {
+								//fmt.Println("removeForgeNotationAuthor:", removeForgeNotationAuthor[0])
+								replacedLine := strings.Replace(line, removeForgeNotationAuthor[0]+"/", "mod '", 1)
+								//fmt.Println("replacedLine:", replacedLine)
+								//fmt.Print("n:", n)
+								newN := strings.Replace(n, line, replacedLine, 1)
+								//fmt.Print("newN:", newN)
+								return readPuppetfile(newN, sshKey, source, forceForgeVersions, true)
+							}
 						}
 					}
 				}

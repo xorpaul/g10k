@@ -115,7 +115,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
-								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								mutex.Lock()
 								allPuppetfiles[source+"_"+branch] = puppetfile

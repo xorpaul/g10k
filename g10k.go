@@ -250,7 +250,7 @@ func main() {
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			target = pfLocation
-			puppetfile := readPuppetfile(target, "", "cmdlineparam", false)
+			puppetfile := readPuppetfile(target, "", "cmdlineparam", false, false)
 			puppetfile.workDir = "./"
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
