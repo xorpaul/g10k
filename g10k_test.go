@@ -1446,7 +1446,7 @@ func TestPostrunCommand(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
-	checkForAndExecutePostrunCommand()
+	checkForAndExecutePostrunCommand("foo")
 
 	if !fileExists(touchFile) {
 		t.Errorf("postrun created file missing: %s", touchFile)

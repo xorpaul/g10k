@@ -203,9 +203,9 @@ func timeTrack(start time.Time, name string) {
 }
 
 // checkForAndExecutePostrunCommand check if a `postrun` command was specified in the g10k config and executes it
-func checkForAndExecutePostrunCommand() {
+func checkForAndExecutePostrunCommand(branch string) {
 	if len(config.PostRunCommand) > 0 {
-		postrunCommandString := strings.Join(config.PostRunCommand, " ")
+		postrunCommandString := strings.Replace(strings.Join(config.PostRunCommand, " "), "$environment", branch, -1)
 		er := executeCommand(postrunCommandString, config.Timeout, false)
 		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
 	}
