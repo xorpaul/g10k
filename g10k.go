@@ -276,5 +276,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	checkForAndExecutePostrunCommand()
+	checkForAndExecutePostrunCommand(branchParam)
 }
