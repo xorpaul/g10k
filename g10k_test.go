@@ -360,6 +360,8 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 	t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", err)
 }
 
+// TODO add TestMissingVersionInForgeAPI
+
 func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 	// spin up HTTP test server to serve fake/invalid Forge module metadata
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1384,6 +1386,29 @@ func TestLastCheckedFile(t *testing.T) {
 
 	result := parseForgeAPIResult(string(json), fm)
 	result2 := queryForgeAPI(fm)
+
+	if !equalForgeResult(result, result2) {
+		t.Errorf("Forge result is not the same! a: %v b: %v", result, result2)
+	}
+
+	// in some older g10k versions the -latest-last-checked file was just empty and
+	// did not contain the JSON Forge API response
+	// So truncate the file and check the contents again
+
+	// skip err as we explicitly checked for it above
+	f, _ := os.Create(lastCheckedFile)
+	f.WriteString("")
+	f.Close()
+	f.Sync()
+	fi, _ := os.Stat(lastCheckedFile)
+	if fi.Size() != 0 {
+		t.Errorf("Forge cache file could not be truncated/emptied: %s", lastCheckedFile)
+	}
+
+	resolvePuppetEnvironment("single_cache", false, "")
+	json, _ = ioutil.ReadFile(lastCheckedFile)
+	result = parseForgeAPIResult(string(json), fm)
+	result2 = queryForgeAPI(fm)
 
 	if !equalForgeResult(result, result2) {
 		t.Errorf("Forge result is not the same! a: %v b: %v", result, result2)

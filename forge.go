@@ -70,11 +70,19 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 						latestForgeModules.Unlock()
 
 						// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
-						json, err := ioutil.ReadFile(lastCheckedFile)
-						if err != nil {
-							Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
+
+						if fi, err := os.Stat(lastCheckedFile); err == nil {
+							if fi.Size() < 1 {
+								Debugf("found empty file " + lastCheckedFile)
+								_ = queryForgeAPI(fm)
+							} else {
+								json, err := ioutil.ReadFile(lastCheckedFile)
+								if err != nil {
+									Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
+								}
+								_ = parseForgeAPIResult(string(json), fm)
+							}
 						}
-						_ = parseForgeAPIResult(string(json), fm)
 
 						return
 					}
@@ -240,6 +248,10 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 			forgeModuleDeprecationNotice += "WARN: Forge module " + fm.author + "-" + fm.name + " has been deprecated by its author since " + deprecatedTimestamp.String() + supersededText + "\n"
 			mutex.Unlock()
 		}
+	}
+
+	if len(version) < 1 {
+		Fatalf("ERROR: could not determine version of module " + fm.author + "/" + fm.name)
 	}
 
 	Debugf("found version " + version + " for " + fm.name + "-latest")

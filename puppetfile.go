@@ -195,8 +195,15 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			fm.baseURL = pf.forgeBaseURL
 			fm.cacheTTL = pf.forgeCacheTTL
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
-			if _, ok := uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version]; !ok {
-				uniqueForgeModules[fm.author+"/"+forgeModuleName+"-"+fm.version] = fm
+			uniqueForgeModuleName := fm.author + "/" + forgeModuleName + "-" + fm.version
+			if _, ok := uniqueForgeModules[uniqueForgeModuleName]; !ok {
+				uniqueForgeModules[uniqueForgeModuleName] = fm
+			} else {
+				// Use the shortest Forge cache TTL for this module
+				if uniqueForgeModules[uniqueForgeModuleName].cacheTTL > pf.forgeCacheTTL {
+					delete(uniqueForgeModules, uniqueForgeModuleName)
+					uniqueForgeModules[uniqueForgeModuleName] = fm
+				}
 			}
 		}
 	}
