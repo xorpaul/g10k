@@ -122,7 +122,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	return true
 }
 
-func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool) bool {
+func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string) bool {
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
@@ -159,6 +159,10 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	}
 	if needToSync && er.returnCode == 0 {
 		Infof("Need to sync " + targetDir)
+		needSyncDirs = append(needSyncDirs, targetDir)
+		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
+			needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
+		}
 		mutex.Lock()
 		needSyncGitCount++
 		mutex.Unlock()

@@ -90,7 +90,7 @@ func TestConfigAddWarning(t *testing.T) {
 	}
 }
 
-func TestConfigPostrunCommand(t *testing.T) {
+func TestConfigSimplePostrunCommand(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	got := readConfigfile("tests/" + funcName + ".yaml")
 
@@ -99,6 +99,28 @@ func TestConfigPostrunCommand(t *testing.T) {
 		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false}
 
 	postrunCommand := []string{"/usr/bin/touch", "-f", "/tmp/g10kfoobar"}
+	expected := ConfigSettings{
+		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
+		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		Git:     Git{privateKey: ""},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		PostRunCommand: postrunCommand}
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
+	}
+}
+
+func TestConfigPostrunCommand(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readConfigfile("tests/" + funcName + ".yaml")
+
+	s := make(map[string]Source)
+	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-test-environment.git",
+		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false, Prefix: "true"}
+
+	postrunCommand := []string{"tests/postrun.sh", "$modifiedenvs"}
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
 		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
@@ -1420,10 +1442,10 @@ func TestLastCheckedFile(t *testing.T) {
 	debug = false
 }
 
-func TestPostrunCommand(t *testing.T) {
+func TestSimplePostrunCommand(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/TestConfigPostrunCommand.yaml")
+	config = readConfigfile("tests/TestConfigSimplePostrunCommand.yaml")
 
 	touchFile := "/tmp/g10kfoobar"
 	purgeDir(touchFile, funcName)
@@ -1446,10 +1468,112 @@ func TestPostrunCommand(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
-	checkForAndExecutePostrunCommand("foo")
+	checkForAndExecutePostrunCommand()
 
 	if !fileExists(touchFile) {
 		t.Errorf("postrun created file missing: %s", touchFile)
+	}
+
+	purgeDir("/tmp/example", funcName)
+	purgeDir("/tmp/g10k", funcName)
+	moduleParam = ""
+	debug = false
+}
+
+func TestPostrunCommand(t *testing.T) {
+	needSyncDirs = append(needSyncDirs, "")
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPostrunCommand.yaml")
+
+	postrunLogfile := "/tmp/postrun.log"
+	purgeDir(postrunLogfile, funcName)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("", false, "")
+		checkForAndExecutePostrunCommand()
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !fileExists(postrunLogfile) {
+		t.Errorf("postrun logfile file missing: %s", postrunLogfile)
+	}
+
+	content, _ := ioutil.ReadFile(postrunLogfile)
+
+	expectedLines := [7]string{
+		"postrun command wrapper script recieved argument: example_master",
+		"postrun command wrapper script recieved argument: example_foobar",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(content), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in postrun logfile " + postrunLogfile + " Check variable replacement in postrun command.")
+		}
+	}
+
+	purgeDir("/tmp/example", funcName)
+	purgeDir("/tmp/g10k", funcName)
+	moduleParam = ""
+	debug = false
+}
+
+func TestPostrunCommandDirs(t *testing.T) {
+	needSyncDirs = append(needSyncDirs, "")
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPostrunCommandDirs.yaml")
+
+	postrunLogfile := "/tmp/postrun.log"
+	purgeDir(postrunLogfile, funcName)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("", false, "")
+		checkForAndExecutePostrunCommand()
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 0 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+
+	if !fileExists(postrunLogfile) {
+		t.Errorf("postrun logfile file missing: %s", postrunLogfile)
+	}
+
+	content, _ := ioutil.ReadFile(postrunLogfile)
+
+	expectedLines := [7]string{
+		"postrun command wrapper script recieved argument: /tmp/example/example_master/",
+		"postrun command wrapper script recieved argument: /tmp/example/example_foobar/",
+		"postrun command wrapper script recieved argument: /tmp/example/example_foobar/modules/systemd/",
+		"postrun command wrapper script recieved argument: /tmp/example/example_master/modules/systemd/",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(content), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in postrun logfile " + postrunLogfile + ". Check variable replacement in postrun command.")
+		}
 	}
 
 	purgeDir("/tmp/example", funcName)
