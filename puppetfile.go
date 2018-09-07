@@ -32,6 +32,7 @@ func sourceSanityCheck(source string, sa Source) {
 func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
+	needSyncEnvs = make(map[string]struct{})
 	for source, sa := range config.Sources {
 		wg.Add()
 		go func(source string, sa Source) {
@@ -111,14 +112,16 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 							}
 							targetDir = normalizeDir(targetDir)
 
-							syncToModuleDir(workDir, targetDir, branch, false, false)
+							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
+							syncToModuleDir(workDir, targetDir, branch, false, false, env)
 							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
 								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
+								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
-								allPuppetfiles[source+"_"+branch] = puppetfile
+								allPuppetfiles[env] = puppetfile
 								mutex.Unlock()
 
 							}
@@ -227,7 +230,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		basedir := checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
 		var envBranch string
 		if !pfMode {
-			envBranch = strings.Replace(env, pf.source+"_", "", 1)
+			// we want only the branch name of the control repo and not the resulting
+			// Puppet environment folder name, which could contain a prefix
+			envBranch = pf.controlRepoBranch
 		}
 
 		for _, moduleDir := range pf.moduleDirs {
@@ -304,7 +309,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 
 				if gitModule.link {
 					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
-					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable, env)
 				}
 
 				if len(gitModule.fallback) > 0 {
@@ -315,14 +320,14 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 								gitModule.ignoreUnreachable = true
 							}
 							Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
-							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable)
+							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable, env)
 							if success {
 								break
 							}
 						}
 					}
 				} else {
-					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable)
+					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
 				}
 
 				// remove this module from the exisitingModuleDirs map
@@ -351,7 +356,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			moduleDir = normalizeDir(moduleDir)
 			go func(forgeModuleName string, fm ForgeModule) {
 				defer wg.Done()
-				syncForgeToModuleDir(forgeModuleName, fm, moduleDir)
+				syncForgeToModuleDir(forgeModuleName, fm, moduleDir, env)
 				// remove this module from the exisitingModuleDirs map
 				mutex.Lock()
 				if _, ok := exisitingModuleDirs[moduleDir+fm.name]; ok {

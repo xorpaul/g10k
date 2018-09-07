@@ -21,8 +21,9 @@ func equalPuppetfile(a, b Puppetfile) bool {
 	if a.forgeBaseURL != b.forgeBaseURL ||
 		a.forgeCacheTTL != b.forgeCacheTTL ||
 		a.privateKey != b.privateKey ||
+		a.controlRepoBranch != b.controlRepoBranch ||
 		a.source != b.source {
-		Debugf("forgeBaseURL, forgeCacheTTL, privateKey or source isn't equal!")
+		Debugf("forgeBaseURL, forgeCacheTTL, privateKey, controlRepoBranch or source isn't equal!")
 		return false
 	}
 

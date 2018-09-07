@@ -1,0 +1,9 @@
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+
+postrun: ['/usr/bin/touch', '-f', '/tmp/g10kfoobar']

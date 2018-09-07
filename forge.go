@@ -74,17 +74,17 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 						if fi, err := os.Stat(lastCheckedFile); err == nil {
 							if fi.Size() < 1 {
 								Debugf("found empty file " + lastCheckedFile)
-								_ = queryForgeAPI(fm)
+								fr = queryForgeAPI(fm)
 							} else {
 								json, err := ioutil.ReadFile(lastCheckedFile)
 								if err != nil {
 									Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
 								}
 								_ = parseForgeAPIResult(string(json), fm)
+								return
 							}
 						}
 
-						return
 					}
 				}
 			}
@@ -731,19 +731,19 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 
 }
 
-func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
+func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspondingPuppetEnvironment string) {
 	funcName := funcName()
 	mutex.Lock()
 	syncForgeCount++
 	mutex.Unlock()
 	moduleName := m.author + "-" + m.name
 	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
-	targetDir := moduleDir + m.name
+	targetDir := normalizeDir(moduleDir + m.name)
 	if m.version == "present" {
-		if fileExists(targetDir + "/metadata.json") {
-			Debugf("Nothing to do, found existing Forge module: " + targetDir + "/metadata.json")
+		if fileExists(targetDir + "metadata.json") {
+			Debugf("Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
 			if check4update {
-				me := readModuleMetadata(targetDir + "/metadata.json")
+				me := readModuleMetadata(targetDir + "metadata.json")
 				latestForgeModules.RLock()
 				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
 				latestForgeModules.RUnlock()
@@ -755,8 +755,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 
 	}
 	if isDir(targetDir) {
-		if fileExists(targetDir + "/metadata.json") {
-			me := readModuleMetadata(targetDir + "/metadata.json")
+		if fileExists(targetDir + "metadata.json") {
+			me := readModuleMetadata(targetDir + "metadata.json")
 			if m.version == "latest" {
 				//fmt.Println(latestForgeModules)
 				//fmt.Println("checking latestForgeModules for key", moduleName)
@@ -798,6 +798,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 
 	Infof("Need to sync " + targetDir)
+	needSyncDirs = append(needSyncDirs, targetDir)
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	var targetDirDevice, workDirDevice uint64
 	if fileInfo, err := os.Stat(targetDir); err == nil {
@@ -820,6 +821,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string) {
 	}
 
 	mutex.Lock()
+	if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
+		needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
+	}
 	needSyncForgeCount++
 	mutex.Unlock()
 	if !dryRun {
