@@ -798,7 +798,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	}
 
 	Infof("Need to sync " + targetDir)
-	needSyncDirs = append(needSyncDirs, targetDir)
 	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
 	var targetDirDevice, workDirDevice uint64
 	if fileInfo, err := os.Stat(targetDir); err == nil {
@@ -821,6 +820,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	}
 
 	mutex.Lock()
+	needSyncDirs = append(needSyncDirs, targetDir)
 	if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
 		needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
 	}
