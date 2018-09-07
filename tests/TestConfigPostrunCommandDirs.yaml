@@ -7,4 +7,4 @@ sources:
     basedir: '/tmp/example/'
     prefix: true
 
-postrun: ['tests/postrun.sh', '$modifiedenvs']
+postrun: ['tests/postrun.sh', '$modifieddirs']

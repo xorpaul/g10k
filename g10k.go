@@ -40,6 +40,8 @@ var (
 	syncForgeCount               int
 	needSyncGitCount             int
 	needSyncForgeCount           int
+	needSyncDirs                 []string
+	needSyncEnvs                 map[string]struct{}
 	syncGitTime                  float64
 	syncForgeTime                float64
 	ioGitTime                    float64
@@ -107,14 +109,15 @@ type Source struct {
 
 // Puppetfile contains the key value pairs from the Puppetfile
 type Puppetfile struct {
-	forgeBaseURL  string
-	forgeCacheTTL time.Duration
-	forgeModules  map[string]ForgeModule
-	gitModules    map[string]GitModule
-	privateKey    string
-	source        string
-	workDir       string
-	moduleDirs    []string
+	forgeBaseURL      string
+	forgeCacheTTL     time.Duration
+	forgeModules      map[string]ForgeModule
+	gitModules        map[string]GitModule
+	privateKey        string
+	source            string
+	workDir           string
+	moduleDirs        []string
+	controlRepoBranch string
 }
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
@@ -278,5 +281,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	checkForAndExecutePostrunCommand(branchParam)
+	checkForAndExecutePostrunCommand()
 }

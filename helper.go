@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -56,7 +58,7 @@ func Fatalf(s string) {
 	os.Exit(1)
 }
 
-// fileExists checks if the given file exists and return a bool
+// fileExists checks if the given file exists and returns a bool
 func fileExists(file string) bool {
 	//Debugf("checking for file existence " + file)
 	if _, err := os.Stat(file); os.IsNotExist(err) {
@@ -65,7 +67,7 @@ func fileExists(file string) bool {
 	return true
 }
 
-// dirExists checks if the given dir exists and return a bool
+// isDir checks if the given dir exists and returns a bool
 func isDir(dir string) bool {
 	fi, err := os.Stat(dir)
 	if os.IsNotExist(err) {
@@ -203,10 +205,36 @@ func timeTrack(start time.Time, name string) {
 }
 
 // checkForAndExecutePostrunCommand check if a `postrun` command was specified in the g10k config and executes it
-func checkForAndExecutePostrunCommand(branch string) {
+func checkForAndExecutePostrunCommand() {
 	if len(config.PostRunCommand) > 0 {
-		postrunCommandString := strings.Replace(strings.Join(config.PostRunCommand, " "), "$environment", branch, -1)
+		postrunCommandString := strings.Join(config.PostRunCommand, " ")
+		postrunCommandString = strings.Replace(postrunCommandString, "$modifieddirs", strings.Join(needSyncDirs, " "), -1)
+
+		needSyncEnvText := ""
+		for needSyncEnv, _ := range needSyncEnvs {
+			needSyncEnvText += needSyncEnv + " "
+		}
+		postrunCommandString = strings.Replace(postrunCommandString, "$modifiedenvs", needSyncEnvText, -1)
+		postrunCommandString = strings.Replace(postrunCommandString, "$branchparam", branchParam, -1)
+
 		er := executeCommand(postrunCommandString, config.Timeout, false)
 		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
 	}
+}
+
+// getSha256sumFile return the SHA256 hash sum of the given file
+func getSha256sumFile(file string) string {
+	// https://golang.org/pkg/crypto/sha256/#New
+	f, err := os.Open(file)
+	if err != nil {
+		Fatalf("failed to open file " + file + " to calculate SHA256 sum. Error: " + err.Error())
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		Fatalf("failed to calculate SHA256 sum of file " + file + " Error: " + err.Error())
+	}
+
+	return string(h.Sum(nil))
 }
