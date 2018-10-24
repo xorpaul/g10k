@@ -163,6 +163,12 @@ type ExecResult struct {
 	output     string
 }
 
+func init() {
+	// initialize global maps
+	needSyncEnvs = make(map[string]struct{})
+	uniqueForgeModules = make(map[string]ForgeModule)
+}
+
 func main() {
 
 	var (

@@ -162,7 +162,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		mutex.Lock()
 		needSyncDirs = append(needSyncDirs, targetDir)
 		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
-			needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
+			needSyncEnvs[correspondingPuppetEnvironment] = empty
 		}
 		needSyncGitCount++
 		mutex.Unlock()

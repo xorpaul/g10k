@@ -32,7 +32,6 @@ func sourceSanityCheck(source string, sa Source) {
 func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
-	needSyncEnvs = make(map[string]struct{})
 	for source, sa := range config.Sources {
 		wg.Add()
 		go func(source string, sa Source) {
@@ -163,7 +162,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker)
 	exisitingModuleDirs := make(map[string]struct{})
 	uniqueGitModules := make(map[string]GitModule)
-	uniqueForgeModules := make(map[string]ForgeModule)
 	// if we made it this far initialize the global maps
 	latestForgeModules.m = make(map[string]string)
 	for env, pf := range allPuppetfiles {
