@@ -110,6 +110,7 @@ func preparePuppetfile(pf string) string {
 	}
 	defer file.Close()
 
+	reComma := regexp.MustCompile(",\\s*$")
 	reComment := regexp.MustCompile("^\\s*#")
 	reEmpty := regexp.MustCompile("^$")
 
@@ -122,7 +123,7 @@ func preparePuppetfile(pf string) string {
 				Debugf("found inline comment in " + pf + "line: " + line)
 				line = strings.Split(line, "#")[0]
 			}
-			if regexp.MustCompile(",\\s*$").MatchString(line) {
+			if reComma.MatchString(line) {
 				pfString += line
 				Debugf("adding line:" + line)
 			} else {
