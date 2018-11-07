@@ -23,6 +23,7 @@ var (
 	pfMode                       bool
 	pfLocation                   string
 	dryRun                       bool
+	validate                     bool
 	check4update                 bool
 	checkSum                     bool
 	gitObjectSyntaxNotSupported  bool
@@ -187,6 +188,7 @@ func main() {
 	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
 	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
+	flag.BoolVar(&validate, "validate", false, "only validate given configuration and exit")
 	flag.BoolVar(&usemove, "usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
 	flag.BoolVar(&check4update, "check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
 	flag.BoolVar(&checkSum, "checksum", false, "get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!")

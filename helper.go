@@ -17,6 +17,8 @@ import (
 	"github.com/kballard/go-shellquote"
 )
 
+var validationMessages []string
+
 // Debugf is a helper function for debug logging if global variable debug is set to true
 func Debugf(s string) {
 	if debug != false {
@@ -45,6 +47,19 @@ func Infof(s string) {
 	}
 }
 
+// Validatef is a helper function for validation logging if global variable validate is set to true
+func Validatef() {
+	if len(validationMessages) > 0 {
+		for _, message := range validationMessages {
+			color.New(color.FgRed).Fprintln(os.Stdout, message)
+		}
+		os.Exit(1)
+	} else {
+		color.New(color.FgGreen).Fprintln(os.Stdout, "Configuration successfully parsed.")
+		os.Exit(0)
+	}
+}
+
 // Warnf is a helper function for warning logging
 func Warnf(s string) {
 	color.Set(color.FgYellow)
@@ -54,8 +69,12 @@ func Warnf(s string) {
 
 // Fatalf is a helper function for fatal logging
 func Fatalf(s string) {
-	color.New(color.FgRed).Fprintln(os.Stderr, s)
-	os.Exit(1)
+	if validate {
+		validationMessages = append(validationMessages, s)
+	} else {
+		color.New(color.FgRed).Fprintln(os.Stderr, s)
+		os.Exit(1)
+	}
 }
 
 // fileExists checks if the given file exists and returns a bool

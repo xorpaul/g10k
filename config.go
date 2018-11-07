@@ -99,6 +99,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.MaxExtractworker = 20
 	}
 
+	if validate {
+		Validatef()
+	}
+
 	return config
 }
 
@@ -372,6 +376,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	if len(moduleDirs) < 1 {
 		// adding at least the default module directory
 		moduleDirs = append(moduleDirs, moduleDir)
+	}
+
+	if validate {
+		Validatef()
 	}
 
 	puppetFile.moduleDirs = moduleDirs
