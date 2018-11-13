@@ -154,6 +154,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 		n = preparePuppetfile(pf)
 	}
 
+	reEmptyLine := regexp.MustCompile("^\\s*$")
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeCacheTTL := regexp.MustCompile("^\\s*(?:forge.cache(?:TTL|Ttl))\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.base(?:URL|Url))\\s+['\"]?([^'\"]+)['\"]?")
@@ -169,7 +170,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 
 	lines := strings.Split(n, "\n")
 	for i, line := range lines {
-		//fmt.Println("found line ---> ", line)
+		//fmt.Println("found line ---> ", line, "$")
+		if m := reEmptyLine.FindStringSubmatch(line); len(m) > 0 {
+			continue
+		}
 		if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
 			Fatalf("Error: trailing comma found in " + pf + " somewhere here: " + line)
 		}
@@ -364,6 +368,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 				}
 				puppetFile.gitModules[gitModuleName] = gm
 			}
+		} else {
+			// for now only in dry run mode
+			if dryRun {
+				Fatalf("Error: Could not interpret line: " + line + " In " + pf)
+			}
+
 		}
 
 	}

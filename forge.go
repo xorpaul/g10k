@@ -798,35 +798,35 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	}
 
 	Infof("Need to sync " + targetDir)
-	targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
-	var targetDirDevice, workDirDevice uint64
-	if fileInfo, err := os.Stat(targetDir); err == nil {
-		if fileInfo.Sys() != nil {
-			targetDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
-		}
-	} else {
-		Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
-	}
-	if fileInfo, err := os.Stat(workDir); err == nil {
-		if fileInfo.Sys() != nil {
-			workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
-		}
-	} else {
-		Fatalf(funcName + "(): Error while os.Stat file " + workDir)
-	}
-
-	if targetDirDevice != workDirDevice {
-		Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
-	}
-
-	mutex.Lock()
-	needSyncDirs = append(needSyncDirs, targetDir)
-	if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
-		needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
-	}
-	needSyncForgeCount++
-	mutex.Unlock()
 	if !dryRun {
+		targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
+		var targetDirDevice, workDirDevice uint64
+		if fileInfo, err := os.Stat(targetDir); err == nil {
+			if fileInfo.Sys() != nil {
+				targetDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
+			}
+		} else {
+			Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
+		}
+		if fileInfo, err := os.Stat(workDir); err == nil {
+			if fileInfo.Sys() != nil {
+				workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
+			}
+		} else {
+			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
+		}
+
+		if targetDirDevice != workDirDevice {
+			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
+		}
+
+		mutex.Lock()
+		needSyncDirs = append(needSyncDirs, targetDir)
+		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
+			needSyncEnvs[correspondingPuppetEnvironment] = struct{}{}
+		}
+		needSyncForgeCount++
+		mutex.Unlock()
 		hardlink := func(path string, info os.FileInfo, err error) error {
 			if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
 				target, err := filepath.Rel(workDir, path)
