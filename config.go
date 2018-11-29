@@ -99,6 +99,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.MaxExtractworker = 20
 	}
 
+	if validate {
+		Validatef()
+	}
+
 	return config
 }
 
@@ -110,6 +114,7 @@ func preparePuppetfile(pf string) string {
 	}
 	defer file.Close()
 
+	reComma := regexp.MustCompile(",\\s*$")
 	reComment := regexp.MustCompile("^\\s*#")
 	reEmpty := regexp.MustCompile("^$")
 
@@ -122,7 +127,7 @@ func preparePuppetfile(pf string) string {
 				Debugf("found inline comment in " + pf + "line: " + line)
 				line = strings.Split(line, "#")[0]
 			}
-			if regexp.MustCompile(",\\s*$").MatchString(line) {
+			if reComma.MatchString(line) {
 				pfString += line
 				Debugf("adding line:" + line)
 			} else {
@@ -381,6 +386,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	if len(moduleDirs) < 1 {
 		// adding at least the default module directory
 		moduleDirs = append(moduleDirs, moduleDir)
+	}
+
+	if validate {
+		Validatef()
 	}
 
 	puppetFile.moduleDirs = moduleDirs
