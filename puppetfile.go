@@ -82,7 +82,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 					wg.Add()
 
-					go func(branch string) {
+					go func(branch string, sa Source) {
 						defer wg.Done()
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
@@ -125,7 +125,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 							}
 						}
-					}(branch)
+					}(branch, sa)
 
 				}
 
@@ -271,7 +271,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				continue
 			}
 			wg.Add()
-			go func(gitName string, gitModule GitModule) {
+			go func(gitName string, gitModule GitModule, env string) {
 				defer wg.Done()
 				targetDir := normalizeDir(moduleDir + gitName)
 				//fmt.Println("targetDir: " + targetDir)
@@ -346,13 +346,13 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					}
 				}
 				mutex.Unlock()
-			}(gitName, gitModule)
+			}(gitName, gitModule, env)
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			wg.Add()
 			moduleDir := pf.workDir + fm.moduleDir
 			moduleDir = normalizeDir(moduleDir)
-			go func(forgeModuleName string, fm ForgeModule) {
+			go func(forgeModuleName string, fm ForgeModule, moduleDir string, env string) {
 				defer wg.Done()
 				syncForgeToModuleDir(forgeModuleName, fm, moduleDir, env)
 				// remove this module from the exisitingModuleDirs map
@@ -361,7 +361,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					delete(exisitingModuleDirs, moduleDir+fm.name)
 				}
 				mutex.Unlock()
-			}(forgeModuleName, fm)
+			}(forgeModuleName, fm, moduleDir, env)
 		}
 
 	}
