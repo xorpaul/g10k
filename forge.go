@@ -816,7 +816,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
 		}
 
-		if targetDirDevice != workDirDevice {
+		if targetDirDevice != workDirDevice && !usemove {
 			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
 		}
 
@@ -827,7 +827,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		}
 		needSyncForgeCount++
 		mutex.Unlock()
-		hardlink := func(path string, info os.FileInfo, err error) error {
+		destination := func(path string, info os.FileInfo, err error) error {
 			if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
 				target, err := filepath.Rel(workDir, path)
 				if err != nil {
@@ -836,15 +836,24 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 
 				if info.IsDir() {
 					//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
-					err = os.Mkdir(targetDir+"/"+target, os.FileMode(0755))
+					err = os.Mkdir(filepath.Join(targetDir, target), os.FileMode(0755))
 					if err != nil {
 						Fatalf(funcName + "(): error while Mkdir() " + targetDir + "/" + target + " Error: " + err.Error())
 					}
 				} else {
-					//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
-					err = os.Link(path, targetDir+"/"+target)
-					if err != nil {
-						Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
+					if usemove {
+						//Debugf(funcName + "() Trying to helper.moveFile " + path + " to " + targetDir + target)
+						// deleteSourceFileToggle is set to false as we delete the source file later in the main() anyway after the sync completes
+						err = moveFile(path, filepath.Join(targetDir, target), false)
+						if err != nil {
+							Fatalf(funcName + "(): Failed to helper.moveFile " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
+						}
+					} else {
+						//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
+						err = os.Link(path, filepath.Join(targetDir, target))
+						if err != nil {
+							Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
+						}
 					}
 				}
 			}
@@ -853,7 +862,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		c := make(chan error)
 		Debugf(funcName + "() filepath.Walk'ing directory " + workDir)
 		before := time.Now()
-		go func() { c <- filepath.Walk(workDir, hardlink) }()
+		go func() { c <- filepath.Walk(workDir, destination) }()
 		<-c // Walk done
 		duration := time.Since(before).Seconds()
 		mutex.Lock()

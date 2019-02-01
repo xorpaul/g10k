@@ -230,7 +230,7 @@ func checkForAndExecutePostrunCommand() {
 		postrunCommandString = strings.Replace(postrunCommandString, "$modifieddirs", strings.Join(needSyncDirs, " "), -1)
 
 		needSyncEnvText := ""
-		for needSyncEnv, _ := range needSyncEnvs {
+		for needSyncEnv := range needSyncEnvs {
 			needSyncEnvText += needSyncEnv + " "
 		}
 		postrunCommandString = strings.Replace(postrunCommandString, "$modifiedenvs", needSyncEnvText, -1)
@@ -256,4 +256,31 @@ func getSha256sumFile(file string) string {
 	}
 
 	return string(h.Sum(nil))
+}
+
+// moveFile uses io.Copy to create a copy of the given file https://stackoverflow.com/a/50741908/682847
+func moveFile(sourcePath, destPath string, deleteSourceFileToggle bool) error {
+	inputFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("Couldn't open source file: %s", err)
+	}
+	outputFile, err := os.Create(destPath)
+	if err != nil {
+		inputFile.Close()
+		return fmt.Errorf("Couldn't open dest file: %s", err)
+	}
+	defer outputFile.Close()
+	_, err = io.Copy(outputFile, inputFile)
+	inputFile.Close()
+	if err != nil {
+		return fmt.Errorf("Writing to output file failed: %s", err)
+	}
+	if deleteSourceFileToggle {
+		// The copy was successful, so now delete the original file
+		err = os.Remove(sourcePath)
+		if err != nil {
+			return fmt.Errorf("Failed removing original file: %s", err)
+		}
+	}
+	return nil
 }
