@@ -8,5 +8,5 @@ if [ $# -eq 0 ]; then
 fi
 
 for argument in "$@"; do
-  echo "postrun command wrapper script recieved argument: ${argument}" | tee -a ${LOGFILE}
+  echo "postrun command wrapper script received argument: ${argument}" | tee -a ${LOGFILE}
 done
