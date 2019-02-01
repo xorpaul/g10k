@@ -1514,8 +1514,8 @@ func TestPostrunCommand(t *testing.T) {
 	content, _ := ioutil.ReadFile(postrunLogfile)
 
 	expectedLines := [7]string{
-		"postrun command wrapper script recieved argument: example_master",
-		"postrun command wrapper script recieved argument: example_foobar",
+		"postrun command wrapper script received argument: example_master",
+		"postrun command wrapper script received argument: example_foobar",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -1564,10 +1564,10 @@ func TestPostrunCommandDirs(t *testing.T) {
 	content, _ := ioutil.ReadFile(postrunLogfile)
 
 	expectedLines := [7]string{
-		"postrun command wrapper script recieved argument: /tmp/example/example_master/",
-		"postrun command wrapper script recieved argument: /tmp/example/example_foobar/",
-		"postrun command wrapper script recieved argument: /tmp/example/example_foobar/modules/systemd/",
-		"postrun command wrapper script recieved argument: /tmp/example/example_master/modules/systemd/",
+		"postrun command wrapper script received argument: /tmp/example/example_master/",
+		"postrun command wrapper script received argument: /tmp/example/example_foobar/",
+		"postrun command wrapper script received argument: /tmp/example/example_foobar/modules/systemd/",
+		"postrun command wrapper script received argument: /tmp/example/example_master/modules/systemd/",
 	}
 
 	for _, expectedLine := range expectedLines {
