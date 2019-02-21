@@ -96,10 +96,12 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
 								oldBranch := renamedBranch
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
-								if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
-									Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
-								} else {
-									Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
+								if oldBranch != renamedBranch {
+									if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
+									} else {
+										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
+									}
 								}
 							}
 
