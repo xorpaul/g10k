@@ -32,6 +32,8 @@ func sourceSanityCheck(source string, sa Source) {
 func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
+	allEnvironments := make(map[string]bool)
+	allBasedirs := make(map[string]bool)
 	for source, sa := range config.Sources {
 		wg.Add()
 		go func(source string, sa Source) {
@@ -121,6 +123,8 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
 								allPuppetfiles[env] = puppetfile
+								allEnvironments[env] = true
+								allBasedirs[sa.Basedir] = true
 								mutex.Unlock()
 
 							}
@@ -156,6 +160,25 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//		}
 	//	}
 	//}
+
+	// Clean up unknown environment directories
+	if len(envBranch) == 0 {
+		for basedir, _ := range allBasedirs {
+			environments, _ := ioutil.ReadDir(basedir)
+
+			for _, env := range environments {
+				Debugf("Checking if environment should exist: " + env.Name())
+				if allEnvironments[env.Name()] {
+					Debugf("Leaving environment: " + env.Name())
+				} else {
+					Debugf("Deleting environment: " + env.Name())
+					if (!dryRun) {
+						purgeDir(basedir + env.Name(), "resolvePuppetEnvironment()")
+					}
+				}
+			}
+		}
+	}
 }
 
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
