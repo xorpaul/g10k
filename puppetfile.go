@@ -161,19 +161,36 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//	}
 	//}
 
-	// Clean up unknown environment directories
-	if len(envBranch) == 0 {
-		for basedir, _ := range allBasedirs {
-			environments, _ := ioutil.ReadDir(basedir)
-
-			for _, env := range environments {
-				Debugf("Checking if environment should exist: " + env.Name())
-				if allEnvironments[env.Name()] {
-					Debugf("Leaving environment: " + env.Name())
+	for source, sa := range config.Sources {
+		// Clean up unknown environment directories
+		if len(envBranch) == 0 {
+			for basedir, _ := range allBasedirs {
+				globPath := filepath.Join(basedir, sa.Prefix+"*")
+				if sa.Prefix == "false" || sa.Prefix == "" {
+					globPath = basedir + "*"
+				} else if sa.Prefix == "true" {
+					globPath = filepath.Join(basedir, source+"_*")
 				} else {
-					Debugf("Deleting environment: " + env.Name())
-					if (!dryRun) {
-						purgeDir(basedir + env.Name(), "resolvePuppetEnvironment()")
+					globPath = filepath.Join(basedir, sa.Prefix+"_"+"*")
+				}
+
+				Debugf("Glob'ing with path " + globPath)
+				environments, _ := filepath.Glob(globPath)
+				//		environments, _ = ioutil.ReadDir(basedir)
+				//	}
+				//fmt.Println(environments)
+				//fmt.Println(allEnvironments)
+				for _, env := range environments {
+					envPath := strings.Split(env, "/")
+					env = envPath[len(envPath)-1]
+					Debugf("Checking if environment should exist: " + env)
+					if allEnvironments[env] {
+						Debugf("Leaving environment: " + env)
+					} else {
+						Debugf("Deleting environment: " + env)
+						if !dryRun {
+							purgeDir(basedir+env, "resolvePuppetEnvironment()")
+						}
 					}
 				}
 			}
