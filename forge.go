@@ -817,7 +817,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		}
 
 		if targetDirDevice != workDirDevice && !usemove {
-			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachdir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
+			Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachedir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
 		}
 
 		mutex.Lock()
