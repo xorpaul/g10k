@@ -276,7 +276,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				targetDir := normalizeDir(moduleDir + gitName)
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
-				if len(gitModule.branch) > 0 {
+                if gitModule.control_branch {
+					tree = branchParam
+				} else if len(gitModule.branch) > 0 {
 					tree = gitModule.branch
 				} else if len(gitModule.commit) > 0 {
 					tree = gitModule.commit
