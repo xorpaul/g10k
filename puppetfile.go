@@ -32,6 +32,8 @@ func sourceSanityCheck(source string, sa Source) {
 func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
+	allEnvironments := make(map[string]bool)
+	allBasedirs := make(map[string]bool)
 	for source, sa := range config.Sources {
 		wg.Add()
 		go func(source string, sa Source) {
@@ -121,6 +123,8 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
 								allPuppetfiles[env] = puppetfile
+								allEnvironments[env] = true
+								allBasedirs[sa.Basedir] = true
 								mutex.Unlock()
 
 							}
@@ -156,6 +160,42 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//		}
 	//	}
 	//}
+
+	for source, sa := range config.Sources {
+		// Clean up unknown environment directories
+		if len(envBranch) == 0 {
+			for basedir, _ := range allBasedirs {
+				globPath := filepath.Join(basedir, sa.Prefix+"*")
+				if sa.Prefix == "false" || sa.Prefix == "" {
+					globPath = basedir + "*"
+				} else if sa.Prefix == "true" {
+					globPath = filepath.Join(basedir, source+"_*")
+				} else {
+					globPath = filepath.Join(basedir, sa.Prefix+"_"+"*")
+				}
+
+				Debugf("Glob'ing with path " + globPath)
+				environments, _ := filepath.Glob(globPath)
+				//		environments, _ = ioutil.ReadDir(basedir)
+				//	}
+				//fmt.Println(environments)
+				//fmt.Println(allEnvironments)
+				for _, env := range environments {
+					envPath := strings.Split(env, "/")
+					env = envPath[len(envPath)-1]
+					Debugf("Checking if environment should exist: " + env)
+					if allEnvironments[env] {
+						Debugf("Leaving environment: " + env)
+					} else {
+						Debugf("Deleting environment: " + env)
+						if !dryRun {
+							purgeDir(basedir+env, "resolvePuppetEnvironment()")
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
