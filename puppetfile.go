@@ -52,7 +52,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 			// check if sa.Basedir exists
 			checkDirAndCreate(sa.Basedir, "basedir")
 
-			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true, 1); success {
+			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, envBranch, true, 1); success {
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)

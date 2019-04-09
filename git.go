@@ -78,7 +78,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := config.ModulesCacheDir + repoDir
 
-			doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable, 1)
+			doMirrorOrUpdate(url, workDir, privateKey, "", gm.ignoreUnreachable, 1)
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 		}(url, privateKey, gm, bar)
 		done <- true
@@ -89,7 +89,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	wg.Wait()
 }
 
-func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool, retryCount int) bool {
+func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranch string, allowFail bool, retryCount int) bool {
 	needSSHKey := true
 	if strings.Contains(url, "github.com") || len(sshPrivateKey) == 0 {
 		needSSHKey = false
@@ -98,7 +98,11 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + url + " " + workDir
 	if isDir(workDir) {
-		gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		if envBranch == "" {
+			gitCmd = "git --git-dir " + workDir + " remote --verbose update --prune"
+		} else {
+			gitCmd = "git --git-dir " + workDir + " fetch origin " + envBranch
+		}
 	}
 
 	if needSSHKey {
@@ -114,7 +118,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 		} else if config.RetryGitCommands && retryCount > 0 {
 			Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
-			return doMirrorOrUpdate(url, workDir, sshPrivateKey, false, retryCount-1)
+			return doMirrorOrUpdate(url, workDir, sshPrivateKey, envBranch, false, retryCount-1)
 		}
 		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		return false
