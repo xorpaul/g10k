@@ -181,7 +181,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	before := time.Now()
 	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
-	er := ExecResult{0, string(out)}
+	er := ExecResult{0, string(out), err}
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
@@ -200,7 +200,6 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 			}
 		} else {
 			er.returnCode = 1
-			er.output = fmt.Sprint(err)
 		}
 	}
 	return er
