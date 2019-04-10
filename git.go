@@ -96,7 +96,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranc
 	}
 
 	er := ExecResult{}
-	gitCmd := "git clone --mirror " + url + " " + workDir
+	gitCmd := fmt.Sprintf(`git clone --mirror %s %s && git --git-dir %s remote update --prune`, url, workDir, workDir)
 	if isDir(workDir) {
 		if envBranch == "" {
 			gitCmd = "git --git-dir " + workDir + " remote update --prune"
