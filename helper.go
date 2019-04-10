@@ -191,7 +191,11 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	out, err := exec.CommandContext(ctx, cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
 
-	Debugf("Executing " + command + " gave output: " + string(out) + ", and error: " + err.Error())
+	var errmsg string
+	if err != nil {
+		errmsg = err.Error()
+	}
+	Debugf("Executing " + command + " gave output: " + string(out) + ", and error: " + errmsg)
 
 	er := ExecResult{0, string(out), err}
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
