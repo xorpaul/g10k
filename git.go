@@ -99,7 +99,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranc
 	gitCmd := "git clone --mirror " + url + " " + workDir
 	if isDir(workDir) {
 		if envBranch == "" {
-			gitCmd = "git --git-dir " + workDir + " remote --verbose update --prune"
+			gitCmd = "git --git-dir " + workDir + " remote update --prune"
 		} else {
 			gitCmd = "git --git-dir " + workDir + " fetch origin " + envBranch
 		}
