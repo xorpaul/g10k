@@ -101,7 +101,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranc
 		if envBranch == "" {
 			gitCmd = "git --git-dir " + workDir + " remote update --prune"
 		} else {
-			gitCmd = "git --git-dir " + workDir + " fetch origin " + envBranch
+			gitCmd = "git --git-dir " + workDir + " fetch origin " + envBranch + ":" + envBranch
 		}
 	}
 
