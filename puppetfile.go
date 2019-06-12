@@ -15,17 +15,17 @@ import (
 )
 
 // sourceSanityCheck is a validation function that checks if the given source has all necessary attributes (basedir, remote, SSH key exists if given)
-func sourceSanityCheck(source string, sa Source) {
-	if len(sa.PrivateKey) > 0 {
-		if _, err := os.Stat(sa.PrivateKey); err != nil {
-			Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + " for source " + source + " in config file " + configFile + " Error: " + err.Error())
+func sourceSanityCheck(source Source) {
+	if len(source.PrivateKey) > 0 {
+		if _, err := os.Stat(source.PrivateKey); err != nil {
+			Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + source.PrivateKey + " for source " + source.Name + " in config file " + configFile + " Error: " + err.Error())
 		}
 	}
-	if len(sa.Basedir) <= 0 {
-		Fatalf("resolvePuppetEnvironment(): config setting basedir is not set for source " + source + " in config file " + configFile)
+	if len(source.Basedir) <= 0 {
+		Fatalf("resolvePuppetEnvironment(): config setting basedir is not set for source " + source.Name + " in config file " + configFile)
 	}
-	if len(sa.Remote) <= 0 {
-		Fatalf("resolvePuppetEnvironment(): config setting remote is not set for source " + source + " in config file " + configFile)
+	if len(source.Remote) <= 0 {
+		Fatalf("resolvePuppetEnvironment(): config setting remote is not set for source " + source.Name + " in config file " + configFile)
 	}
 }
 
@@ -34,25 +34,26 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
 	allBasedirs := make(map[string]bool)
-	for source, sa := range config.Sources {
+	for sourceName, source := range config.Sources {
+		source.Name = sourceName
 		wg.Add()
-		go func(source string, sa Source) {
+		go func(source Source) {
 			defer wg.Done()
 			if force {
-				createOrPurgeDir(sa.Basedir, "resolvePuppetEnvironment()")
+				createOrPurgeDir(source.Basedir, "resolvePuppetEnvironment()")
 			}
 
-			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
-			Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
+			source.Basedir = checkDirAndCreate(source.Basedir, "basedir for source "+source.Name)
+			Debugf("Puppet environment: " + source.Name + " (" + fmt.Sprintf("%+v", source) + ")")
 
-			// check for a valid source that has all necessary attributes (basedir, remote, SSH key exist if given)
-			sourceSanityCheck(source, sa)
+			// check for a valid source that has all necessourcery attributes (basedir, remote, SSH key exist if given)
+			sourceSanityCheck(source)
 
-			workDir := config.EnvCacheDir + source + ".git"
-			// check if sa.Basedir exists
-			checkDirAndCreate(sa.Basedir, "basedir")
+			workDir := config.EnvCacheDir + source.Name + ".git"
+			// check if source.Basedir exists
+			checkDirAndCreate(source.Basedir, "basedir")
 
-			if success := doMirrorOrUpdate(sa.Remote, workDir, sa.PrivateKey, true, 1); success {
+			if success := doMirrorOrUpdate(source.Remote, workDir, source.PrivateKey, true, 1); success {
 
 				// get all branches
 				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
@@ -70,7 +71,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
 					reInvalidCharacters := regexp.MustCompile("\\W")
-					if sa.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
+					if source.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
 						Warnf("Ignoring branch " + branch + ", because it contains invalid characters")
 						continue
 					}
@@ -84,7 +85,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 					wg.Add()
 
-					go func(branch string, sa Source) {
+					go func(branch string, source Source) {
 						defer wg.Done()
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
@@ -95,10 +96,10 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								Debugf("Renaming branch " + branch + " to " + renamedBranch)
 							}
 
-							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+							if source.AutoCorrectEnvironmentNames == "correct" || source.AutoCorrectEnvironmentNames == "correct_and_warn" {
 								oldBranch := renamedBranch
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
-								if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+								if source.AutoCorrectEnvironmentNames == "correct_and_warn" {
 									if oldBranch != renamedBranch {
 										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
 									}
@@ -107,44 +108,44 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								}
 							}
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)
-							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(renamedBranch, "/", "_", -1)
-							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(renamedBranch, "/", "_", -1)
+							targetDir := source.Basedir + source.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)
+							if source.Prefix == "false" || source.Prefix == "" {
+								targetDir = source.Basedir + strings.Replace(renamedBranch, "/", "_", -1)
+							} else if source.Prefix == "true" {
+								targetDir = source.Basedir + source.Name + "_" + strings.Replace(renamedBranch, "/", "_", -1)
 							}
 							targetDir = normalizeDir(targetDir)
 
-							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
+							env := strings.Replace(strings.Replace(targetDir, source.Basedir, "", 1), "/", "", -1)
 							syncToModuleDir(workDir, targetDir, branch, false, false, env)
 							if !fileExists(targetDir + "Puppetfile") {
-								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
+								Debugf("Skipping branch " + source.Name + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
-								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions, false)
+								puppetfile := readPuppetfile(targetDir+"Puppetfile", source, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
 								allPuppetfiles[env] = puppetfile
 								allEnvironments[env] = true
-								allBasedirs[sa.Basedir] = true
+								allBasedirs[source.Basedir] = true
 								mutex.Unlock()
 
 							}
 						}
-					}(branch, sa)
+					}(branch, source)
 
 				}
 
-				if sa.WarnMissingBranch && !foundBranch {
-					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+				if source.WarnMissingBranch && !foundBranch {
+					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source.Name + "' (" + source.Remote + ")")
 				}
 			} else {
-				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
-				if sa.ExitIfUnreachable == true {
+				Warnf("WARNING: Could not resolve git repository in source '" + source.Name + "' (" + source.Remote + ")")
+				if source.ExitIfUnreachable == true {
 					os.Exit(1)
 				}
 			}
-		}(source, sa)
+		}(source)
 	}
 
 	wg.Wait()
