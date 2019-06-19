@@ -3,7 +3,7 @@ mod 'puppetlabs-apache'
 mod 'puppetlabs/apt', :latest
 mod 'puppetlabs-rsync', :latest
 
-mod 'nibalizer/puppetboard',
+mod 'nibalizer-puppetboard',
   :git => 'https://github.com/nibalizer/puppet-module-puppetboard.git',
   :ref => '2.7.1'
 

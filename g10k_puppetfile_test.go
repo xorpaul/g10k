@@ -433,6 +433,59 @@ func TestReadPuppetfileGitSlashNotation(t *testing.T) {
 
 	fm := make(map[string]ForgeModule)
 	fm["stdlib"] = ForgeModule{version: "present", author: "puppetlabs", name: "stdlib"}
+	fm["apache"] = ForgeModule{version: "present", author: "puppetlabs", name: "apache"}
+	fm["apt"] = ForgeModule{version: "latest", author: "puppetlabs", name: "apt"}
+	fm["rsync"] = ForgeModule{version: "latest", author: "puppetlabs", name: "rsync"}
+
+	gm := make(map[string]GitModule)
+	gm["puppetboard"] = GitModule{git: "https://github.com/nibalizer/puppet-module-puppetboard.git", ref: "2.7.1"}
+	gm["elasticsearch"] = GitModule{git: "https://github.com/alexharv074/puppet-elasticsearch.git", ref: "alex_master"}
+
+	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileGitDashNotation(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
+
+	fm := make(map[string]ForgeModule)
+	fm["stdlib"] = ForgeModule{version: "present", author: "puppetlabs", name: "stdlib"}
+	fm["apache"] = ForgeModule{version: "present", author: "puppetlabs", name: "apache"}
+	fm["apt"] = ForgeModule{version: "latest", author: "puppetlabs", name: "apt"}
+	fm["rsync"] = ForgeModule{version: "latest", author: "puppetlabs", name: "rsync"}
+
+	gm := make(map[string]GitModule)
+	gm["puppetboard"] = GitModule{git: "https://github.com/nibalizer/puppet-module-puppetboard.git", ref: "2.7.1"}
+	gm["elasticsearch"] = GitModule{git: "https://github.com/alexharv074/puppet-elasticsearch.git", ref: "alex_master"}
+
+	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		spew.Dump(expected)
+		spew.Dump(got)
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", false, false)
+
+	fm := make(map[string]ForgeModule)
+	fm["stdlib"] = ForgeModule{version: "present", author: "puppetlabs", name: "stdlib"}
+	fm["apache"] = ForgeModule{version: "present", author: "puppetlabs", name: "apache"}
+	fm["apt"] = ForgeModule{version: "latest", author: "puppetlabs", name: "apt"}
+	fm["rsync"] = ForgeModule{version: "latest", author: "puppetlabs", name: "rsync"}
 
 	gm := make(map[string]GitModule)
 	gm["puppetboard"] = GitModule{git: "https://github.com/nibalizer/puppet-module-puppetboard.git", ref: "2.7.1"}
