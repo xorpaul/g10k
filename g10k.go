@@ -235,6 +235,7 @@ func main() {
 		}
 		Debugf("Using as config file: " + configFile)
 		config = readConfigfile(configFile)
+		checkDirAndCreate(config.CacheDir, "cachedir configured value")
 		target = configFile
 		if len(branchParam) > 0 {
 			resolvePuppetEnvironment(branchParam, tags, outputNameParam)
