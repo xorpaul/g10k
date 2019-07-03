@@ -78,7 +78,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := config.ModulesCacheDir + repoDir
 
-			success := doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable, 1)
+			success := doMirrorOrUpdate(url, workDir, privateKey, "", gm.ignoreUnreachable, 1)
 			if !success && config.UseCacheFallback == false {
 				Fatalf("Fatal: Could not reach git repository " + url)
 			}
