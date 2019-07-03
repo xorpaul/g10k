@@ -157,7 +157,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 	if len(fm.baseURL) > 0 {
 		baseURL = fm.baseURL
 	}
-	url := baseURL + "/v3/modules/" + fm.author + "-" + fm.name
+	url := baseURL + "/v3/modules/" + fm.author + "-" + fm.name + "?exclude_fields=changelog+readme+license+releases"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		Fatalf("queryForgeAPI(): Error creating GET request for Puppetlabs forge API" + err.Error())

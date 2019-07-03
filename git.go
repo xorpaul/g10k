@@ -78,7 +78,11 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := config.ModulesCacheDir + repoDir
 
-			doMirrorOrUpdate(url, workDir, privateKey, "", gm.ignoreUnreachable, 1)
+			success := doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable, 1)
+			if !success && config.UseCacheFallback == false {
+				Fatalf("Fatal: Could not reach git repository " + url)
+			}
+
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 		}(url, privateKey, gm, bar)
 		done <- true
@@ -115,6 +119,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranc
 		if config.UseCacheFallback {
 			Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 			Warnf("WARN: Trying to use cache for " + url + " git repository")
+			return false
 		} else if config.RetryGitCommands && retryCount > 0 {
 			Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")

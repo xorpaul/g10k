@@ -9,6 +9,7 @@ mod 'nibalizer/puppetboard',
 
 # Until my PRs to fix Issues #947 and #949 are merged.
 #
-mod 'elasticsearch',
+mod 'foobar-elasticsearch',
   :git => 'https://github.com/alexharv074/puppet-elasticsearch.git',
   :ref => 'alex_master'
+

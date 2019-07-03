@@ -16,6 +16,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/kballard/go-shellquote"
+	"golang.org/x/sys/unix"
 )
 
 var validationMessages []string
@@ -123,6 +124,10 @@ func checkDirAndCreate(dir string, name string) string {
 			} else {
 				if !isDir(dir) {
 					Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not a directory! Exiting!")
+				} else {
+					if unix.Access(dir, unix.W_OK) != nil {
+						Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not writable! Exiting!")
+					}
 				}
 			}
 		} else {

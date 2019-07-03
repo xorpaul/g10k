@@ -516,7 +516,6 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	//fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!\nWARN: Trying to use cache for https://.com/puppetlabs/puppetlabs-firewall.git git repository") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
@@ -1682,4 +1681,81 @@ func TestMultipleModuledirs(t *testing.T) {
 	purgeDir("/tmp/g10k", funcName)
 	moduleParam = ""
 	debug = false
+}
+
+func TestFailedGit(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigRetryGitCommands.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		resolvePuppetEnvironment("single_fail", false, "")
+		return
+	}
+
+	// get the module to cache it
+	gitDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/"
+	gitUrl := "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	purgeDir(gitDir, funcName)
+	doMirrorOrUpdate(gitUrl, gitDir, "false", false, 0)
+
+	// change the git remote url to something that does not resolv https://.com/...
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	if er.returnCode != 0 {
+		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 1 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
+	}
+	//fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git command failed: git clone --mirror https://.com/puppetlabs/puppetlabs-firewall.git /tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git deleting local cached repository and retrying...") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+}
+
+func TestCheckDirPermissions(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		config = readConfigfile("tests/TestConfigPrefix.yaml")
+		resolvePuppetEnvironment("single", false, "")
+		return
+	} else {
+		purgeDir(cacheDir, funcName)
+		// create cacheDir and make sure the cachedir does not have write permissions
+		if err := os.MkdirAll(cacheDir, 0444); err != nil {
+			Fatalf("checkDirAndCreate(): Error: failed to create directory: " + cacheDir + " Error: " + err.Error())
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+	if !strings.Contains(string(out), "checkDirAndCreate(): Error: /tmp/g10k exists, but is not writable! Exiting!") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+	if err := os.Chmod(cacheDir, 0777); err != nil {
+		t.Errorf("Could not add write permissions again for cachedir: " + cacheDir + " Error: " + err.Error())
+	}
+	purgeDir(cacheDir, funcName)
 }

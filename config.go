@@ -210,8 +210,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			forgeModuleName := strings.TrimSpace(m[1])
 			//fmt.Println("found forge mod name ------------------------------> ", forgeModuleName)
 			comp := strings.Split(forgeModuleName, "/")
+			forgeModuleNameSeparator := "/"
 			if len(comp) != 2 {
 				comp = strings.Split(forgeModuleName, "-")
+				forgeModuleNameSeparator = "-"
 				if len(comp) != 2 {
 					Fatalf("Error: Forge module name is invalid! Should be like puppetlabs/apt or puppetlabs-apt, but is: " + m[2] + " in " + pf + " line: " + line)
 				}
@@ -220,6 +222,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if _, ok := puppetFile.forgeModules[comp[1]]; ok {
 				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + forgeModuleName + " line: " + line)
 			}
+			//Debugf("Found Forge module name " + forgeModuleName + " with " + forgeModuleNameSeparator + " as a separator")
 			forgeModuleVersion := "present"
 			forgeChecksum := ""
 			// try to find a forge module attribute
@@ -247,12 +250,12 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 							// try to detect Git modules in Forge <AUTHOR>/<MODULENAME> notation, fixes #104
 							Debugf("Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue)
 							//fmt.Println("line:", line)
-							removeForgeNotationAuthor := strings.Split(line, "/")
+							removeForgeNotationAuthor := strings.Split(line, forgeModuleNameSeparator)
 							if len(removeForgeNotationAuthor) < 2 {
 								Fatalf("Error: Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue + ", but something went wrong while trying to remove the author part to make g10k detect it as an Git module module:" + comp[1] + " line: " + line)
 							} else {
 								//fmt.Println("removeForgeNotationAuthor:", removeForgeNotationAuthor[0])
-								replacedLine := strings.Replace(line, removeForgeNotationAuthor[0]+"/", "mod '", 1)
+								replacedLine := strings.Replace(line, removeForgeNotationAuthor[0]+forgeModuleNameSeparator, "mod '", 1)
 								//fmt.Println("replacedLine:", replacedLine)
 								//fmt.Print("n:", n)
 								newN := strings.Replace(n, line, replacedLine, 1)
