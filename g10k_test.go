@@ -1721,3 +1721,41 @@ func TestFailedGit(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
+
+func TestCheckDirPermissions(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		config = readConfigfile("tests/TestConfigPrefix.yaml")
+		resolvePuppetEnvironment("single", false, "")
+		return
+	} else {
+		purgeDir(cacheDir, funcName)
+		// create cacheDir and make sure the cachedir does not have write permissions
+		if err := os.MkdirAll(cacheDir, 0444); err != nil {
+			Fatalf("checkDirAndCreate(): Error: failed to create directory: " + cacheDir + " Error: " + err.Error())
+		}
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+	if !strings.Contains(string(out), "checkDirAndCreate(): Error: /tmp/g10k exists, but is not writable! Exiting!") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+	if err := os.Chmod(cacheDir, 0777); err != nil {
+		t.Errorf("Could not add write permissions again for cachedir: " + cacheDir + " Error: " + err.Error())
+	}
+	purgeDir(cacheDir, funcName)
+}
