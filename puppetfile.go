@@ -67,6 +67,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 
 				foundBranch := false
+				prefix := resolveSourcePrefix(source, sa)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
 					reInvalidCharacters := regexp.MustCompile("\\W")
@@ -75,16 +76,22 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 						continue
 					}
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
-					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
-						Debugf("Skipping branch " + branch)
+					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") {
+						Debugf("Skipping branch " + branch + ", because of invalid character(s) inside the branch name")
 						continue
-					} else if len(envBranch) > 0 && branch == envBranch {
-						foundBranch = true
+					}
+					if len(envBranch) > 0 {
+						if branch == envBranch {
+							foundBranch = true
+						} else {
+							Debugf("Skipping branch " + branch)
+							continue
+						}
 					}
 
 					wg.Add()
 
-					go func(branch string, sa Source) {
+					go func(branch string, sa Source, prefix string) {
 						defer wg.Done()
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
@@ -107,12 +114,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								}
 							}
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)
-							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(renamedBranch, "/", "_", -1)
-							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(renamedBranch, "/", "_", -1)
-							}
+							targetDir := sa.Basedir + prefix + strings.Replace(renamedBranch, "/", "_", -1)
 							targetDir = normalizeDir(targetDir)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
@@ -131,8 +133,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 							}
 						}
-					}(branch, sa)
-
+					}(branch, sa, prefix)
 				}
 
 				if sa.WarnMissingBranch && !foundBranch {
@@ -164,17 +165,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//}
 
 	for source, sa := range config.Sources {
+		prefix := resolveSourcePrefix(source, sa)
 		// Clean up unknown environment directories
 		if len(envBranch) == 0 {
 			for basedir, _ := range allBasedirs {
-				globPath := filepath.Join(basedir, sa.Prefix+"*")
-				if sa.Prefix == "false" || sa.Prefix == "" {
-					globPath = basedir + "*"
-				} else if sa.Prefix == "true" {
-					globPath = filepath.Join(basedir, source+"_*")
-				} else {
-					globPath = filepath.Join(basedir, sa.Prefix+"_"+"*")
-				}
+				globPath := filepath.Join(basedir, prefix+"*")
 
 				Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
@@ -197,6 +192,17 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				}
 			}
 		}
+	}
+}
+
+// resolvePuppetEnvironment implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
+func resolveSourcePrefix(source string, sa Source) string {
+	if sa.Prefix == "false" || sa.Prefix == "" {
+		return ""
+	} else if sa.Prefix == "true" {
+		return source + "_"
+	} else {
+		return sa.Prefix + "_"
 	}
 }
 
