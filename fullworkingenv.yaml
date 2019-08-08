@@ -1,0 +1,10 @@
+---
+:cachedir: '/tmp/g10k'
+use_cache_fallback: false
+
+sources:
+  full:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env.git'
+    basedir: '/tmp/full/'
+    prefix: "foo"
+    force_forge_versions: false
