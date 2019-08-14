@@ -56,6 +56,7 @@ var (
 	maxworker                    int
 	maxExtractworker             int
 	forgeModuleDeprecationNotice string
+	desiredContent               []string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
@@ -82,6 +83,8 @@ type ConfigSettings struct {
 	RetryGitCommands            bool     `yaml:"retry_git_commands"`
 	GitObjectSyntaxNotSupported bool     `yaml:"git_object_syntax_not_supported"`
 	PostRunCommand              []string `yaml:"postrun"`
+	PurgeLevels                 []string `yaml:"purge_levels"`
+	PurgeWhitelist              []string `yaml:"purge_whitelist"`
 }
 
 // Forge is a simple struct that contains the base URL of
@@ -259,8 +262,10 @@ func main() {
 			} else {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
+			// default purge_levels
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			config.PurgeLevels = []string{"deployment", "puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false, false)
 			puppetfile.workDir = "./"
