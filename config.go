@@ -99,6 +99,10 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.MaxExtractworker = 20
 	}
 
+	if len(config.PurgeLevels) == 0 {
+		config.PurgeLevels = []string{"deployment", "puppetfile"}
+	}
+
 	if validate {
 		Validatef()
 	}
