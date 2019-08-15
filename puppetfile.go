@@ -179,19 +179,21 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 				environments, _ := filepath.Glob(globPath)
 
 				for _, env := range environments {
+					envPath := strings.Split(env, "/")
+					envName := envPath[len(envPath)-1]
 					if stringSliceContains(config.PurgeLevels, "environment") {
-						checkForStaleContent(env)
+						if allEnvironments[envName] {
+							checkForStaleContent(env)
+						}
 					}
 					if stringSliceContains(config.PurgeLevels, "deployment") {
-						envPath := strings.Split(env, "/")
-						env = envPath[len(envPath)-1]
-						Debugf("Checking if environment should exist: " + env)
-						if allEnvironments[env] {
-							Debugf("Leaving environment: " + env)
+						Debugf("Checking if environment should exist: " + envName)
+						if allEnvironments[envName] {
+							Debugf("Leaving environment: " + envName)
 						} else {
-							Debugf("Deleting environment: " + env)
+							Debugf("Deleting environment: " + envName)
 							if !dryRun {
-								purgeDir(basedir+env, "purgeStaleContent()")
+								purgeDir(basedir+envName, "purgeStaleContent()")
 							}
 						}
 					}
@@ -463,9 +465,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				if strings.HasSuffix(d, ".resource_types") && isDir(d) {
 					continue
 				}
-				Debugf("Removing unmanaged path " + d)
-				if err := os.RemoveAll(d); err != nil {
-					Debugf("Error while trying to remove unmanaged file " + d)
+				Infof("Removing unmanaged path " + d)
+				if !dryRun {
+					purgeDir(d, "purge_level puppetfile")
 				}
 			}
 		}
