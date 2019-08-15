@@ -1564,7 +1564,7 @@ func TestPostrunCommand(t *testing.T) {
 
 	content, _ := ioutil.ReadFile(postrunLogfile)
 
-	expectedLines := [7]string{
+	expectedLines := []string{
 		"postrun command wrapper script received argument: example_master",
 		"postrun command wrapper script received argument: example_foobar",
 	}
@@ -1614,7 +1614,7 @@ func TestPostrunCommandDirs(t *testing.T) {
 
 	content, _ := ioutil.ReadFile(postrunLogfile)
 
-	expectedLines := [7]string{
+	expectedLines := []string{
 		"postrun command wrapper script received argument: /tmp/example/example_master/",
 		"postrun command wrapper script received argument: /tmp/example/example_foobar/",
 		"postrun command wrapper script received argument: /tmp/example/example_foobar/modules/systemd/",
@@ -1770,10 +1770,11 @@ func TestPurgeWhitelist(t *testing.T) {
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigExamplePurgeEnv.yaml")
+		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
 		resolvePuppetEnvironment("single", false, "")
 		return
 	} else {
+		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
 		createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
 		f, _ := os.Create("/tmp/example/single/.latest_revision")
 		defer f.Close()
@@ -1796,8 +1797,10 @@ func TestPurgeWhitelist(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	expectedLines := [7]string{
+	expectedLines := []string{
 		"DEBUG checkForStaleContent(): additional purge whitelist items: .latest_revision .resource_types",
+		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged",
+		"DEBUG purgeDir(): Trying to remove: /tmp/example/single/stale_directory_that_should_be_purged called from checkForStaleContent()",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -1824,8 +1827,7 @@ func TestPurgeStaleContent(t *testing.T) {
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigExamplePurgeEnv.yaml")
-		fmt.Printf("%+v\n", config)
+		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
 		resolvePuppetEnvironment("single", false, "")
 		return
 	} else {
@@ -1852,7 +1854,7 @@ func TestPurgeStaleContent(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	expectedLines := [7]string{
+	expectedLines := []string{
 		"DEBUG checkForStaleContent(): filepath.Walk'ing directory /tmp/example/single",
 		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged",
 		"DEBUG purgeDir(): Trying to remove: /tmp/example/single/stale_directory_that_should_be_purged called from checkForStaleContent()",
@@ -1914,7 +1916,7 @@ func TestPurgeStaleEnvironments(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	expectedLines := [9]string{
+	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
 		"DEBUG purgeUnmanagedContent(): Leaving environment: full_another",
@@ -1946,17 +1948,23 @@ func TestPurgeStaleEnvironments(t *testing.T) {
 	purgeDir("/tmp/full", funcName)
 }
 
-func TestPurgeStalePuppetfileContent(t *testing.T) {
+func TestPurgeStaleEnvironmentOnly(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigFullworking.yaml")
-		fmt.Printf("%+v\n", config)
-		resolvePuppetEnvironment("master", false, "")
+		config = readConfigfile("tests/TestConfigFullworkingPurgeEnvironment.yaml")
+		resolvePuppetEnvironment("", false, "")
 		return
 	} else {
-		createOrPurgeDir("/tmp/full/full_master/modules/stale_module", funcName)
+		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+		defer f.Close()
+		f.WriteString("foobar")
+		f.Sync()
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
@@ -1974,8 +1982,9 @@ func TestPurgeStalePuppetfileContent(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	expectedLines := [9]string{
-		"DEBUG resolvePuppetfile(): Removing unmanaged path /tmp/full/full_master/modules/stale_module",
+	expectedLines := []string{
+		"Removing unmanaged path /tmp/full/full_master/stale_directory_that_should_not_be_purged",
+		"DEBUG purgeDir(): Trying to remove: /tmp/full/full_master/stale_directory_that_should_not_be_purged called from checkForStaleContent()",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -1984,8 +1993,24 @@ func TestPurgeStalePuppetfileContent(t *testing.T) {
 		}
 	}
 
-	if fileExists("/tmp/full/full_master/modules/stale_module") {
-		t.Errorf("stale file and/or directory still exists!")
+	missingFiles := []string{
+		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
+	}
+	for _, missingFile := range missingFiles {
+		if fileExists(missingFile) {
+			t.Errorf("stale file and/or directory still exists! " + missingFile)
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/full/full_stale/stale_directory_that_should_be_purged",
+		"/tmp/full/full_stale/stale_dir",
+		"/tmp/full/full_stale/stale_dir/stale_file",
+	}
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
+		}
 	}
 
 	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
@@ -1993,5 +2018,149 @@ func TestPurgeStalePuppetfileContent(t *testing.T) {
 	}
 
 	purgeDir(cacheDir, funcName)
-	//purgeDir("/tmp/full", funcName)
+	purgeDir("/tmp/full", funcName)
+}
+
+func TestPurgeStalePuppetfileOnly(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		config = readConfigfile("tests/TestConfigFullworkingPurgePuppetfile.yaml")
+		resolvePuppetEnvironment("", false, "")
+		return
+	} else {
+		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+		defer f.Close()
+		f.WriteString("foobar")
+		f.Sync()
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Removing unmanaged path /tmp/full/full_master/modules/stale_module_directory_that_should_be_purged",
+		"DEBUG purgeDir(): Trying to remove: /tmp/full/full_master/modules/stale_module_directory_that_should_be_purged called from purge_level puppetfile",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	missingFiles := []string{
+		"/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged",
+	}
+	for _, missingFile := range missingFiles {
+		if fileExists(missingFile) {
+			t.Errorf("stale file and/or directory still exists! " + missingFile)
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
+		"/tmp/full/full_stale/stale_directory_that_should_not_be_purged",
+		"/tmp/full/full_stale/stale_dir",
+		"/tmp/full/full_stale/stale_dir/stale_file",
+	}
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
+		}
+	}
+
+	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
+		t.Errorf("Missing module file that should be there")
+	}
+
+	purgeDir(cacheDir, funcName)
+	purgeDir("/tmp/full", funcName)
+}
+
+func TestPurgeStaleDeploymentOnly(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		config = readConfigfile("tests/TestConfigFullworkingPurgeDeployment.yaml")
+		resolvePuppetEnvironment("", false, "")
+		return
+	} else {
+		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+		defer f.Close()
+		f.WriteString("foobar")
+		f.Sync()
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
+		"DEBUG purgeUnmanagedContent(): Leaving environment: full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
+		"DEBUG purgeUnmanagedContent(): Leaving environment: full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
+		"DEBUG purgeUnmanagedContent(): Leaving environment: full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
+		"DEBUG purgeUnmanagedContent(): Deleting environment: full_stale",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	if fileExists("/tmp/full/full_stale/stale_directory_that_should_be_purged") ||
+		fileExists("/tmp/full/full_stale/stale_dir") ||
+		fileExists("/tmp/full/full_stale/stale_dir/stale_file") {
+		t.Errorf("stale file and/or directory still exists!")
+	}
+	if !fileExists("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged") ||
+		!fileExists("/tmp/full/full_master/stale_directory_that_should_not_be_purged") {
+		t.Errorf("stale files and/or directory missing that should not have been purged!")
+	}
+
+	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
+		t.Errorf("Missing module file that should be there")
+	}
+
+	purgeDir(cacheDir, funcName)
+	purgeDir("/tmp/full", funcName)
 }
