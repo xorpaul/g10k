@@ -1919,13 +1919,13 @@ func TestPurgeStaleEnvironments(t *testing.T) {
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"DEBUG purgeUnmanagedContent(): Deleting environment: full_stale",
+		"Removing unmanaged environment full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2132,13 +2132,13 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Leaving environment: full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"DEBUG purgeUnmanagedContent(): Deleting environment: full_stale",
+		"Removing unmanaged environment full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2155,6 +2155,86 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 	if !fileExists("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged") ||
 		!fileExists("/tmp/full/full_master/stale_directory_that_should_not_be_purged") {
 		t.Errorf("stale files and/or directory missing that should not have been purged!")
+	}
+
+	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
+		t.Errorf("Missing module file that should be there")
+	}
+
+	purgeDir(cacheDir, funcName)
+	purgeDir("/tmp/full", funcName)
+}
+
+func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		config = readConfigfile("tests/TestConfigFullworkingPurgeDeploymentWithWhitelist.yaml")
+		resolvePuppetEnvironment("", false, "")
+		return
+	} else {
+		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+		createOrPurgeDir("/tmp/full/full_hiera_master/hiera_dir", funcName)
+		createOrPurgeDir("/tmp/full/full_hiera_qa/hiera_dir_qa", funcName)
+		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+		defer f.Close()
+		f.WriteString("foobar")
+		f.Sync()
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
+		"Removing unmanaged environment full_stale",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	if fileExists("/tmp/full/full_stale/stale_directory_that_should_be_purged") ||
+		fileExists("/tmp/full/full_stale/stale_dir") ||
+		fileExists("/tmp/full/full_stale/stale_dir/stale_file") {
+		t.Errorf("stale file and/or directory still exists!")
+	}
+
+	expectedFiles := []string{
+		"/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged",
+		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
+		"/tmp/full/full_hiera_qa/hiera_dir_qa",
+		"/tmp/full/full_hiera_master/hiera_dir"}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
+		}
 	}
 
 	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {

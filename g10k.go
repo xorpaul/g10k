@@ -85,6 +85,7 @@ type ConfigSettings struct {
 	PostRunCommand              []string `yaml:"postrun"`
 	PurgeLevels                 []string `yaml:"purge_levels"`
 	PurgeWhitelist              []string `yaml:"purge_whitelist"`
+	DeploymentPurgeWhitelist    []string `yaml:"deployment_purge_whitelist"`
 }
 
 // Forge is a simple struct that contains the base URL of
@@ -265,7 +266,7 @@ func main() {
 			// default purge_levels
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
-			config.PurgeLevels = []string{"deployment", "puppetfile"}
+			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false, false)
 			puppetfile.workDir = "./"

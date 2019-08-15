@@ -174,9 +174,18 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 		if len(envBranch) == 0 {
 			for basedir, _ := range allBasedirs {
 				globPath := filepath.Join(basedir, prefix+"*")
-
 				Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
+
+				whitelistEnvironments := []string{}
+				if len(config.DeploymentPurgeWhitelist) > 0 {
+					for _, wlpattern := range config.DeploymentPurgeWhitelist {
+						whitelistGlobPath := filepath.Join(basedir, wlpattern)
+						Debugf("deployment_purge_whitelist Glob'ing with path " + whitelistGlobPath)
+						we, _ := filepath.Glob(whitelistGlobPath)
+						whitelistEnvironments = append(whitelistEnvironments, we...)
+					}
+				}
 
 				for _, env := range environments {
 					envPath := strings.Split(env, "/")
@@ -189,11 +198,13 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 					if stringSliceContains(config.PurgeLevels, "deployment") {
 						Debugf("Checking if environment should exist: " + envName)
 						if allEnvironments[envName] {
-							Debugf("Leaving environment: " + envName)
+							Debugf("Not purging environment " + envName)
+						} else if stringSliceContains(whitelistEnvironments, filepath.Join(basedir, envName)) {
+							Debugf("Not purging environment " + envName + " due to deployment_purge_whitelist match")
 						} else {
-							Debugf("Deleting environment: " + envName)
+							Infof("Removing unmanaged environment " + envName)
 							if !dryRun {
-								purgeDir(basedir+envName, "purgeStaleContent()")
+								purgeDir(filepath.Join(basedir, envName), "purgeStaleContent()")
 							}
 						}
 					}
