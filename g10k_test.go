@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 func TestForgeChecksum(t *testing.T) {
@@ -133,6 +135,33 @@ func TestConfigPostrunCommand(t *testing.T) {
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
 	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
+	}
+}
+
+func TestConfigDeploy(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readConfigfile("tests/" + funcName + ".yaml")
+
+	s := make(map[string]Source)
+	s["full"] = Source{Remote: "https://github.com/xorpaul/g10k-fullworking-env.git",
+		Basedir: "/tmp/full/", Prefix: "true", PrivateKey: ""}
+
+	expected := ConfigSettings{
+		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
+		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		Git:     Git{privateKey: ""},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		PurgeLevels:              []string{"deployment"},
+		PurgeWhitelist:           []string{"custom.json", "**/*.xpp"},
+		DeploymentPurgeWhitelist: []string{"full_hiera_*"}}
+
+	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
@@ -1954,6 +1983,7 @@ func TestPurgeStaleEnvironmentOnly(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingPurgeEnvironment.yaml")
+		fmt.Printf("%+v\n", config)
 		resolvePuppetEnvironment("", false, "")
 		return
 	} else {

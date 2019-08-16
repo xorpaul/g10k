@@ -75,17 +75,32 @@ type ConfigSettings struct {
 	Git                         Git
 	Forge                       Forge
 	Sources                     map[string]Source
-	Timeout                     int      `yaml:"timeout"`
-	IgnoreUnreachableModules    bool     `yaml:"ignore_unreachable_modules"`
-	Maxworker                   int      `yaml:"maxworker"`
-	MaxExtractworker            int      `yaml:"maxextractworker"`
-	UseCacheFallback            bool     `yaml:"use_cache_fallback"`
-	RetryGitCommands            bool     `yaml:"retry_git_commands"`
-	GitObjectSyntaxNotSupported bool     `yaml:"git_object_syntax_not_supported"`
-	PostRunCommand              []string `yaml:"postrun"`
-	PurgeLevels                 []string `yaml:"purge_levels"`
-	PurgeWhitelist              []string `yaml:"purge_whitelist"`
-	DeploymentPurgeWhitelist    []string `yaml:"deployment_purge_whitelist"`
+	Timeout                     int            `yaml:"timeout"`
+	IgnoreUnreachableModules    bool           `yaml:"ignore_unreachable_modules"`
+	Maxworker                   int            `yaml:"maxworker"`
+	MaxExtractworker            int            `yaml:"maxextractworker"`
+	UseCacheFallback            bool           `yaml:"use_cache_fallback"`
+	RetryGitCommands            bool           `yaml:"retry_git_commands"`
+	GitObjectSyntaxNotSupported bool           `yaml:"git_object_syntax_not_supported"`
+	PostRunCommand              []string       `yaml:"postrun"`
+	Deploy                      DeploySettings `yaml:"deploy"`
+	PurgeLevels                 []string       `yaml:"purge_levels"`
+	PurgeWhitelist              []string       `yaml:"purge_whitelist"`
+	DeploymentPurgeWhitelist    []string       `yaml:"deployment_purge_whitelist"`
+	WriteLock                   string         `yaml:"write_lock"`
+	GenerateTypes               bool           `yaml:"generate_types"`
+	PuppetPath                  string         `yaml:"puppet_path"`
+}
+
+// DeploySettings is a struct for settings for controlling how g10k deploys behave.
+// Trying to emulate r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
+type DeploySettings struct {
+	PurgeLevels              []string `yaml:"purge_levels"`
+	PurgeWhitelist           []string `yaml:"purge_whitelist"`
+	DeploymentPurgeWhitelist []string `yaml:"deployment_purge_whitelist"`
+	WriteLock                string   `yaml:"write_lock"`
+	GenerateTypes            bool     `yaml:"generate_types"`
+	PuppetPath               string   `yaml:"puppet_path"`
 }
 
 // Forge is a simple struct that contains the base URL of
