@@ -67,6 +67,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 
 				foundBranch := false
+				prefix := resolveSourcePrefix(source, sa)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
 					reInvalidCharacters := regexp.MustCompile("\\W")
@@ -75,16 +76,22 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 						continue
 					}
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
-					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") || (len(envBranch) > 0 && branch != envBranch) {
-						Debugf("Skipping branch " + branch)
+					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") {
+						Debugf("Skipping branch " + branch + ", because of invalid character(s) inside the branch name")
 						continue
-					} else if len(envBranch) > 0 && branch == envBranch {
-						foundBranch = true
+					}
+					if len(envBranch) > 0 {
+						if branch == envBranch {
+							foundBranch = true
+						} else {
+							Debugf("Skipping branch " + branch)
+							continue
+						}
 					}
 
 					wg.Add()
 
-					go func(branch string, sa Source) {
+					go func(branch string, sa Source, prefix string) {
 						defer wg.Done()
 						if len(branch) != 0 {
 							Debugf("Resolving branch: " + branch)
@@ -107,16 +114,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								}
 							}
 
-							targetDir := sa.Basedir + sa.Prefix + "_" + strings.Replace(renamedBranch, "/", "_", -1)
-							if sa.Prefix == "false" || sa.Prefix == "" {
-								targetDir = sa.Basedir + strings.Replace(renamedBranch, "/", "_", -1)
-							} else if sa.Prefix == "true" {
-								targetDir = sa.Basedir + source + "_" + strings.Replace(renamedBranch, "/", "_", -1)
-							}
+							targetDir := sa.Basedir + prefix + strings.Replace(renamedBranch, "/", "_", -1)
 							targetDir = normalizeDir(targetDir)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
-							syncToModuleDir(workDir, targetDir, branch, false, false, env)
+							syncToModuleDir(workDir, targetDir, branch, false, false, env, true)
 							if !fileExists(targetDir + "Puppetfile") {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
@@ -124,6 +126,9 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
+								for _, moduleDir := range puppetfile.moduleDirs {
+									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
+								}
 								allPuppetfiles[env] = puppetfile
 								allEnvironments[env] = true
 								allBasedirs[sa.Basedir] = true
@@ -131,8 +136,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 							}
 						}
-					}(branch, sa)
-
+					}(branch, sa, prefix)
 				}
 
 				if sa.WarnMissingBranch && !foundBranch {
@@ -151,52 +155,108 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//fmt.Println("allPuppetfiles: ", allPuppetfiles, len(allPuppetfiles))
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
-	//// sync to basedir
-	//for _, branch := range branches {
-	//	if len(branch) != 0 {
-	//		Debugf("Syncing branch: " + branch)
-	//		// TODO if sa.Prefix != true
-	//		if !strings.Contains(branch, "hiera") && !strings.Contains(branch, "files") {
-	//			//puppetfile := readPuppetfile(targetDir)
+	//fmt.Println(desiredContent)
+	purgeUnmanagedContent(envBranch, allBasedirs, allEnvironments)
 
-	//		}
-	//	}
-	//}
+}
+
+func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnvironments map[string]bool) {
+	if !stringSliceContains(config.PurgeLevels, "deployment") {
+		if !stringSliceContains(config.PurgeLevels, "environment") {
+			// nothing allowed to purge
+			return
+		}
+	}
 
 	for source, sa := range config.Sources {
+		prefix := resolveSourcePrefix(source, sa)
 		// Clean up unknown environment directories
 		if len(envBranch) == 0 {
 			for basedir, _ := range allBasedirs {
-				globPath := filepath.Join(basedir, sa.Prefix+"*")
-				if sa.Prefix == "false" || sa.Prefix == "" {
-					globPath = basedir + "*"
-				} else if sa.Prefix == "true" {
-					globPath = filepath.Join(basedir, source+"_*")
-				} else {
-					globPath = filepath.Join(basedir, sa.Prefix+"_"+"*")
-				}
-
+				globPath := filepath.Join(basedir, prefix+"*")
 				Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
-				//		environments, _ = ioutil.ReadDir(basedir)
-				//	}
-				//fmt.Println(environments)
-				//fmt.Println(allEnvironments)
+
+				whitelistEnvironments := []string{}
+				if len(config.DeploymentPurgeWhitelist) > 0 {
+					for _, wlpattern := range config.DeploymentPurgeWhitelist {
+						whitelistGlobPath := filepath.Join(basedir, wlpattern)
+						Debugf("deployment_purge_whitelist Glob'ing with path " + whitelistGlobPath)
+						we, _ := filepath.Glob(whitelistGlobPath)
+						whitelistEnvironments = append(whitelistEnvironments, we...)
+					}
+				}
+
 				for _, env := range environments {
 					envPath := strings.Split(env, "/")
-					env = envPath[len(envPath)-1]
-					Debugf("Checking if environment should exist: " + env)
-					if allEnvironments[env] {
-						Debugf("Leaving environment: " + env)
-					} else {
-						Debugf("Deleting environment: " + env)
-						if !dryRun {
-							purgeDir(basedir+env, "resolvePuppetEnvironment()")
+					envName := envPath[len(envPath)-1]
+					if stringSliceContains(config.PurgeLevels, "environment") {
+						if allEnvironments[envName] {
+							checkForStaleContent(env)
+						}
+					}
+					if stringSliceContains(config.PurgeLevels, "deployment") {
+						Debugf("Checking if environment should exist: " + envName)
+						if allEnvironments[envName] {
+							Debugf("Not purging environment " + envName)
+						} else if stringSliceContains(whitelistEnvironments, filepath.Join(basedir, envName)) {
+							Debugf("Not purging environment " + envName + " due to deployment_purge_whitelist match")
+						} else {
+							Infof("Removing unmanaged environment " + envName)
+							if !dryRun {
+								purgeDir(filepath.Join(basedir, envName), "purgeStaleContent()")
+							}
 						}
 					}
 				}
 			}
+		} else {
+			if stringSliceContains(config.PurgeLevels, "environment") {
+				// check for purgeable content inside -branch folder
+				checkForStaleContent(filepath.Join(sa.Basedir, prefix+envBranch))
+			}
 		}
+	}
+}
+
+func checkForStaleContent(workDir string) {
+	// add purge whitelist
+	if len(config.PurgeWhitelist) > 0 {
+		Debugf("additional purge whitelist items: " + strings.Join(config.PurgeWhitelist, " "))
+		for _, wlItem := range config.PurgeWhitelist {
+			desiredContent = append(desiredContent, filepath.Join(workDir, wlItem))
+		}
+	}
+
+	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
+		stale := true
+		for _, desiredFile := range desiredContent {
+			if strings.HasPrefix(path, desiredFile) || path == workDir {
+				stale = false
+			}
+		}
+
+		if stale {
+			Infof("Removing unmanaged path " + path)
+			purgeDir(path, "checkForStaleContent()")
+		}
+		return nil
+	}
+
+	c := make(chan error)
+	Debugf("filepath.Walk'ing directory " + workDir)
+	go func() { c <- filepath.Walk(workDir, checkForStaleContent) }()
+	<-c // Walk done
+}
+
+// resolvePuppetEnvironment implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
+func resolveSourcePrefix(source string, sa Source) string {
+	if sa.Prefix == "false" || sa.Prefix == "" {
+		return ""
+	} else if sa.Prefix == "true" {
+		return source + "_"
+	} else {
+		return sa.Prefix + "_"
 	}
 }
 
@@ -349,7 +409,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 
 				if gitModule.link {
 					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
-					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable, env)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable, env, false)
 				}
 
 				if len(gitModule.fallback) > 0 {
@@ -360,14 +420,14 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 								gitModule.ignoreUnreachable = true
 							}
 							Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
-							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable, env)
+							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable, env, false)
 							if success {
 								break
 							}
 						}
 					}
 				} else {
-					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
+					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env, false)
 				}
 
 				// remove this module from the exisitingModuleDirs map
@@ -409,15 +469,17 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	}
 	wg.Wait()
 
-	//fmt.Println(uniqueForgeModules)
-	if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
-		for d := range exisitingModuleDirs {
-			if strings.HasSuffix(d, ".resource_types") && isDir(d) {
-				continue
-			}
-			Debugf("Removing unmanaged file " + d)
-			if err := os.RemoveAll(d); err != nil {
-				Debugf("Error while trying to remove unmanaged file " + d)
+	if stringSliceContains(config.PurgeLevels, "puppetfile") {
+		//fmt.Println(uniqueForgeModules)
+		if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
+			for d := range exisitingModuleDirs {
+				if strings.HasSuffix(d, ".resource_types") && isDir(d) {
+					continue
+				}
+				Infof("Removing unmanaged path " + d)
+				if !dryRun {
+					purgeDir(d, "purge_level puppetfile")
+				}
 			}
 		}
 	}

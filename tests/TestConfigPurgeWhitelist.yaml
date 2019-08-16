@@ -1,0 +1,9 @@
+---
+purge_whitelist: [ '.latest_revision', '.resource_types' ]
+
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'

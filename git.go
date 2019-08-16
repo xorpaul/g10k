@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -126,7 +127,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	return true
 }
 
-func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string) bool {
+func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string, onlyDelta bool) bool {
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
@@ -143,7 +144,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	}
 
 	er := executeCommand(logCmd, config.Timeout, allowFail)
-	hashFile := targetDir + "/.latest_commit"
+	hashFile := targetDir + ".latest_commit"
 	needToSync := true
 	if er.returnCode != 0 {
 		if allowFail && ignoreUnreachable {
@@ -161,6 +162,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		}
 
 	}
+	if onlyDelta {
+		listGitRepoFiles(srcDir, tree, targetDir, hashFile)
+	}
 	if needToSync && er.returnCode == 0 {
 		Infof("Need to sync " + targetDir)
 		mutex.Lock()
@@ -170,8 +174,13 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		}
 		needSyncGitCount++
 		mutex.Unlock()
+
 		if !dryRun {
-			createOrPurgeDir(targetDir, "syncToModuleDir()")
+			if !onlyDelta {
+				createOrPurgeDir(targetDir, "syncToModuleDir()")
+			} else {
+				checkDirAndCreate(targetDir, "git dir")
+			}
 			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", tree}
 			cmd := exec.Command("git", gitArchiveArgs...)
 			Debugf("Executing git --git-dir " + srcDir + " archive " + tree)
@@ -211,4 +220,27 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		}
 	}
 	return true
+}
+
+func listGitRepoFiles(gitDir string, tree string, targetDir string, hashFile string) {
+	treeCmd := "git --git-dir " + gitDir + " ls-tree --full-tree -r --name-only " + tree
+	er := executeCommand(treeCmd, config.Timeout, false)
+	foundGitFiles := strings.Split(er.output, "\n")
+	mutex.Lock()
+	// g10k must have purge whitelist items
+	desiredContent = append(desiredContent, hashFile)
+	desiredContent = append(desiredContent, ".last_commit")
+	for _, desiredFile := range foundGitFiles[:len(foundGitFiles)-1] {
+		desiredContent = append(desiredContent, filepath.Join(targetDir, desiredFile))
+
+		// because we're using -r which prints git managed files in subfolders like this: foo/test3
+		// we have to split up the given string and add the possible parent directories (foo in this case)
+		parentDirs := strings.Split(desiredFile, "/")
+		if len(parentDirs) > 1 {
+			for _, dir := range parentDirs[:len(parentDirs)-1] {
+				desiredContent = append(desiredContent, filepath.Join(targetDir, dir))
+			}
+		}
+	}
+	mutex.Unlock()
 }
