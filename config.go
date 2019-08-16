@@ -37,9 +37,6 @@ func readConfigfile(configFile string) ConfigSettings {
 		Fatalf("YAML unmarshal error: " + err.Error())
 	}
 
-	//fmt.Print("config: ")
-	//fmt.Printf("%+v\n", config)
-
 	if len(os.Getenv("g10k_cachedir")) > 0 {
 		cachedir := os.Getenv("g10k_cachedir")
 		Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
@@ -122,6 +119,7 @@ func readConfigfile(configFile string) ConfigSettings {
 		Validatef()
 	}
 
+	//fmt.Printf("%+v\n", config)
 	return config
 }
 
