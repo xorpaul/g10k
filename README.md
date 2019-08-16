@@ -398,6 +398,34 @@ sources:
     basedir: '/tmp/example/'
 ```
 
+- Added support for r10k-like purge behaviour of stale content
+
+Starting with [v.0.7.0](https://github.com/xorpaul/g10k/releases/tag/v0.7.0) g10k supports the r10k-like purge behaviour of stale content with the different configuration settings `purge_level` and `purge_whitelist` as documented [here for purge_levels](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_levels) and [here for purge_whiltelist](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_whitelist)
+
+Please check if you need to whitelist files/folders inside your Puppet environments!
+
+As an additional setting, you can also whitelist Puppet environments with `deployment_purge_whitelist`, that would've been purged by the [deployment](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deployment) `purge_level`.
+This can be helpful if you have a similar source name or prefix set. E.g. having a source called `foobar` and another one `foobar_hiera` would have purged all foobar_hiera_\* branches if there are not branches called `hiera_master` or similar in the `foobar` source.
+
+Example:
+```
+---
+deploy:
+  purge_levels: ['deployment', 'puppetfile', 'environment']
+  purge_whitelist: [ '.latest_revision', '.resource_types' ]
+  deployment_purge_whitelist: [ 'example_hiera_*', '.resource_types' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/out/'
+    prefix: true
+  example_hiera:
+    remote: 'https://github.com/xorpaul/g10k-hiera.git'
+    basedir: '/tmp/out/'
+    prefix: true
+```
+
 # building
 ```
 # only initially needed to resolve all dependencies
