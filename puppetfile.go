@@ -470,7 +470,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wg.Wait()
 
 	if stringSliceContains(config.PurgeLevels, "puppetfile") {
-		//fmt.Println(uniqueForgeModules)
 		if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 			for d := range exisitingModuleDirs {
 				if strings.HasSuffix(d, ".resource_types") && isDir(d) {
