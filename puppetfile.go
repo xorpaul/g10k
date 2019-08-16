@@ -77,14 +77,14 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 					}
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") {
-						Debugf("Skipping branch " + branch + ", because of invalid character(s) inside the branch name")
+						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
 					if len(envBranch) > 0 {
-						if branch == envBranch {
+						if branch == envBranch || prefix+branch == envBranch {
 							foundBranch = true
 						} else {
-							Debugf("Skipping branch " + branch)
+							Debugf("Skipping branch " + branch + " of source " + source)
 							continue
 						}
 					}

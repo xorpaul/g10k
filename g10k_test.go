@@ -2274,3 +2274,56 @@ func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
 	purgeDir(cacheDir, funcName)
 	purgeDir("/tmp/full", funcName)
 }
+
+func TestRespectPrefixInBranchMode(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		config = readConfigfile("tests/TestConfigFullworkingAndExample.yaml")
+		resolvePuppetEnvironment("full_master", false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"DEBUG resolvePuppetfile(): Resolving full_master",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	if fileExists("/tmp/out/example_master/") {
+		t.Errorf("Puppet environment example_master should not have been deployed, with branch parameter set to full_master")
+	}
+
+	expectedFiles := []string{
+		"/tmp/out/full_master/modules/stdlib/metadata.json",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("Puppet environment full_master seems not to have been populated " + expectedFile)
+		}
+	}
+
+	purgeDir(cacheDir, funcName)
+	purgeDir("/tmp/out", funcName)
+}
