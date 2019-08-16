@@ -1,0 +1,10 @@
+---
+:cachedir: '/tmp/g10k'
+purge_levels: ['environment']
+purge_whitelist: [ '.latest_revision', '.resource_types' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    prefix: false

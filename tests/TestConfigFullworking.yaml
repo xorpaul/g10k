@@ -1,0 +1,8 @@
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  full:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env.git'
+    basedir: '/tmp/full/'
+    prefix: true

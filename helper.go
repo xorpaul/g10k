@@ -289,3 +289,12 @@ func moveFile(sourcePath, destPath string, deleteSourceFileToggle bool) error {
 	}
 	return nil
 }
+
+func stringSliceContains(slice []string, element string) bool {
+	for _, e := range slice {
+		if e == element {
+			return true
+		}
+	}
+	return false
+}

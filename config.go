@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -97,6 +98,24 @@ func readConfigfile(configFile string) ConfigSettings {
 
 	if maxExtractworker == 0 && config.MaxExtractworker == 0 {
 		config.MaxExtractworker = 20
+	}
+
+	// check for non-empty config.Deploy which takes precedence over the non-deploy scoped settings
+	// See https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
+	emptyDeploy := DeploySettings{}
+	if !reflect.DeepEqual(config.Deploy, emptyDeploy) {
+		Debugf("detected deploy configration hash, which takes precedence over the non-deploy scoped settings")
+		config.PurgeLevels = config.Deploy.PurgeLevels
+		config.PurgeWhitelist = config.Deploy.PurgeWhitelist
+		config.DeploymentPurgeWhitelist = config.Deploy.DeploymentPurgeWhitelist
+		config.WriteLock = config.Deploy.WriteLock
+		config.GenerateTypes = config.Deploy.GenerateTypes
+		config.PuppetPath = config.Deploy.PuppetPath
+		config.Deploy = emptyDeploy
+	}
+
+	if len(config.PurgeLevels) == 0 {
+		config.PurgeLevels = []string{"deployment", "puppetfile"}
 	}
 
 	if validate {

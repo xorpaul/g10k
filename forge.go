@@ -359,13 +359,15 @@ func unTar(r io.Reader, targetBaseDir string) {
 			err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
 
 			if err != nil {
-				Fatalf(funcName + "(): error while MkdirAll() " + filename + err.Error())
+				Fatalf(funcName + "(): error while MkdirAll() file: " + filename + " Error: " + err.Error())
+
 			}
 
 			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
 
 			if err != nil {
-				Fatalf(funcName + "(): error while Chtimes() " + filename + err.Error())
+				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
+
 			}
 
 		case tar.TypeReg:
@@ -374,19 +376,21 @@ func unTar(r io.Reader, targetBaseDir string) {
 			writer, err := os.Create(targetFilename)
 
 			if err != nil {
-				Fatalf(funcName + "(): error while Create() " + filename + err.Error())
+				Fatalf(funcName + "(): error while Create() file: " + filename + " Error: " + err.Error())
 			}
 
 			io.Copy(writer, tarBallReader)
 			err = os.Chmod(targetFilename, os.FileMode(header.Mode))
 
 			if err != nil {
-				Fatalf(funcName + "(): error while Chmod() " + filename + err.Error())
+				Fatalf(funcName + "(): error while Chmod() file: " + filename + " Error: " + err.Error())
+
 			}
 
 			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
 			if err != nil {
-				Fatalf(funcName + "(): error while Chtimes() " + filename + err.Error())
+				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
+
 			}
 
 			writer.Close()
