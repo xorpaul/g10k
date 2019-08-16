@@ -35,7 +35,7 @@ zip g10k-darwin-amd64.zip g10k
 github-release upload     --user xorpaul     --repo g10k     --tag v${1}     --name "g10k-darwin-amd64.zip" --file g10k-darwin-amd64.zip
 
 echo "building and uploading g10k-linux-amd64"
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -race -ldflags "-s -w -X main.buildtime=$BUILDTIME" && date && env g10k_cachedir=./tmp ./g10k -config test.yaml -branch benchmark 2>&1
+BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -race -ldflags "-s -w -X main.buildtime=$BUILDTIME" && date && env g10k_cachedir=/tmp/g10k ./g10k -config test.yaml -branch benchmark 2>&1
 zip g10k-linux-amd64.zip g10k
 github-release upload     --user xorpaul     --repo g10k     --tag v${1}     --name "g10k-linux-amd64.zip" --file g10k-linux-amd64.zip
 
