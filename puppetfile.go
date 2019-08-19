@@ -67,6 +67,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 
 				foundBranch := false
+				foundMatch := false
 				prefix := resolveSourcePrefix(source, sa)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
@@ -81,10 +82,17 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 						continue
 					}
 					if len(envBranch) > 0 {
-						if branch == envBranch || prefix+branch == envBranch {
+						if branch == envBranch {
 							foundBranch = true
 						} else {
-							Debugf("Skipping branch " + branch + " of source " + source)
+							Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + envBranch + "', skipping")
+							continue
+						}
+					} else if len(environmentParam) > 0 {
+						if source+"_"+branch == environmentParam {
+							foundMatch = true
+						} else {
+							Debugf("Environment " + prefix + branch + " of source " + source + " does not match environment name filter '" + environmentParam + "', skipping")
 							continue
 						}
 					}
@@ -94,7 +102,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 					go func(branch string, sa Source, prefix string) {
 						defer wg.Done()
 						if len(branch) != 0 {
-							Debugf("Resolving branch: " + branch)
+							Debugf("Resolving environment " + prefix + branch + " of source " + source)
 
 							renamedBranch := branch
 							if (len(outputNameTag) > 0) && (len(envBranch) > 0) {
@@ -141,6 +149,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 				if sa.WarnMissingBranch && !foundBranch {
 					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+				}
+				if len(environmentParam) > 0 {
+					if !foundMatch {
+						Warnf("WARNING: Environment '" + prefix + envBranch + "' cannot be found in any source and will not be deployed.")
+					}
 				}
 			} else {
 				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
@@ -249,7 +262,7 @@ func checkForStaleContent(workDir string) {
 	<-c // Walk done
 }
 
-// resolvePuppetEnvironment implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
+// resolveSourcePrefix implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
 func resolveSourcePrefix(source string, sa Source) string {
 	if sa.Prefix == "false" || sa.Prefix == "" {
 		return ""
@@ -267,7 +280,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	// if we made it this far initialize the global maps
 	latestForgeModules.m = make(map[string]string)
 	for env, pf := range allPuppetfiles {
-		Debugf("Resolving " + env)
+		Debugf("Resolving branch " + env + " of source " + pf.source)
 		//fmt.Println(pf)
 		for gitName, gitModule := range pf.gitModules {
 			if len(moduleParam) > 0 {

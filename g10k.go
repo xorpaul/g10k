@@ -30,6 +30,7 @@ var (
 	moduleDirParam               string
 	cacheDirParam                string
 	branchParam                  string
+	environmentParam             string
 	tags                         bool
 	outputNameParam              string
 	moduleParam                  string
@@ -195,7 +196,8 @@ func main() {
 		configFileFlag = flag.String("config", "", "which config file to use")
 		versionFlag    = flag.Bool("version", false, "show build time and version number")
 	)
-	flag.StringVar(&branchParam, "branch", "", "which git branch of the Puppet environment to update, e.g. core_foobar")
+	flag.StringVar(&branchParam, "branch", "", "which git branch of the Puppet environment to update. Just the branch name, e.g. master, qa, dev")
+	flag.StringVar(&environmentParam, "environment", "", "which Puppet environment to update. Source name inside the config + '_' + branch name, e.g. foo_master, foo_qa, foo_dev")
 	flag.BoolVar(&tags, "tags", false, "to pull tags as well as branches")
 	flag.StringVar(&outputNameParam, "outputname", "", "overwrite the environment name if -branch is specified")
 	flag.StringVar(&moduleParam, "module", "", "which module of the Puppet environment to update, e.g. stdlib")

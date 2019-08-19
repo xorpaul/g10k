@@ -2275,13 +2275,14 @@ func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
 	purgeDir("/tmp/full", funcName)
 }
 
-func TestRespectPrefixInBranchMode(t *testing.T) {
+func TestEnvironmentParameter(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigFullworkingAndExample.yaml")
-		resolvePuppetEnvironment("full_master", false, "")
+		config = readConfigfile("tests/TestConfigFullworkingAndExampleDifferentPrefix.yaml")
+		environmentParam = "full_master"
+		resolvePuppetEnvironment("", false, "")
 		return
 	}
 
@@ -2301,7 +2302,8 @@ func TestRespectPrefixInBranchMode(t *testing.T) {
 	//fmt.Println(string(out))
 
 	expectedLines := []string{
-		"DEBUG resolvePuppetfile(): Resolving full_master",
+		"DEBUG 1(): Resolving environment master of source full",
+		"DEBUG resolvePuppetfile(): Resolving branch master of source full",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2315,7 +2317,7 @@ func TestRespectPrefixInBranchMode(t *testing.T) {
 	}
 
 	expectedFiles := []string{
-		"/tmp/out/full_master/modules/stdlib/metadata.json",
+		"/tmp/out/master/modules/stdlib/metadata.json",
 	}
 
 	for _, expectedFile := range expectedFiles {
