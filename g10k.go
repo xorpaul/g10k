@@ -90,6 +90,7 @@ type ConfigSettings struct {
 	WriteLock                   string         `yaml:"write_lock"`
 	GenerateTypes               bool           `yaml:"generate_types"`
 	PuppetPath                  string         `yaml:"puppet_path"`
+	PurgeBlacklist              []string       `yaml:"purge_blacklist"`
 }
 
 // DeploySettings is a struct for settings for controlling how g10k deploys behave.
@@ -101,6 +102,7 @@ type DeploySettings struct {
 	WriteLock                string   `yaml:"write_lock"`
 	GenerateTypes            bool     `yaml:"generate_types"`
 	PuppetPath               string   `yaml:"puppet_path"`
+	PurgeBlacklist           []string `yaml:"purge_blacklist"`
 }
 
 // Forge is a simple struct that contains the base URL of

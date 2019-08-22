@@ -108,6 +108,7 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.WriteLock = config.Deploy.WriteLock
 		config.GenerateTypes = config.Deploy.GenerateTypes
 		config.PuppetPath = config.Deploy.PuppetPath
+		config.PurgeBlacklist = config.Deploy.PurgeBlacklist
 		config.Deploy = emptyDeploy
 	}
 
