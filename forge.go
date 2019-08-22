@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/tar"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
@@ -47,7 +46,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 						Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
 					}
 					if err := os.Symlink(absolutePath, workDir); err != nil {
-						Fatalf("doModuleInstallOrNothing(): 1 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
+						Fatalf("doModuleInstallOrNothing(): 1 Error while creating symlink " + workDir + " pointing to " + absolutePath + " Error: " + err.Error())
 					}
 					//} else {
 					//Debugf("need to fetch Forge module " + moduleName + " in latest, because version " + fr.versionNumber + " will not be fetched already")
@@ -321,7 +320,7 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	before := time.Now()
 	fileReader, err := pgzip.NewReader(file)
 
-	unTar(fileReader, config.ForgeCacheDir+"/")
+	unTar(fileReader, config.ForgeCacheDir)
 
 	if err != nil {
 		Fatalf(funcName + "(): pgzip reader error for module " + fileName + " error:" + err.Error())
@@ -333,96 +332,6 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	mutex.Lock()
 	ioForgeTime += duration
 	mutex.Unlock()
-}
-
-func unTar(r io.Reader, targetBaseDir string) {
-	funcName := funcName()
-	tarBallReader := tar.NewReader(r)
-	for {
-		header, err := tarBallReader.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + err.Error())
-		}
-
-		// get the individual filename and extract to the current directory
-		filename := header.Name
-		targetFilename := targetBaseDir + filename
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			// handle directory
-			//fmt.Println("Creating directory :", filename)
-			//err = os.MkdirAll(targetFilename, os.FileMode(header.Mode)) // or use 0755 if you prefer
-			err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
-
-			if err != nil {
-				Fatalf(funcName + "(): error while MkdirAll() file: " + filename + " Error: " + err.Error())
-
-			}
-
-			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
-
-			if err != nil {
-				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
-
-			}
-
-		case tar.TypeReg:
-			// handle normal file
-			//fmt.Println("Untarring :", filename)
-			writer, err := os.Create(targetFilename)
-
-			if err != nil {
-				Fatalf(funcName + "(): error while Create() file: " + filename + " Error: " + err.Error())
-			}
-
-			io.Copy(writer, tarBallReader)
-			err = os.Chmod(targetFilename, os.FileMode(header.Mode))
-
-			if err != nil {
-				Fatalf(funcName + "(): error while Chmod() file: " + filename + " Error: " + err.Error())
-
-			}
-
-			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
-			if err != nil {
-				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
-
-			}
-
-			writer.Close()
-
-		case tar.TypeSymlink:
-			if os.Symlink(header.Linkname, targetFilename) != nil {
-				Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
-			}
-
-		case tar.TypeLink:
-			if os.Link(header.Linkname, targetFilename) != nil {
-				Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
-			}
-
-		// Skip pax_global_header with the commit ID this archive was created from
-		case tar.TypeXGlobalHeader:
-			continue
-
-		default:
-			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
-		}
-	}
-	// tarball produced by git archive has trailing nulls in the stream which are not
-	// read by the module, when removed this can cause the git archive to hang trying
-	// to output the nulls into a full pipe buffer, avoid this by discarding the rest
-	// until the stream ends.
-	buf := make([]byte, 4096)
-	nread, err := r.Read(buf)
-	for nread > 0 && err == nil {
-		Debugf(fmt.Sprintf("Discarded %d bytes of trailing data from tar", nread))
-		nread, err = r.Read(buf)
-	}
 }
 
 func downloadForgeModule(name string, version string, fm ForgeModule, retryCount int) {

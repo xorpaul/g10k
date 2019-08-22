@@ -256,6 +256,60 @@ func TestResolveStatic(t *testing.T) {
 
 }
 
+func TestResolvStaticBlacklist(t *testing.T) {
+	path, err := exec.LookPath("hashdeep")
+	if err != nil {
+		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+	}
+
+	quiet = true
+	purgeDir("./cache/", "TestResolvStaticBlacklist()")
+	purgeDir("./example/", "TestResolvStaticBlacklist()")
+	config = readConfigfile("tests/TestConfigStaticBlacklist.yaml")
+	// increase maxworker to finish the test quicker
+	config.Maxworker = 500
+	resolvePuppetEnvironment("blacklist", false, "")
+
+	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	out, err := cmd.CombinedOutput()
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	if exitCode != 0 {
+		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
+	}
+	if !strings.Contains(string(out), "") {
+		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+	Debugf("hashdeep output:" + string(out))
+
+	expectedMissingFiles := []string{
+		"example/example_blacklist/external_modules/stdlib/spec/",
+		"example/example_blacklist/external_modules/stdlib/readmes/",
+		"example/example_blacklist/external_modules/stdlib/examples/",
+	}
+	for _, expectedMissingFile := range expectedMissingFiles {
+		if fileExists(expectedMissingFile) {
+			t.Errorf("blacklisted directory still exists that should have been purged! " + expectedMissingFile)
+		}
+	}
+
+	purgeDir("example/example_static/external_modules/stdlib/manifests/", "TestResolvStaticBlacklist()")
+
+	cmd = exec.Command(path, "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	out, err = cmd.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if exitCode != 1 {
+		t.Errorf("hashdeep terminated with %v, but we expected exit status 1\nOutput: %v", exitCode, string(out))
+	}
+
+}
+
 func TestConfigGlobalAllowFail(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/" + funcName + ".yaml")
