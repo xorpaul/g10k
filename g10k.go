@@ -238,7 +238,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k version 0.7.0 Build time:", buildtime, "UTC")
+		fmt.Println("g10k version 0.7.1 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
