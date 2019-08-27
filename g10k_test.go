@@ -18,6 +18,20 @@ import (
 	"github.com/davecgh/go-spew/spew"
 )
 
+func removeTimestampsFromDeployfile(file string) {
+	if fileExists(file) {
+		dr := readDeployResultFile(file)
+		newDr := DeployResult{DeploySuccess: dr.DeploySuccess,
+			Name:               dr.Name,
+			Signature:          dr.Signature,
+			PuppetfileChecksum: dr.PuppetfileChecksum,
+		}
+
+		writeStructJSONFile(file, newDr)
+
+	}
+}
+
 func TestForgeChecksum(t *testing.T) {
 	expectedFmm := ForgeModule{md5sum: "8a8c741978e578921e489774f05e9a65", fileSize: 57358}
 	fmm := getMetadataForgeModule(ForgeModule{version: "2.2.0", name: "apt",
@@ -166,7 +180,7 @@ func TestConfigDeploy(t *testing.T) {
 	}
 }
 
-func TestResolvConfigAddWarning(t *testing.T) {
+func TestResolveConfigAddWarning(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigAddWarning.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
@@ -191,20 +205,22 @@ func TestResolvConfigAddWarning(t *testing.T) {
 	}
 }
 
-func TestResolvStatic(t *testing.T) {
-
+func TestResolveStatic(t *testing.T) {
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
 		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
 	}
 
 	quiet = true
-	purgeDir("./cache/", "TestResolvStatic()")
-	purgeDir("./example/", "TestResolvStatic()")
+	purgeDir("./cache/", "TestResolveStatic()")
+	purgeDir("./example/", "TestResolveStatic()")
 	config = readConfigfile("tests/TestConfigStatic.yaml")
 	// increase maxworker to finish the test quicker
 	config.Maxworker = 500
 	resolvePuppetEnvironment("static", false, "")
+
+	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
+	removeTimestampsFromDeployfile("example/example_static/.g10k-deploy.json")
 
 	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
 	out, err := cmd.CombinedOutput()
@@ -220,9 +236,9 @@ func TestResolvStatic(t *testing.T) {
 	}
 	Debugf("hashdeep output:" + string(out))
 
-	purgeDir("example/example_static/external_modules/stdlib/spec/unit/facter/util", "TestResolvStatic()")
+	purgeDir("example/example_static/external_modules/stdlib/spec/unit/facter/util", "TestResolveStatic()")
 
-	cmd = exec.Command("hashdeep", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	cmd = exec.Command("hashdeep", "-l", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -456,10 +472,10 @@ func TestModuleDirOverride(t *testing.T) {
 	moduleDirParam = ""
 }
 
-func TestResolvConfigExitIfUnreachable(t *testing.T) {
+func TestResolveConfigExitIfUnreachable(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigExitIfUnreachable.yaml")
-	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachable()")
+	purgeDir(config.CacheDir, "TestResolveConfigExitIfUnreachable()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		resolvePuppetEnvironment("single", false, "")
 		return
@@ -483,10 +499,10 @@ func TestResolvConfigExitIfUnreachable(t *testing.T) {
 	}
 }
 
-func TestResolvConfigExitIfUnreachableFalse(t *testing.T) {
+func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigExitIfUnreachableFalse.yaml")
-	purgeDir(config.CacheDir, "TestResolvConfigExitIfUnreachableFalse()")
+	purgeDir(config.CacheDir, "TestResolveConfigExitIfUnreachableFalse()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		resolvePuppetEnvironment("single", false, "")
 		return
@@ -2328,4 +2344,59 @@ func TestEnvironmentParameter(t *testing.T) {
 
 	purgeDir(cacheDir, funcName)
 	purgeDir("/tmp/out", funcName)
+}
+
+func TestDetectPuppetfileChanges(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		info = true
+		resolvePuppetEnvironment("single", false, "")
+		return
+	}
+
+	purgeDir("/tmp/example", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Need to sync /tmp/example/single/",
+		"Need to sync /tmp/example/single/external_modules/inifile/",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	// do it again, now g10k should detect that it's the same Puppetfile
+	cmdCached := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmdCached.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	outCached, err := cmdCached.CombinedOutput()
+	//fmt.Println(string(outCached))
+
+	expectedLines = []string{
+		"Skipping Puppetfile sync of branch example_single because /tmp/example/single/Puppetfile did not change",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(outCached), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
 }
