@@ -84,8 +84,8 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 				Fatalf("Fatal: Could not reach git repository " + url)
 			}
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
+            done <- true
 		}(url, privateKey, gm, bar)
-		done <- true
 	}
 
 	// Wait for all jobs to finish
