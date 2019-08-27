@@ -183,6 +183,16 @@ type ExecResult struct {
 	output     string
 }
 
+// DeployResult contains information about the Puppet environment which was deployed by g10k and tries to emulate the .r10k-deploy.json
+type DeployResult struct {
+	Name               string    `json:"name"`
+	Signature          string    `json:"signature"`
+	StartedAt          time.Time `json:"started_at"`
+	FinishedAt         time.Time `json:"finished_at"`
+	DeploySuccess      bool      `json:"deploy_success"`
+	PuppetfileChecksum string    `json:"puppetfile_checksum"`
+}
+
 func init() {
 	// initialize global maps
 	needSyncEnvs = make(map[string]struct{})

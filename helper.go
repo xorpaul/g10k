@@ -2,8 +2,11 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -260,7 +263,7 @@ func getSha256sumFile(file string) string {
 		Fatalf("failed to calculate SHA256 sum of file " + file + " Error: " + err.Error())
 	}
 
-	return string(h.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // moveFile uses io.Copy to create a copy of the given file https://stackoverflow.com/a/50741908/682847
@@ -297,4 +300,38 @@ func stringSliceContains(slice []string, element string) bool {
 		}
 	}
 	return false
+}
+
+func writeStructJSONFile(file string, v interface{}) {
+	content, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		Warnf("Could not encode JSON file " + file + " " + err.Error())
+	}
+
+	err = ioutil.WriteFile(file, content, 0644)
+	if err != nil {
+		Warnf("Could not write JSON file " + file + " " + err.Error())
+	}
+
+}
+
+func readDeployResultFile(file string) DeployResult {
+	// Open our jsonFile
+	jsonFile, err := os.Open(file)
+	// if we os.Open returns an error then handle it
+	if err != nil {
+		Warnf("Could not open JSON file " + file + " " + err.Error())
+	}
+	defer jsonFile.Close()
+
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		Warnf("Could not read JSON file " + file + " " + err.Error())
+	}
+
+	var dr DeployResult
+	json.Unmarshal([]byte(byteValue), &dr)
+
+	return dr
+
 }

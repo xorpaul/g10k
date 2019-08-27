@@ -128,6 +128,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 }
 
 func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string, onlyDelta bool) bool {
+	startedAt := time.Now()
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
@@ -144,7 +145,8 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	}
 
 	er := executeCommand(logCmd, config.Timeout, allowFail)
-	hashFile := targetDir + ".latest_commit"
+	hashFile := filepath.Join(targetDir, ".latest_commit")
+	deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 	needToSync := true
 	if er.returnCode != 0 {
 		if allowFail && ignoreUnreachable {
@@ -155,10 +157,17 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	}
 
 	if len(er.output) > 0 {
-		targetHash, _ := ioutil.ReadFile(hashFile)
-		if string(targetHash) == er.output {
-			needToSync = false
-			//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
+		if strings.HasPrefix(srcDir, config.EnvCacheDir) && fileExists(deployFile) {
+			dr := readDeployResultFile(deployFile)
+			if dr.Signature == strings.TrimSuffix(er.output, "\n") {
+				needToSync = false
+			}
+		} else {
+			targetHash, _ := ioutil.ReadFile(hashFile)
+			if string(targetHash) == er.output {
+				needToSync = false
+				//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
+			}
 		}
 
 	}
@@ -211,11 +220,23 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 
 			er = executeCommand(logCmd, config.Timeout, false)
 			if len(er.output) > 0 {
-				Debugf("Writing hash " + er.output + " from command " + logCmd + " to " + hashFile)
-				f, _ := os.Create(hashFile)
-				defer f.Close()
-				f.WriteString(er.output)
-				f.Sync()
+				commitHash := strings.TrimSuffix(er.output, "\n")
+				if strings.HasPrefix(srcDir, config.EnvCacheDir) {
+					Debugf("Writing to deploy file " + deployFile)
+					dr := DeployResult{
+						Name:      tree,
+						Signature: commitHash,
+						StartedAt: startedAt,
+					}
+					writeStructJSONFile(deployFile, dr)
+				} else {
+					Debugf("Writing hash " + commitHash + " from command " + logCmd + " to " + hashFile)
+					f, _ := os.Create(hashFile)
+					defer f.Close()
+					f.WriteString(commitHash)
+					f.Sync()
+				}
+
 			}
 		}
 	}

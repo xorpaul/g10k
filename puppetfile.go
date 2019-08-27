@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/remeh/sizedwaitgroup"
 	"github.com/xorpaul/uiprogress"
@@ -119,10 +120,21 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
 							syncToModuleDir(workDir, targetDir, branch, false, false, env, true)
-							if !fileExists(targetDir + "Puppetfile") {
+							pf := filepath.Join(targetDir, "Puppetfile")
+							deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
+							if !fileExists(pf) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
-								puppetfile := readPuppetfile(targetDir+"Puppetfile", sa.PrivateKey, source, sa.ForceForgeVersions, false)
+								if fileExists(deployFile) {
+									pfHashSum := getSha256sumFile(pf)
+									dr := readDeployResultFile(deployFile)
+									if pfHashSum == dr.PuppetfileChecksum && dr.DeploySuccess {
+										Infof("Skipping Puppetfile sync of branch " + source + "_" + branch + " because " + targetDir + "Puppetfile did not change")
+										dr.FinishedAt = time.Now()
+										writeStructJSONFile(deployFile, dr)
+									}
+								}
+								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
@@ -157,7 +169,6 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	resolvePuppetfile(allPuppetfiles)
 	//fmt.Println(desiredContent)
 	purgeUnmanagedContent(envBranch, allBasedirs, allEnvironments)
-
 }
 
 func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnvironments map[string]bool) {
@@ -431,9 +442,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 
 				// remove this module from the exisitingModuleDirs map
-				moduleDirectory := moduleDir + gitName
+				moduleDirectory := filepath.Join(moduleDir, gitName)
 				if len(gitModule.installPath) > 0 {
-					moduleDirectory = normalizeDir(basedir) + normalizeDir(gitModule.installPath) + gitName
+					moduleDirectory = filepath.Join(normalizeDir(basedir), normalizeDir(gitModule.installPath), gitName)
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
@@ -452,7 +463,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			wg.Add()
-			moduleDir := pf.workDir + fm.moduleDir
+			moduleDir := filepath.Join(pf.workDir, fm.moduleDir)
 			moduleDir = normalizeDir(moduleDir)
 			go func(forgeModuleName string, fm ForgeModule, moduleDir string, env string) {
 				defer wg.Done()
@@ -465,7 +476,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				mutex.Unlock()
 			}(forgeModuleName, fm, moduleDir, env)
 		}
-
 	}
 	wg.Wait()
 
@@ -485,4 +495,17 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	if !debug && !verbose && !info && !quiet && terminal.IsTerminal(int(os.Stdout.Fd())) {
 		uiprogress.Stop()
 	}
+
+	for _, pf := range allPuppetfiles {
+		deployFile := filepath.Join(pf.workDir, ".g10k-deploy.json")
+		if fileExists(deployFile) {
+			Debugf("Finishing writing to deploy file " + deployFile)
+			dr := readDeployResultFile(deployFile)
+			dr.DeploySuccess = true
+			dr.FinishedAt = time.Now()
+			dr.PuppetfileChecksum = getSha256sumFile(filepath.Join(pf.workDir, "Puppetfile"))
+			writeStructJSONFile(deployFile, dr)
+		}
+	}
+
 }
