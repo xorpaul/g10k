@@ -270,6 +270,9 @@ func TestResolvStaticBlacklist(t *testing.T) {
 	config.Maxworker = 500
 	resolvePuppetEnvironment("blacklist", false, "")
 
+	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
+	removeTimestampsFromDeployfile("example/example_blacklist/.g10k-deploy.json")
+
 	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -295,9 +298,9 @@ func TestResolvStaticBlacklist(t *testing.T) {
 		}
 	}
 
-	purgeDir("example/example_static/external_modules/stdlib/manifests/", "TestResolvStaticBlacklist()")
+	purgeDir("example/example_blacklist/Puppetfile", "TestResolvStaticBlacklist()")
 
-	cmd = exec.Command(path, "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	cmd = exec.Command(path, "-l", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
