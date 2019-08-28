@@ -256,7 +256,7 @@ func TestResolveStatic(t *testing.T) {
 
 }
 
-func TestResolvStaticBlacklist(t *testing.T) {
+func TestResolveStaticBlacklist(t *testing.T) {
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
 		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
@@ -298,7 +298,7 @@ func TestResolvStaticBlacklist(t *testing.T) {
 		}
 	}
 
-	purgeDir("example/example_blacklist/Puppetfile", "TestResolvStaticBlacklist()")
+	purgeDir("example/example_blacklist/Puppetfile", "TestResolveStaticBlacklist()")
 
 	cmd = exec.Command(path, "-l", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
 	out, err = cmd.CombinedOutput()
