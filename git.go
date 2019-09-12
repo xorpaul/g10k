@@ -84,7 +84,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 				Fatalf("Fatal: Could not reach git repository " + url)
 			}
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
-            done <- true
+			done <- true
 		}(url, privateKey, gm, bar)
 	}
 
@@ -164,7 +164,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			}
 		} else {
 			targetHash, _ := ioutil.ReadFile(hashFile)
-			if string(targetHash) == er.output {
+			if string(targetHash) == strings.TrimSuffix(er.output, "\n") {
 				needToSync = false
 				//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
 			}
