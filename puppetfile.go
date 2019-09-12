@@ -82,6 +82,9 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
+					mutex.Lock()
+					allEnvironments[prefix+branch] = true
+					mutex.Unlock()
 					if len(envBranch) > 0 {
 						if branch == envBranch {
 							foundBranch = true
@@ -150,7 +153,6 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
 								}
 								allPuppetfiles[env] = puppetfile
-								allEnvironments[env] = true
 								allBasedirs[sa.Basedir] = true
 								mutex.Unlock()
 
@@ -180,7 +182,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//fmt.Println("allPuppetfiles: ", allPuppetfiles, len(allPuppetfiles))
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
-	//fmt.Println(desiredContent)
+	//fmt.Printf("%+v\n", allEnvironments)
 	purgeUnmanagedContent(envBranch, allBasedirs, allEnvironments)
 }
 
@@ -197,6 +199,7 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 
 		if len(environmentParam) > 0 {
 			if !strings.HasPrefix(environmentParam, prefix) {
+				Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + environmentParam)
 				continue
 			}
 		}
@@ -221,6 +224,12 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 				for _, env := range environments {
 					envPath := strings.Split(env, "/")
 					envName := envPath[len(envPath)-1]
+					if len(environmentParam) > 0 {
+						if envName != environmentParam {
+							Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + environmentParam)
+							continue
+						}
+					}
 					if stringSliceContains(config.PurgeLevels, "environment") {
 						if allEnvironments[envName] {
 							checkForStaleContent(env)
