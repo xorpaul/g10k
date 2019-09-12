@@ -2457,3 +2457,72 @@ func TestDetectPuppetfileChanges(t *testing.T) {
 		}
 	}
 }
+
+func TestSkipPurgingWithMultipleSources(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/both.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = "example_single"
+		resolvePuppetEnvironment("", false, "")
+		environmentParam = "full_single"
+		resolvePuppetEnvironment("", false, "")
+		environmentParam = "example_single_git"
+		resolvePuppetEnvironment("", false, "")
+		return
+	}
+
+	purgeDir("/tmp/out", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Need to sync /tmp/out/example_single/",
+		"Need to sync /tmp/out/full_single/",
+		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for source 'example', because -environment parameter is set to full_single",
+		"Need to sync /tmp/out/example_single_git/",
+		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for Puppet environment 'example_single', because -environment parameter is set to example_single_git",
+		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for source 'full', because -environment parameter is set to example_single_git",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	path, err := exec.LookPath("hashdeep")
+	if err != nil {
+		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+	}
+
+	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
+	removeTimestampsFromDeployfile("/tmp/out/example_single/.g10k-deploy.json")
+	removeTimestampsFromDeployfile("/tmp/out/full_single/.g10k-deploy.json")
+	removeTimestampsFromDeployfile("/tmp/out/example_single_git/.g10k-deploy.json")
+
+	cmd = exec.Command(path, "-vvv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_multiple.hashdeep")
+	out, err = cmd.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	if exitCode != 0 {
+		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
+	}
+
+}
