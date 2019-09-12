@@ -35,6 +35,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
 	allBasedirs := make(map[string]bool)
+	foundMatch := false
 	for source, sa := range config.Sources {
 		wg.Add()
 		go func(source string, sa Source) {
@@ -68,7 +69,6 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 
 				foundBranch := false
-				foundMatch := false
 				prefix := resolveSourcePrefix(source, sa)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
@@ -162,11 +162,6 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				if sa.WarnMissingBranch && !foundBranch {
 					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				}
-				if len(environmentParam) > 0 {
-					if !foundMatch {
-						Warnf("WARNING: Environment '" + prefix + envBranch + "' cannot be found in any source and will not be deployed.")
-					}
-				}
 			} else {
 				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
 				if sa.ExitIfUnreachable == true {
@@ -177,6 +172,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	}
 
 	wg.Wait()
+	if len(environmentParam) > 0 {
+		if !foundMatch {
+			Warnf("WARNING: Environment '" + environmentParam + "' cannot be found in any source and will not be deployed.")
+		}
+	}
 	//fmt.Println("allPuppetfiles: ", allPuppetfiles, len(allPuppetfiles))
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
@@ -194,6 +194,13 @@ func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnv
 
 	for source, sa := range config.Sources {
 		prefix := resolveSourcePrefix(source, sa)
+
+		if len(environmentParam) > 0 {
+			if !strings.HasPrefix(environmentParam, prefix) {
+				continue
+			}
+		}
+
 		// Clean up unknown environment directories
 		if len(envBranch) == 0 {
 			for basedir, _ := range allBasedirs {
@@ -518,6 +525,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			dr.FinishedAt = time.Now()
 			dr.PuppetfileChecksum = getSha256sumFile(filepath.Join(pf.workDir, "Puppetfile"))
 			writeStructJSONFile(deployFile, dr)
+			mutex.Lock()
+			desiredContent = append(desiredContent, deployFile)
+			mutex.Unlock()
 		}
 	}
 
