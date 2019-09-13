@@ -111,6 +111,8 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		}
 		Debugf("Nothing to do for module " + fm.author + "-" + fm.name + "-" + fm.version + ", because " + latestDir + " exists")
 	} else {
+		// check for deprecation notice
+		_ = queryForgeAPI(fm)
 		if !isDir(workDir) {
 			fr.needToGet = true
 		} else {
