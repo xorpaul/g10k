@@ -2,6 +2,9 @@
 :cachedir: '/tmp/g10k'
 use_cache_fallback: false
 
+deploy:
+  purge_levels: [ 'deployment', 'environment', 'puppetfile' ]
+
 sources:
   example:
     remote: 'https://github.com/xorpaul/g10k-environment.git'
