@@ -498,6 +498,12 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 				t.Error(err)
 			}
 			fmt.Fprint(w, string(body))
+		} else if r.URL.Path == "/v3/modules/puppetlabs-ntp" {
+			body, err := ioutil.ReadFile("tests/fake-forge/latest-puppetlabs-ntp-metadata.json")
+			if err != nil {
+				t.Error(err)
+			}
+			fmt.Fprint(w, string(body))
 		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
 			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
 			if err != nil {

@@ -298,7 +298,7 @@ func main() {
 			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", false, false)
-			puppetfile.workDir = "./"
+			puppetfile.workDir = ""
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
 			resolvePuppetfile(pfm)
@@ -319,7 +319,7 @@ func main() {
 		if len(forgeModuleDeprecationNotice) > 0 {
 			Warnf(strings.TrimSuffix(forgeModuleDeprecationNotice, "\n"))
 		}
-		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolv and", strconv.Itoa(config.MaxExtractworker), "extract workers")
+		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolve and", strconv.Itoa(config.MaxExtractworker), "extract workers")
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)

@@ -128,6 +128,6 @@ func matchBlacklistContent(filePath string) bool {
 			return true
 		}
 	}
-	Debugf("not skipping file " + filePath + " because no purge_blacklist pattern matches")
+	//Debugf("not skipping file " + filePath + " because no purge_blacklist pattern matches")
 	return false
 }

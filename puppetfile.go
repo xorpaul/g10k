@@ -367,7 +367,11 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
 		Debugf("Syncing " + env + " with workDir " + pf.workDir)
-		basedir := checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
+		// this prevents g10k from purging module directories on the subsequent run in -puppetfile mode
+		basedir := ""
+		if !pfMode {
+			basedir = checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
+		}
 		var envBranch string
 		if !pfMode {
 			// we want only the branch name of the control repo and not the resulting
@@ -378,7 +382,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		for _, moduleDir := range pf.moduleDirs {
 			exisitingModuleDirsFI, _ := ioutil.ReadDir(pf.workDir + moduleDir)
 			moduleDir = normalizeDir(pf.workDir + moduleDir)
-			//fmt.Println("checking dir: ", moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
 				//fmt.Println("adding dir: ", moduleDir+exisitingModuleDir.Name())
