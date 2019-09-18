@@ -102,15 +102,12 @@ func isDir(dir string) bool {
 	return false
 }
 
-// normalizeDir removes from the given directory path multiple redundant slashes and adds a trailing slash
+// normalizeDir removes from the given directory path multiple redundant slashes and removes a trailing slash
 func normalizeDir(dir string) string {
 	if strings.Count(dir, "//") > 0 {
 		dir = normalizeDir(strings.Replace(dir, "//", "/", -1))
-	} else {
-		if !strings.HasSuffix(dir, "/") {
-			dir = dir + "/"
-		}
 	}
+	dir = strings.TrimSuffix(dir, "/")
 	return dir
 }
 
