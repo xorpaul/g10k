@@ -48,122 +48,142 @@ func TestForgeChecksum(t *testing.T) {
 
 func TestConfigPrefix(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example/", Prefix: "foobar", PrivateKey: ""}
+		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: ""}
 
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigForceForgeVersions(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example/", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true, WarnMissingBranch: false}
+		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true, WarnMissingBranch: false}
 
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigAddWarning(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false, WarnMissingBranch: true}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false, WarnMissingBranch: true}
 
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigSimplePostrunCommand(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false}
 
 	postrunCommand := []string{"/usr/bin/touch", "-f", "/tmp/g10kfoobar"}
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
 	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigPostrunCommand(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-test-environment.git",
-		Basedir: "/tmp/example/", PrivateKey: "", ForceForgeVersions: false, Prefix: "true"}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false, Prefix: "true"}
 
 	postrunCommand := []string{"tests/postrun.sh", "$modifiedenvs"}
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
 	if !reflect.DeepEqual(got, expected) {
+		fmt.Println("### Expected:")
+		spew.Dump(expected)
+		fmt.Println("### Got:")
+		spew.Dump(got)
 		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
 	}
 }
 
 func TestConfigDeploy(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	got := readConfigfile("tests/" + funcName + ".yaml")
+	got := readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	s := make(map[string]Source)
 	s["full"] = Source{Remote: "https://github.com/xorpaul/g10k-fullworking-env.git",
-		Basedir: "/tmp/full/", Prefix: "true", PrivateKey: ""}
+		Basedir: "/tmp/full", Prefix: "true", PrivateKey: ""}
 
 	expected := ConfigSettings{
-		CacheDir: "/tmp/g10k/", ForgeCacheDir: "/tmp/g10k/forge/",
-		ModulesCacheDir: "/tmp/g10k/modules/", EnvCacheDir: "/tmp/g10k/environments/",
+		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
+		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
 		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
@@ -184,7 +204,8 @@ func TestResolveConfigAddWarning(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigAddWarning.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("nonExistingBranch", false, "")
+		branchParam = "nonExistingBranch"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -208,21 +229,22 @@ func TestResolveConfigAddWarning(t *testing.T) {
 func TestResolveStatic(t *testing.T) {
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
-		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+		t.Skip("Skipping full Puppet environment resolve test, because package hashdeep is missing")
 	}
 
 	quiet = true
-	purgeDir("./cache/", "TestResolveStatic()")
-	purgeDir("./example/", "TestResolveStatic()")
+	purgeDir("./cache", "TestResolveStatic()")
+	purgeDir("./example", "TestResolveStatic()")
 	config = readConfigfile("tests/TestConfigStatic.yaml")
 	// increase maxworker to finish the test quicker
 	config.Maxworker = 500
-	resolvePuppetEnvironment("static", false, "")
+	branchParam = "static"
+	resolvePuppetEnvironment(false, "")
 
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
 	removeTimestampsFromDeployfile("example/example_static/.g10k-deploy.json")
 
-	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	cmd := exec.Command(path, "-vv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -238,7 +260,7 @@ func TestResolveStatic(t *testing.T) {
 
 	purgeDir("example/example_static/external_modules/stdlib/spec/unit/facter/util", "TestResolveStatic()")
 
-	cmd = exec.Command("hashdeep", "-l", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	cmd = exec.Command("hashdeep", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -259,21 +281,22 @@ func TestResolveStatic(t *testing.T) {
 func TestResolveStaticBlacklist(t *testing.T) {
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
-		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+		t.Skip("Skipping full Puppet environment resolve test, because package hashdeep is missing")
 	}
 
 	quiet = true
-	purgeDir("./cache/", "TestResolvStaticBlacklist()")
-	purgeDir("./example/", "TestResolvStaticBlacklist()")
+	purgeDir("./cache", "TestResolvStaticBlacklist()")
+	purgeDir("./example", "TestResolvStaticBlacklist()")
 	config = readConfigfile("tests/TestConfigStaticBlacklist.yaml")
 	// increase maxworker to finish the test quicker
 	config.Maxworker = 500
-	resolvePuppetEnvironment("blacklist", false, "")
+	branchParam = "blacklist"
+	resolvePuppetEnvironment(false, "")
 
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
 	removeTimestampsFromDeployfile("example/example_blacklist/.g10k-deploy.json")
 
-	cmd := exec.Command(path, "-vvv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	cmd := exec.Command(path, "-vv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -288,9 +311,9 @@ func TestResolveStaticBlacklist(t *testing.T) {
 	Debugf("hashdeep output:" + string(out))
 
 	expectedMissingFiles := []string{
-		"example/example_blacklist/external_modules/stdlib/spec/",
-		"example/example_blacklist/external_modules/stdlib/readmes/",
-		"example/example_blacklist/external_modules/stdlib/examples/",
+		"example/example_blacklist/external_modules/stdlib/spec",
+		"example/example_blacklist/external_modules/stdlib/readmes",
+		"example/example_blacklist/external_modules/stdlib/examples",
 	}
 	for _, expectedMissingFile := range expectedMissingFiles {
 		if fileExists(expectedMissingFile) {
@@ -300,7 +323,7 @@ func TestResolveStaticBlacklist(t *testing.T) {
 
 	purgeDir("example/example_blacklist/Puppetfile", "TestResolveStaticBlacklist()")
 
-	cmd = exec.Command(path, "-l", "-r", "./example/", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	cmd = exec.Command(path, "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -315,11 +338,12 @@ func TestResolveStaticBlacklist(t *testing.T) {
 
 func TestConfigGlobalAllowFail(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -335,7 +359,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules/sensu/ but ignore-unreachable is set. Continuing...") {
+	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules/sensu but ignore-unreachable is set. Continuing...") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. Output was: %s", string(out))
 	}
 	debug = false
@@ -364,7 +388,7 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 	// fake Puppetlabs Forge looks good, continuing...
 	fm["puppetlabs/ntp"] = f
 	pf := Puppetfile{forgeModules: fm, source: "test",
-		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test/"}
+		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test"}
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
@@ -374,6 +398,7 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		checkDirAndCreate(config.ForgeCacheDir, "TestInvalidMetadataForgemodule")
 		resolvePuppetfile(pfm)
 		return
 	}
@@ -389,7 +414,7 @@ func TestInvalidFilesizeForgemodule(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", exitCode)
 	}
-	if !strings.Contains(string(out), "WARNING: calculated file size 760 for /tmp/forge_cachepuppetlabs-ntp-6.0.0.tar.gz does not match expected file size 1337") {
+	if !strings.Contains(string(out), "WARNING: calculated file size 760 for /tmp/forge_cache/puppetlabs-ntp-6.0.0.tar.gz does not match expected file size 1337") {
 		t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -417,16 +442,17 @@ func TestInvalidMd5sumForgemodule(t *testing.T) {
 	// fake Puppetlabs Forge looks good, continuing...
 	fm["puppetlabs/ntp"] = f
 	pf := Puppetfile{forgeModules: fm, source: "test",
-		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test/"}
+		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test"}
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
 	config = ConfigSettings{ForgeCacheDir: "/tmp/forge_cache", Maxworker: 500}
-	defer purgeDir(pf.workDir, "TestInvalidMetadataForgemodule")
-	defer purgeDir(config.ForgeCacheDir, "TestInvalidMetadataForgemodule")
+	defer purgeDir(pf.workDir, "TestInvalidMd5sumForgemodule")
+	defer purgeDir(config.ForgeCacheDir, "TestInvalidMd5sumForgemodule")
 
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		checkDirAndCreate(config.ForgeCacheDir, "TestInvalidMd5sumForgemodule")
 		resolvePuppetfile(pfm)
 		return
 	}
@@ -435,7 +461,7 @@ func TestInvalidMd5sumForgemodule(t *testing.T) {
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
 	out, err := cmd.CombinedOutput()
 
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() && strings.Contains(string(out), "WARNING: calculated md5sum ccee7dd0c564de1c586be58dcf7626a5 for /tmp/forge_cachepuppetlabs-ntp-6.0.0.tar.gz does not match expected md5sum fakeMd5SumToCheckIfIntegrityCheckWorksAsExpected") {
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() && strings.Contains(string(out), "WARNING: calculated md5sum ccee7dd0c564de1c586be58dcf7626a5 for /tmp/forge_cache/puppetlabs-ntp-6.0.0.tar.gz does not match expected md5sum fakeMd5SumToCheckIfIntegrityCheckWorksAsExpected") {
 		return
 	}
 	t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", err)
@@ -463,7 +489,7 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 	// fake Puppetlabs Forge looks good, continuing...
 	fm["puppetlabs/ntp"] = f
 	pf := Puppetfile{forgeModules: fm, source: "test",
-		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test/"}
+		forgeBaseURL: f.baseURL, workDir: "/tmp/test_test"}
 	pfm := make(map[string]Puppetfile)
 	pfm["test"] = pf
 
@@ -473,6 +499,7 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		checkDirAndCreate(config.ForgeCacheDir, "TestInvalidSha256sumForgemodule")
 		resolvePuppetfile(pfm)
 		return
 	}
@@ -481,7 +508,7 @@ func TestInvalidSha256sumForgemodule(t *testing.T) {
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
 	out, err := cmd.CombinedOutput()
 
-	if e, ok := err.(*exec.ExitError); ok && !e.Success() && strings.Contains(string(out), "WARNING: calculated sha256sum 59adaf8c4ab90ab629abcd8e965b6bdd28a022cf408e4e74b7294b47ce11644a for /tmp/forge_cachepuppetlabs-ntp-6.0.0.tar.gz does not match expected sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944") {
+	if e, ok := err.(*exec.ExitError); ok && !e.Success() && strings.Contains(string(out), "WARNING: calculated sha256sum 59adaf8c4ab90ab629abcd8e965b6bdd28a022cf408e4e74b7294b47ce11644a for /tmp/forge_cache/puppetlabs-ntp-6.0.0.tar.gz does not match expected sha256sum a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944") {
 		return
 	}
 	t.Errorf("resolvePuppetfile() terminated with %v, but we expected exit status 1", err)
@@ -521,15 +548,15 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 func TestModuleDirOverride(t *testing.T) {
 	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", false, false)
 	//fmt.Println(got.forgeModules["apt"].moduleDir)
-	if "external_modules/" != got.forgeModules["apt"].moduleDir {
-		t.Error("Expected 'external_modules/' for module dir, but got", got.forgeModules["apt"].moduleDir)
+	if "external_modules" != got.forgeModules["apt"].moduleDir {
+		t.Error("Expected 'external_modules' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
-	if "modules/" != got.gitModules["another_module"].moduleDir {
-		t.Error("Expected 'modules/' for module dir, but got", got.gitModules["another_module"].moduleDir)
+	if "modules" != got.gitModules["another_module"].moduleDir {
+		t.Error("Expected 'modules' for module dir, but got", got.gitModules["another_module"].moduleDir)
 	}
-	moduleDirParam = "foobar/"
+	moduleDirParam = "foobar"
 	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", false, false)
-	if "foobar/" != got.forgeModules["apt"].moduleDir {
+	if "foobar" != got.forgeModules["apt"].moduleDir {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
 	moduleDirParam = ""
@@ -540,7 +567,8 @@ func TestResolveConfigExitIfUnreachable(t *testing.T) {
 	config = readConfigfile("tests/TestConfigExitIfUnreachable.yaml")
 	purgeDir(config.CacheDir, "TestResolveConfigExitIfUnreachable()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -567,7 +595,9 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 	config = readConfigfile("tests/TestConfigExitIfUnreachableFalse.yaml")
 	purgeDir(config.CacheDir, "TestResolveConfigExitIfUnreachableFalse()")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -591,25 +621,26 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 func TestConfigUseCacheFallback(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail", false, "")
+		branchParam = "single_fail"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
 	// get the module to cache it
-	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/", "false", false, 0)
+	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", "false", false, 0)
 
 	// rename the cached module dir to match the otherwise failing single_fail env
-	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git/"
+	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git"
 	purgeDir(unresolvableGitDir, funcName)
 	purgeDir("/tmp/example/single_fail", funcName)
-	err := os.Rename("/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/", unresolvableGitDir)
+	err := os.Rename("/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", unresolvableGitDir)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// change the git remote url to something that does not resolv https://.com/...
+	// change the git remote url to something that does not resolve https://.com/...
 	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
@@ -623,6 +654,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
+	//fmt.Println(string(out))
 
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
@@ -638,25 +670,26 @@ func TestConfigUseCacheFallback(t *testing.T) {
 func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail", false, "")
+		branchParam = "single_fail"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
 	// get the module to cache it
-	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/", "false", false, 0)
+	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", "false", false, 0)
 
 	// rename the cached module dir to match the otherwise failing single_fail env
-	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git/"
+	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git"
 	purgeDir(unresolvableGitDir, funcName)
 	purgeDir("/tmp/example/single_fail", funcName)
-	err := os.Rename("/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/", unresolvableGitDir)
+	err := os.Rename("/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", unresolvableGitDir)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// change the git remote url to something that does not resolv https://.com/...
+	// change the git remote url to something that does not resolve https://.com/...
 	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
@@ -688,9 +721,12 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail_forge", false, "")
+		debug = true
+		branchParam = "single_fail_forge"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
+	purgeDir("/tmp/example", funcName)
 	fm := ForgeModule{version: "1.9.0", author: "puppetlabs", name: "firewall"}
 	config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
 	downloadForgeModule("puppetlabs-firewall", "1.9.0", fm, 1)
@@ -707,10 +743,19 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "Forge API error, trying to use cache for module puppetlabs/puppetlabs-firewall\nUsing cached version 1.9.0 for puppetlabs-firewall-latest") {
-		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+
+	expectedLines := []string{
+		"Forge API error, trying to use cache for module puppetlabs/puppetlabs-firewall",
+		"Using cached version 1.9.0 for puppetlabs-firewall-latest",
 	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("terminated with the correct exit code, but the expected line '"+expectedLine+"' was missing\n. out: %s", string(out))
+		}
+	}
+
+	//fmt.Println(string(out))
 	if !fileExists("/tmp/example/single_fail_forge/modules/firewall/metadata.json") {
 		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
 	}
@@ -723,7 +768,8 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 	purgeDir("/tmp/example", funcName)
 	purgeDir(config.ForgeCacheDir, funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail_forge", false, "")
+		branchParam = "single_fail_forge"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -754,7 +800,8 @@ func TestResolvePuppetfileInstallPath(t *testing.T) {
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	purgeDir("/tmp/example", funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("install_path", false, "")
+		branchParam = "install_path"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -794,8 +841,9 @@ func TestResolvePuppetfileInstallPathTwice(t *testing.T) {
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	purgeDir("/tmp/example", funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("install_path", false, "")
-		resolvePuppetEnvironment("install_path", false, "")
+		branchParam = "install_path"
+		resolvePuppetEnvironment(false, "")
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -838,11 +886,13 @@ func TestResolvePuppetfileSingleModuleForge(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		moduleParam = "stdlib"
 		//debug = true
-		resolvePuppetEnvironment("single_module", false, "")
+		branchParam = "single_module"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("single_module", false, "")
+	branchParam = "single_module"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("terminated with the correct exit code, but the resolved metadata.json is missing %s", metadataFile)
 	}
@@ -890,11 +940,13 @@ func TestResolvePuppetfileSingleModuleGit(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		moduleParam = "firewall"
 		//debug = true
-		resolvePuppetEnvironment("single_module", false, "")
+		branchParam = "single_module"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("single_module", false, "")
+	branchParam = "single_module"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -941,11 +993,13 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 	metadataFile := aptDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("fallback", false, "")
+		branchParam = "fallback"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("fallback", false, "")
+	branchParam = "fallback"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -993,11 +1047,13 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 	metadataFile := apacheDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("default_branch", false, "")
+		branchParam = "default_branch"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("default_branch", false, "")
+	branchParam = "default_branch"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -1041,15 +1097,17 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
-	testDir := "/tmp/example/foobar_control_branch_foobar/modules/g10k_testmodule/"
-	initFile := testDir + "manifests/init.pp"
+	testDir := "/tmp/example/foobar_control_branch_foobar/modules/g10k_testmodule"
+	initFile := filepath.Join(testDir, "manifests/init.pp")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("control_branch_foobar", false, "")
+		branchParam = "control_branch_foobar"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("control_branch_foobar", false, "")
+	branchParam = "control_branch_foobar"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(initFile) {
 		t.Errorf("expected module init.pp is missing %s", initFile)
 	}
@@ -1076,7 +1134,7 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	branchFile := testDir + "MODULEBRANCHNAME_IS_control_branch_foobar"
+	branchFile := filepath.Join(testDir, "MODULEBRANCHNAME_IS_control_branch_foobar")
 	if !fileExists(branchFile) {
 		t.Errorf("error missing file %s, which means that not the correct module branch was used by :control_branch", branchFile)
 	}
@@ -1091,14 +1149,16 @@ func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	apacheDir := "/tmp/example/foobar_control_branch_default/modules/apache"
-	metadataFile := apacheDir + "/metadata.json"
+	metadataFile := filepath.Join(apacheDir, "metadata.json")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("control_branch_default", false, "")
+		branchParam = "control_branch_default"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("control_branch_default", false, "")
+	branchParam = "control_branch_default"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -1141,21 +1201,21 @@ func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
 func TestConfigRetryGitCommands(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_git", false, "")
+		branchParam = "single_git"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
-	localGitRepoDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/"
+	localGitRepoDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git"
 	purgeDir(localGitRepoDir, funcName)
 
 	// get the module to cache it
 	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", localGitRepoDir, "false", false, 0)
 
 	// corrupt the local git module repository
-
-	matches, _ := filepath.Glob(localGitRepoDir + "objects/pack/*.idx")
+	matches, _ := filepath.Glob(filepath.Join(localGitRepoDir, "objects/pack/*.idx"))
 	for _, m := range matches {
 		if err := os.RemoveAll(m); err != nil {
 			t.Error("Error: deleting Git *.idx file to corrupt the local Git repository")
@@ -1192,8 +1252,10 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		purgeDir("/tmp/example/", funcName)
 		debug = true
-		resolvePuppetEnvironment("local_modules", false, "")
+		branchParam = "local_modules"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1211,16 +1273,16 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	if !strings.Contains(string(out), "Need to sync /tmp/example/foobar_local_modules/modules/stdlib") {
-		t.Errorf("terminated with the correct exit code, but the expected output was missing 1. out: %s", string(out))
+	expectedLines := []string{
+		"Need to sync /tmp/example/foobar_local_modules/modules/stdlib",
+		"Not deleting /tmp/example/foobar_local_modules/modules/localstuff as it is declared as a local module",
+		"Not deleting /tmp/example/foobar_local_modules/modules/localstuff2 as it is declared as a local module",
 	}
 
-	if !strings.Contains(string(out), "Not deleting /tmp/example/foobar_local_modules/modules/localstuff as it is declared as a local module") {
-		t.Errorf("terminated with the correct exit code, but the expected output was missing 2. out: %s", string(out))
-	}
-
-	if !strings.Contains(string(out), "Not deleting /tmp/example/foobar_local_modules/modules/localstuff2 as it is declared as a local module") {
-		t.Errorf("terminated with the correct exit code, but the expected output was missing 3. out: %s", string(out))
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
 	}
 
 	file1 := "/tmp/example/foobar_local_modules/modules/localstuff/foobar3"
@@ -1244,7 +1306,8 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("invalid_git_object", false, "")
+		branchParam = "invalid_git_object"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1273,12 +1336,13 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 }
 
 func TestUnTarPreserveTimestamp(t *testing.T) {
-	purgeDir("/tmp/example/", "TestUnTarPreserveTimestamp()")
+	purgeDir("/tmp/example", "TestUnTarPreserveTimestamp()")
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("master", false, "")
+		branchParam = "master"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1328,11 +1392,13 @@ func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
 	metadataFile := aptDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("fallback", false, "")
+		branchParam = "fallback"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("fallback", false, "")
+	branchParam = "fallback"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -1381,11 +1447,13 @@ func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
 	metadataFile := aptDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("fallback", false, "")
+		branchParam = "fallback"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	resolvePuppetEnvironment("fallback", false, "")
+	branchParam = "fallback"
+	resolvePuppetEnvironment(false, "")
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -1427,8 +1495,9 @@ func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
 
 func TestAutoCorrectEnvironmentNames(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
-	resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
+	branchParam = "single_autocorrect-%-fooo"
+	resolvePuppetEnvironment(false, "")
 
 	firewallDir := "/tmp/example/single_autocorrect___fooo/modules/firewall"
 	metadataFile := firewallDir + "/metadata.json"
@@ -1444,8 +1513,9 @@ func TestAutoCorrectEnvironmentNames(t *testing.T) {
 
 func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
-	resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
+	branchParam = "single_autocorrect-%-fooo"
+	resolvePuppetEnvironment(false, "")
 
 	firewallDir := "/tmp/example/single_autocorrect-%-fooo/modules/firewall"
 	metadataFile := firewallDir + "/metadata.json"
@@ -1462,11 +1532,12 @@ func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
 func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 	firewallDir := "/tmp/example/single_autocorrect___fooo/modules/firewall"
 	metadataFile := firewallDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+		branchParam = "single_autocorrect-%-fooo"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1500,11 +1571,12 @@ func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
 func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/" + funcName + ".yaml")
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
 	firewallDir := "/tmp/example/single_autocorrect-%-fooo/modules/firewall"
 	metadataFile := firewallDir + "/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_autocorrect-%-fooo", false, "")
+		branchParam = "single_autocorrect-%-fooo"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1540,7 +1612,8 @@ func TestLastCheckedFile(t *testing.T) {
 	config = readConfigfile("tests/TestConfigPrefix.yaml")
 	lastCheckedFile := "/tmp/g10k/forge/puppetlabs-inifile-latest-last-checked"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_cache", false, "")
+		branchParam = "single_cache"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1586,7 +1659,8 @@ func TestLastCheckedFile(t *testing.T) {
 		t.Errorf("Forge cache file could not be truncated/emptied: %s", lastCheckedFile)
 	}
 
-	resolvePuppetEnvironment("single_cache", false, "")
+	branchParam = "single_cache"
+	resolvePuppetEnvironment(false, "")
 	json, _ = ioutil.ReadFile(lastCheckedFile)
 	result = parseForgeAPIResult(string(json), fm)
 	result2 = queryForgeAPI(fm)
@@ -1610,7 +1684,8 @@ func TestSimplePostrunCommand(t *testing.T) {
 	purgeDir(touchFile, funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1648,7 +1723,8 @@ func TestPostrunCommand(t *testing.T) {
 	postrunLogfile := "/tmp/postrun.log"
 	purgeDir(postrunLogfile, funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		checkForAndExecutePostrunCommand()
 		return
 	}
@@ -1698,7 +1774,8 @@ func TestPostrunCommandDirs(t *testing.T) {
 	postrunLogfile := "/tmp/postrun.log"
 	purgeDir(postrunLogfile, funcName)
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		checkForAndExecutePostrunCommand()
 		return
 	}
@@ -1723,10 +1800,10 @@ func TestPostrunCommandDirs(t *testing.T) {
 	content, _ := ioutil.ReadFile(postrunLogfile)
 
 	expectedLines := []string{
-		"postrun command wrapper script received argument: /tmp/example/example_master/",
-		"postrun command wrapper script received argument: /tmp/example/example_foobar/",
-		"postrun command wrapper script received argument: /tmp/example/example_foobar/modules/systemd/",
-		"postrun command wrapper script received argument: /tmp/example/example_master/modules/systemd/",
+		"postrun command wrapper script received argument: /tmp/example/example_master",
+		"postrun command wrapper script received argument: /tmp/example/example_foobar",
+		"postrun command wrapper script received argument: /tmp/example/example_foobar/modules/systemd",
+		"postrun command wrapper script received argument: /tmp/example/example_master/modules/systemd",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -1748,7 +1825,8 @@ func TestMultipleModuledirs(t *testing.T) {
 	moduleDir1File := "/tmp/example/foobar_multiple_moduledir/external_modules/stdlib/metadata.json"
 	moduleDir2File := "/tmp/example/foobar_multiple_moduledir/base_modules/apt/metadata.json"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("multiple_moduledir", false, "")
+		branchParam = "multiple_moduledir"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -1778,7 +1856,8 @@ func TestMultipleModuledirs(t *testing.T) {
 	checkDirAndCreate(unmanagedModule1, funcName)
 	checkDirAndCreate(unmanagedModule2, funcName)
 
-	resolvePuppetEnvironment("multiple_moduledir", false, "")
+	branchParam = "multiple_moduledir"
+	resolvePuppetEnvironment(false, "")
 
 	if isDir(unmanagedModule1) {
 		t.Errorf("Unmanaged Module directory 1 is still there and should not be: %s", unmanagedModule1)
@@ -1788,7 +1867,7 @@ func TestMultipleModuledirs(t *testing.T) {
 		t.Errorf("Unmanaged Module directory 2 is still there and should not be: %s", unmanagedModule2)
 	}
 
-	purgeDir("/tmp/example", funcName)
+	//purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
 	moduleParam = ""
 	debug = false
@@ -1799,17 +1878,18 @@ func TestFailedGit(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/TestConfigRetryGitCommands.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		resolvePuppetEnvironment("single_fail", false, "")
+		branchParam = "single_fail"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
 	// get the module to cache it
-	gitDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git/"
+	gitDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git"
 	gitUrl := "https://github.com/puppetlabs/puppetlabs-firewall.git"
 	purgeDir(gitDir, funcName)
 	doMirrorOrUpdate(gitUrl, gitDir, "false", false, 0)
 
-	// change the git remote url to something that does not resolv https://.com/...
+	// change the git remote url to something that does not resolve https://.com/...
 	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
@@ -1839,7 +1919,8 @@ func TestCheckDirPermissions(t *testing.T) {
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		config = readConfigfile("tests/TestConfigPrefix.yaml")
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		purgeDir(cacheDir, funcName)
@@ -1879,9 +1960,11 @@ func TestPurgeWhitelist(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
+		purgeDir("/tmp/example", funcName)
 		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
 		createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
 		f, _ := os.Create("/tmp/example/single/.latest_revision")
@@ -1936,7 +2019,8 @@ func TestPurgeStaleContent(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
@@ -1998,7 +2082,7 @@ func TestPurgeStaleEnvironments(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworking.yaml")
-		resolvePuppetEnvironment("", false, "")
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
@@ -2063,7 +2147,8 @@ func TestPurgeStaleEnvironmentOnly(t *testing.T) {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingPurgeEnvironment.yaml")
 		fmt.Printf("%+v\n", config)
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
@@ -2136,7 +2221,8 @@ func TestPurgeStalePuppetfileOnly(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingPurgePuppetfile.yaml")
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
@@ -2210,7 +2296,8 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingPurgeDeployment.yaml")
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
@@ -2280,7 +2367,8 @@ func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingPurgeDeploymentWithWhitelist.yaml")
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	} else {
 		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
@@ -2361,7 +2449,8 @@ func TestEnvironmentParameter(t *testing.T) {
 		debug = true
 		config = readConfigfile("tests/TestConfigFullworkingAndExampleDifferentPrefix.yaml")
 		environmentParam = "full_master"
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -2391,7 +2480,7 @@ func TestEnvironmentParameter(t *testing.T) {
 		}
 	}
 
-	if fileExists("/tmp/out/example_master/") {
+	if fileExists("/tmp/out/example_master") {
 		t.Errorf("Puppet environment example_master should not have been deployed, with branch parameter set to full_master")
 	}
 
@@ -2415,7 +2504,8 @@ func TestDetectPuppetfileChanges(t *testing.T) {
 	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		info = true
-		resolvePuppetEnvironment("single", false, "")
+		branchParam = "single"
+		resolvePuppetEnvironment(false, "")
 		return
 	}
 
@@ -2437,8 +2527,8 @@ func TestDetectPuppetfileChanges(t *testing.T) {
 	//fmt.Println(string(out))
 
 	expectedLines := []string{
-		"Need to sync /tmp/example/single/",
-		"Need to sync /tmp/example/single/external_modules/inifile/",
+		"Need to sync /tmp/example/single",
+		"Need to sync /tmp/example/single/external_modules/inifile",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2471,11 +2561,23 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		environmentParam = "example_single"
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		environmentParam = "full_single"
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
 		environmentParam = "example_single_git"
-		resolvePuppetEnvironment("", false, "")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		// create stale sub folder with a file inside
+		checkDirAndCreate("/tmp/out/example_single_git/mymodule2/dir1", funcName)
+		f, _ := os.Create("/tmp/out/example_single_git/mymodule2/dir1/file3")
+		f.WriteString("slddkasjld")
+		f.Close()
+		f.Sync()
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+
 		return
 	}
 
@@ -2497,10 +2599,10 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	//fmt.Println(string(out))
 
 	expectedLines := []string{
-		"Need to sync /tmp/out/example_single/",
-		"Need to sync /tmp/out/full_single/",
+		"Need to sync /tmp/out/example_single",
+		"Need to sync /tmp/out/full_single",
 		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for source 'example', because -environment parameter is set to full_single",
-		"Need to sync /tmp/out/example_single_git/",
+		"Need to sync /tmp/out/example_single_git",
 		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for Puppet environment 'example_single', because -environment parameter is set to example_single_git",
 		"DEBUG purgeUnmanagedContent(): Skipping purging unmanaged content for source 'full', because -environment parameter is set to example_single_git",
 	}
@@ -2513,7 +2615,7 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
-		t.Skip("Skipping full Puppet environment resolv test, because package hashdeep is missing")
+		t.Skip("Skipping full Puppet environment resolve test, because package hashdeep is missing")
 	}
 
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
@@ -2521,7 +2623,7 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	removeTimestampsFromDeployfile("/tmp/out/full_single/.g10k-deploy.json")
 	removeTimestampsFromDeployfile("/tmp/out/example_single_git/.g10k-deploy.json")
 
-	cmd = exec.Command(path, "-vvv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_multiple.hashdeep")
+	cmd = exec.Command(path, "-vv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_multiple.hashdeep")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
