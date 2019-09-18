@@ -238,7 +238,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k version 0.7.4 Build time:", buildtime, "UTC")
+		fmt.Println("g10k version 0.7.3 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
@@ -271,10 +271,11 @@ func main() {
 		checkDirAndCreate(config.CacheDir, "cachedir configured value")
 		target = configFile
 		if len(branchParam) > 0 {
-			resolvePuppetEnvironment(branchParam, tags, outputNameParam)
+			resolvePuppetEnvironment(tags, outputNameParam)
 			target += " with branch " + branchParam
 		} else {
-			resolvePuppetEnvironment("", tags, "")
+			branchParam = ""
+			resolvePuppetEnvironment(tags, "")
 		}
 	} else {
 		if pfMode {
