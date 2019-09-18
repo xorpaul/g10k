@@ -18,7 +18,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			if err == io.EOF {
 				break
 			}
-			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + err.Error())
+			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + " Error: " + err.Error())
 		}
 
 		// get the individual filename and extract to the current directory
@@ -38,9 +38,11 @@ func unTar(r io.Reader, targetBaseDir string) {
 			continue
 		}
 		targetFilename := filepath.Join(targetBaseDir, filename)
+		desiredContent = append(desiredContent, targetFilename)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
+			//fmt.Println("Untarring :", targetFilename)
 			// handle directory
 			//fmt.Println("Creating directory :", filename)
 			//err = os.MkdirAll(targetFilename, os.FileMode(header.Mode)) // or use 0755 if you prefer
@@ -60,7 +62,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 
 		case tar.TypeReg:
 			// handle normal file
-			//fmt.Println("Untarring :", filename)
+			//fmt.Println("Untarring :", targetFilename)
 			writer, err := os.Create(targetFilename)
 
 			if err != nil {
@@ -84,9 +86,9 @@ func unTar(r io.Reader, targetBaseDir string) {
 				if err = os.Remove(targetFilename); err != nil {
 					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
-				if err = os.Symlink(header.Linkname, targetFilename); err != nil {
-					Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
-				}
+			}
+			if err = os.Symlink(header.Linkname, targetFilename); err != nil {
+				Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
 			}
 
 		case tar.TypeLink:
@@ -95,9 +97,9 @@ func unTar(r io.Reader, targetBaseDir string) {
 				if err = os.Remove(targetFilename); err != nil {
 					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
-				if err = os.Link(header.Linkname, targetFilename); err != nil {
-					Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
-				}
+			}
+			if err = os.Link(header.Linkname, targetFilename); err != nil {
+				Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
 			}
 
 		// Skip pax_global_header with the commit ID this archive was created from
