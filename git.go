@@ -77,7 +77,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			//log.Println(config)
 			// create save directory name from Git repo name
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
-			workDir := config.ModulesCacheDir + repoDir
+			workDir := filepath.Join(config.ModulesCacheDir, repoDir)
 
 			success := doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable, 1)
 			if !success && config.UseCacheFallback == false {
@@ -127,7 +127,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 	return true
 }
 
-func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string, onlyDelta bool) bool {
+func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail bool, ignoreUnreachable bool, correspondingPuppetEnvironment string) bool {
 	startedAt := time.Now()
 	mutex.Lock()
 	syncGitCount++
@@ -157,12 +157,20 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 	}
 
 	if len(er.output) > 0 {
-		if strings.HasPrefix(srcDir, config.EnvCacheDir) && fileExists(deployFile) {
-			dr := readDeployResultFile(deployFile)
-			if dr.Signature == strings.TrimSuffix(er.output, "\n") {
-				needToSync = false
+		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
+			desiredContent = append(desiredContent, deployFile)
+			if fileExists(deployFile) {
+				dr := readDeployResultFile(deployFile)
+				if dr.Signature == strings.TrimSuffix(er.output, "\n") {
+					needToSync = false
+				}
 			}
 		} else {
+			desiredContent = append(desiredContent, hashFile)
+			Debugf("adding path to managed content: " + targetDir)
+			mutex.Lock()
+			desiredContent = append(desiredContent, targetDir)
+			mutex.Unlock()
 			targetHash, _ := ioutil.ReadFile(hashFile)
 			if string(targetHash) == strings.TrimSuffix(er.output, "\n") {
 				needToSync = false
@@ -170,9 +178,6 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			}
 		}
 
-	}
-	if onlyDelta {
-		listGitRepoFiles(srcDir, tree, targetDir, hashFile)
 	}
 	if needToSync && er.returnCode == 0 {
 		Infof("Need to sync " + targetDir)
@@ -185,11 +190,7 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		mutex.Unlock()
 
 		if !dryRun {
-			if !onlyDelta {
-				createOrPurgeDir(targetDir, "syncToModuleDir()")
-			} else {
-				checkDirAndCreate(targetDir, "git dir")
-			}
+			checkDirAndCreate(targetDir, "git dir")
 			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", tree}
 			cmd := exec.Command("git", gitArchiveArgs...)
 			Debugf("Executing git --git-dir " + srcDir + " archive " + tree)
@@ -241,27 +242,4 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		}
 	}
 	return true
-}
-
-func listGitRepoFiles(gitDir string, tree string, targetDir string, hashFile string) {
-	treeCmd := "git --git-dir " + gitDir + " ls-tree --full-tree -r --name-only " + tree
-	er := executeCommand(treeCmd, config.Timeout, false)
-	foundGitFiles := strings.Split(er.output, "\n")
-	mutex.Lock()
-	// g10k must have purge whitelist items
-	desiredContent = append(desiredContent, hashFile)
-	desiredContent = append(desiredContent, ".last_commit")
-	for _, desiredFile := range foundGitFiles[:len(foundGitFiles)-1] {
-		desiredContent = append(desiredContent, filepath.Join(targetDir, desiredFile))
-
-		// because we're using -r which prints git managed files in subfolders like this: foo/test3
-		// we have to split up the given string and add the possible parent directories (foo in this case)
-		parentDirs := strings.Split(desiredFile, "/")
-		if len(parentDirs) > 1 {
-			for _, dir := range parentDirs[:len(parentDirs)-1] {
-				desiredContent = append(desiredContent, filepath.Join(targetDir, dir))
-			}
-		}
-	}
-	mutex.Unlock()
 }
