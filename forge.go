@@ -25,7 +25,7 @@ import (
 func doModuleInstallOrNothing(fm ForgeModule) {
 	moduleName := fm.author + "-" + fm.name
 	moduleVersion := fm.version
-	workDir := config.ForgeCacheDir + moduleName + "-" + fm.version
+	workDir := filepath.Join(config.ForgeCacheDir, moduleName+"-"+fm.version)
 	fr := ForgeResult{false, fm.version, "", 0}
 	if check4update {
 		moduleVersion = "latest"
@@ -39,7 +39,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
 					Debugf("no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
-					versionDir := config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
+					versionDir := filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
 					absolutePath, err := filepath.Abs(versionDir)
 					Debugf("trying to create symlink " + workDir + " pointing to " + absolutePath)
 					if err != nil {
@@ -98,7 +98,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 
 	} else if moduleVersion == "present" {
 		// ensure that a latest version this module exists
-		latestDir := config.ForgeCacheDir + moduleName + "-latest"
+		latestDir := filepath.Join(config.ForgeCacheDir, moduleName+"-latest")
 		if !isDir(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
 				Debugf("we got " + fm.author + "-" + fm.name + "-" + fm.version + ", but no " + latestDir + " to use, but -latest is already being fetched.")
@@ -130,14 +130,14 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		} else {
 			// os.Readlink error is okay
 			versionDir, _ := os.Readlink(workDir)
-			if versionDir == config.ForgeCacheDir+moduleName+"-"+fr.versionNumber {
+			if versionDir == filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber) {
 				Debugf("No reason to re-symlink again")
 			} else {
 				if isDir(workDir) {
 					Debugf("Trying to remove symlink: " + workDir)
 					_ = os.Remove(workDir)
 				}
-				versionDir = config.ForgeCacheDir + moduleName + "-" + fr.versionNumber
+				versionDir = filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
 				absolutePath, err := filepath.Abs(versionDir)
 				if err != nil {
 					Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
@@ -199,7 +199,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 		json := string(body)
 		fr := parseForgeAPIResult(json, fm)
 
-		lastCheckedFile := config.ForgeCacheDir + fm.author + "-" + fm.name + "-latest-last-checked"
+		lastCheckedFile := filepath.Join(config.ForgeCacheDir, fm.author+"-"+fm.name+"-latest-last-checked")
 		Debugf("writing last-checked file " + lastCheckedFile)
 		f, _ := os.Create(lastCheckedFile)
 		defer f.Close()
@@ -330,7 +330,7 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	defer fileReader.Close()
 
 	duration := time.Since(before).Seconds()
-	Verbosef("Extracting " + config.ForgeCacheDir + fileName + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	Verbosef("Extracting " + filepath.Join(config.ForgeCacheDir, fileName) + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	mutex.Lock()
 	ioForgeTime += duration
 	mutex.Unlock()
@@ -346,7 +346,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 
-	if !isDir(config.ForgeCacheDir + name + "-" + version) {
+	if !isDir(filepath.Join(config.ForgeCacheDir, name+"-"+version)) {
 		baseURL := config.Forge.Baseurl
 		if len(fm.baseURL) > 0 {
 			baseURL = fm.baseURL
@@ -377,14 +377,15 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 			wgForgeModule.Add(1)
 			go func() {
 				defer wgForgeModule.Done()
-				Debugf(funcName + "(): Trying to create " + config.ForgeCacheDir + fileName)
-				out, err := os.Create(config.ForgeCacheDir + fileName)
+				targetFileName := filepath.Join(config.ForgeCacheDir, fileName)
+				Debugf(funcName + "(): Trying to create " + targetFileName)
+				out, err := os.Create(targetFileName)
 				if err != nil {
-					Fatalf(funcName + "(): Error while creating file for Forge module " + config.ForgeCacheDir + fileName + " Error: " + err.Error())
+					Fatalf(funcName + "(): Error while creating file for Forge module " + targetFileName + " Error: " + err.Error())
 				}
 				defer out.Close()
 				io.Copy(out, saveFileR)
-				Debugf(funcName + "(): Finished creating " + config.ForgeCacheDir + fileName)
+				Debugf(funcName + "(): Finished creating " + targetFileName)
 			}()
 			wgForgeModule.Add(1)
 			go extractForgeModule(&wgForgeModule, extractR, fileName)
@@ -422,8 +423,8 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 				Fatalf("downloadForgeModule(): giving up for Puppet module " + name + " version: " + version)
 			}
 			Warnf("Retrying...")
-			purgeDir(config.ForgeCacheDir+fileName, "downloadForgeModule()")
-			purgeDir(strings.Replace(config.ForgeCacheDir+fileName, ".tar.gz", "/", -1), "downloadForgeModule()")
+			purgeDir(filepath.Join(config.ForgeCacheDir, fileName), "downloadForgeModule()")
+			purgeDir(strings.Replace(filepath.Join(config.ForgeCacheDir, fileName), ".tar.gz", "/", -1), "downloadForgeModule()")
 			// retry if hash sum mismatch found
 			downloadForgeModule(name, version, fm, retryCount-1)
 		}
@@ -547,7 +548,7 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	md5R, md5W := io.Pipe()
 	sha256R, sha256W := io.Pipe()
 	var calculatedArchiveSize int64
-	fileName := config.ForgeCacheDir + m.author + "-" + m.name + "-" + m.version + ".tar.gz"
+	fileName := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-"+m.version+".tar.gz")
 
 	// md5 sum
 	wgCheckSum.Add(1)
@@ -653,12 +654,13 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	mutex.Unlock()
 	moduleName := m.author + "-" + m.name
 	//Debugf("m.name " + m.name + " m.version " + m.version + " moduleName " + moduleName)
-	targetDir := normalizeDir(moduleDir + m.name)
+	targetDir := filepath.Join(moduleDir, m.name)
+	metadataFile := filepath.Join(targetDir, "metadata.json")
 	if m.version == "present" {
-		if fileExists(targetDir + "metadata.json") {
-			Debugf("Nothing to do, found existing Forge module: " + targetDir + "metadata.json")
+		if fileExists(metadataFile) {
+			Debugf("Nothing to do, found existing Forge module: " + targetDir)
 			if check4update {
-				me := readModuleMetadata(targetDir + "metadata.json")
+				me := readModuleMetadata(metadataFile)
 				latestForgeModules.RLock()
 				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
 				latestForgeModules.RUnlock()
@@ -670,8 +672,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 
 	}
 	if isDir(targetDir) {
-		if fileExists(targetDir + "metadata.json") {
-			me := readModuleMetadata(targetDir + "metadata.json")
+		if fileExists(metadataFile) {
+			me := readModuleMetadata(metadataFile)
 			if m.version == "latest" {
 				//fmt.Println(latestForgeModules)
 				//fmt.Println("checking latestForgeModules for key", moduleName)
@@ -698,23 +700,30 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 			createOrPurgeDir(targetDir, " targetDir for module "+m.name+" with missing metadata.json")
 		}
 	}
-	workDir := normalizeDir(config.ForgeCacheDir + moduleName + "-" + m.version)
-	if !isDir(workDir) {
+	workDir := normalizeDir(filepath.Join(config.ForgeCacheDir, moduleName+"-"+m.version))
+	resolvedWorkDir, err := filepath.EvalSymlinks(workDir)
+	if err != nil {
+		Fatalf(funcName + "(): Failed to resolve possivle symlink " + workDir + " Error: " + err.Error())
+	}
+	if !isDir(resolvedWorkDir) {
 		if config.UseCacheFallback {
-			Warnf("Failed to use " + workDir + " Trying to use latest cached version of module " + moduleName)
-			workDir = getLatestCachedModule(m)
+			Warnf("Failed to use " + resolvedWorkDir + " Trying to use latest cached version of module " + moduleName)
+			resolvedWorkDir = getLatestCachedModule(m)
 		} else {
-			Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
+			Fatalf(funcName + "(): Forge module not found in dir: " + resolvedWorkDir)
 		}
 	}
 
-	if !isDir(workDir) {
-		Fatalf(funcName + "(): Forge module not found in dir: " + workDir)
+	if !isDir(resolvedWorkDir) {
+		Fatalf(funcName + "(): Forge module not found in dir: " + resolvedWorkDir)
 	}
 
 	Infof("Need to sync " + targetDir)
 	if !dryRun {
 		targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
+		mutex.Lock()
+		desiredContent = append(desiredContent, targetDir)
+		mutex.Unlock()
 		var targetDirDevice, workDirDevice uint64
 		if fileInfo, err := os.Stat(targetDir); err == nil {
 			if fileInfo.Sys() != nil {
@@ -723,12 +732,12 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		} else {
 			Fatalf(funcName + "(): Error while os.Stat file " + targetDir)
 		}
-		if fileInfo, err := os.Stat(workDir); err == nil {
+		if fileInfo, err := os.Stat(resolvedWorkDir); err == nil {
 			if fileInfo.Sys() != nil {
 				workDirDevice = uint64(fileInfo.Sys().(*syscall.Stat_t).Dev)
 			}
 		} else {
-			Fatalf(funcName + "(): Error while os.Stat file " + workDir)
+			Fatalf(funcName + "(): Error while os.Stat file " + resolvedWorkDir)
 		}
 
 		if targetDirDevice != workDirDevice && !usemove {
@@ -743,41 +752,46 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		needSyncForgeCount++
 		mutex.Unlock()
 		destination := func(path string, info os.FileInfo, err error) error {
-			if filepath.Base(path) != filepath.Base(workDir) { // skip the root dir
-				target, err := filepath.Rel(workDir, path)
-				if err != nil {
-					Fatalf(funcName + "(): Can't make " + path + " relative to " + workDir + " Error: " + err.Error())
-				}
+			target, err := filepath.Rel(resolvedWorkDir, path)
+			if err != nil {
+				Fatalf(funcName + "(): Can't make " + path + " relative to " + resolvedWorkDir + " Error: " + err.Error())
+			}
+			mutex.Lock()
+			desiredContent = append(desiredContent, filepath.Join(targetDir, target))
+			//Debugf("adding path to managed content: " + filepath.Join(targetDir, target))
+			mutex.Unlock()
 
-				if info.IsDir() {
-					//Debugf(funcName + "() Trying to mkdir " + targetDir + target)
+			if info.IsDir() {
+				if target != "." { // skip the root dir
+					//Debugf(funcName + "() Trying to mkdir " + filepath.Join(targetDir, target))
 					err = os.Mkdir(filepath.Join(targetDir, target), os.FileMode(0755))
 					if err != nil {
 						Fatalf(funcName + "(): error while Mkdir() " + targetDir + "/" + target + " Error: " + err.Error())
 					}
+				}
+			} else {
+				if usemove {
+					//Debugf(funcName + "() Trying to helper.moveFile " + path + " to " + targetDir + target)
+					// deleteSourceFileToggle is set to false as we delete the source file later in the main() anyway after the sync completes
+					err = moveFile(path, filepath.Join(targetDir, target), false)
+					if err != nil {
+						Fatalf(funcName + "(): Failed to helper.moveFile " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
+					}
 				} else {
-					if usemove {
-						//Debugf(funcName + "() Trying to helper.moveFile " + path + " to " + targetDir + target)
-						// deleteSourceFileToggle is set to false as we delete the source file later in the main() anyway after the sync completes
-						err = moveFile(path, filepath.Join(targetDir, target), false)
-						if err != nil {
-							Fatalf(funcName + "(): Failed to helper.moveFile " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
-						}
-					} else {
-						//Debugf(funcName + "() Trying to hardlink " + path + " to " + targetDir + target)
-						err = os.Link(path, filepath.Join(targetDir, target))
-						if err != nil {
-							Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
-						}
+					//Debugf(funcName + "() Trying to hardlink " + path + " to " + filepath.Join(targetDir, target))
+					err = os.Link(path, filepath.Join(targetDir, target))
+					if err != nil {
+						Fatalf(funcName + "(): Failed to hardlink " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
 					}
 				}
 			}
 			return nil
 		}
+
 		c := make(chan error)
-		Debugf(funcName + "() filepath.Walk'ing directory " + workDir)
+		Debugf(funcName + "() filepath.Walk'ing directory " + resolvedWorkDir)
 		before := time.Now()
-		go func() { c <- filepath.Walk(workDir, destination) }()
+		go func() { c <- filepath.Walk(resolvedWorkDir, destination) }()
 		<-c // Walk done
 		duration := time.Since(before).Seconds()
 		mutex.Lock()
@@ -791,10 +805,10 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 func getLatestCachedModule(m ForgeModule) string {
 	latest := "//"
 	version := "latest"
-	latestDir := config.ForgeCacheDir + m.author + "-" + m.name + "-latest"
+	latestDir := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-latest")
 	if !isDir(latestDir) {
 
-		globPath := config.ForgeCacheDir + m.author + "-" + m.name + "-*"
+		globPath := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-*")
 		Debugf("Glob'ing with path " + globPath)
 		matches, err := filepath.Glob(globPath)
 		if len(matches) == 0 {
@@ -809,7 +823,7 @@ func getLatestCachedModule(m ForgeModule) string {
 			if isDir(m) {
 				Debugf("Comparing " + latest + " < " + m)
 				if latest < m {
-					Debugf("Setting " + latest + " to " + m)
+					Debugf("Setting latest to " + m)
 					latest = m
 				}
 			}
@@ -831,7 +845,7 @@ func getLatestCachedModule(m ForgeModule) string {
 		}
 
 		version = strings.Split(versionDir, m.author+"-"+m.name+"-")[1]
-		latest = config.ForgeCacheDir + m.author + "-" + m.name + "-" + version
+		latest = filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-"+version)
 	}
 
 	if latest == "//" {
