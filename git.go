@@ -166,9 +166,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 				}
 			}
 		} else {
-			desiredContent = append(desiredContent, hashFile)
 			Debugf("adding path to managed content: " + targetDir)
 			mutex.Lock()
+			desiredContent = append(desiredContent, hashFile)
 			desiredContent = append(desiredContent, targetDir)
 			mutex.Unlock()
 			targetHash, _ := ioutil.ReadFile(hashFile)

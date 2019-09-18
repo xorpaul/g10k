@@ -38,7 +38,9 @@ func unTar(r io.Reader, targetBaseDir string) {
 			continue
 		}
 		targetFilename := filepath.Join(targetBaseDir, filename)
+		mutex.Lock()
 		desiredContent = append(desiredContent, targetFilename)
+		mutex.Unlock()
 
 		switch header.Typeflag {
 		case tar.TypeDir:
