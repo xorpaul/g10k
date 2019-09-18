@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -46,9 +47,9 @@ func readConfigfile(configFile string) ConfigSettings {
 	}
 
 	config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir")
-	config.ForgeCacheDir = checkDirAndCreate(config.CacheDir+"forge/", "cachedir/forge")
-	config.ModulesCacheDir = checkDirAndCreate(config.CacheDir+"modules/", "cachedir/modules")
-	config.EnvCacheDir = checkDirAndCreate(config.CacheDir+"environments/", "cachedir/environments")
+	config.ForgeCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "forge"), "cachedir/forge")
+	config.ModulesCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
+	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
 
 	if len(config.Forge.Baseurl) == 0 {
 		config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
@@ -114,6 +115,11 @@ func readConfigfile(configFile string) ConfigSettings {
 
 	if len(config.PurgeLevels) == 0 {
 		config.PurgeLevels = []string{"deployment", "puppetfile"}
+	}
+
+	for source, sa := range config.Sources {
+		sa.Basedir = normalizeDir(sa.Basedir)
+		config.Sources[source] = sa
 	}
 
 	if validate {
@@ -187,7 +193,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
-	moduleDir := "modules/"
+	moduleDir := "modules"
 	var moduleDirs []string
 	//nextLineAttr := false
 
