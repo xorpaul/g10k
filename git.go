@@ -158,7 +158,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 
 	if len(er.output) > 0 {
 		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
+			mutex.Lock()
 			desiredContent = append(desiredContent, deployFile)
+			mutex.Unlock()
 			if fileExists(deployFile) {
 				dr := readDeployResultFile(deployFile)
 				if dr.Signature == strings.TrimSuffix(er.output, "\n") {
