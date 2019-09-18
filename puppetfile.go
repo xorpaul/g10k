@@ -30,7 +30,7 @@ func sourceSanityCheck(source string, sa Source) {
 	}
 }
 
-func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string) {
+func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker + 1)
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
@@ -50,7 +50,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 			// check for a valid source that has all necessary attributes (basedir, remote, SSH key exist if given)
 			sourceSanityCheck(source, sa)
 
-			workDir := config.EnvCacheDir + source + ".git"
+			workDir := filepath.Join(config.EnvCacheDir, source+".git")
 			// check if sa.Basedir exists
 			checkDirAndCreate(sa.Basedir, "basedir")
 
@@ -85,11 +85,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 					mutex.Lock()
 					allEnvironments[prefix+branch] = true
 					mutex.Unlock()
-					if len(envBranch) > 0 {
-						if branch == envBranch {
+					if len(branchParam) > 0 {
+						if branch == branchParam {
 							foundBranch = true
 						} else {
-							Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + envBranch + "', skipping")
+							Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + branchParam + "', skipping")
 							continue
 						}
 					} else if len(environmentParam) > 0 {
@@ -109,7 +109,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 							Debugf("Resolving environment " + prefix + branch + " of source " + source)
 
 							renamedBranch := branch
-							if (len(outputNameTag) > 0) && (len(envBranch) > 0) {
+							if (len(outputNameTag) > 0) && (len(branchParam) > 0) {
 								renamedBranch = outputNameTag
 								Debugf("Renaming branch " + branch + " to " + renamedBranch)
 							}
@@ -126,11 +126,11 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								}
 							}
 
-							targetDir := sa.Basedir + prefix + strings.Replace(renamedBranch, "/", "_", -1)
+							targetDir := filepath.Join(sa.Basedir, prefix+strings.Replace(renamedBranch, "/", "_", -1))
 							targetDir = normalizeDir(targetDir)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
-							syncToModuleDir(workDir, targetDir, branch, false, false, env, true)
+							syncToModuleDir(workDir, targetDir, branch, false, false, env)
 							pf := filepath.Join(targetDir, "Puppetfile")
 							deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 							if !fileExists(pf) {
@@ -140,7 +140,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 									pfHashSum := getSha256sumFile(pf)
 									dr := readDeployResultFile(deployFile)
 									if pfHashSum == dr.PuppetfileChecksum && dr.DeploySuccess {
-										Infof("Skipping Puppetfile sync of branch " + source + "_" + branch + " because " + targetDir + "Puppetfile did not change")
+										Infof("Skipping Puppetfile sync of branch " + source + "_" + branch + " because " + pf + " did not change")
 										dr.FinishedAt = time.Now()
 										writeStructJSONFile(deployFile, dr)
 									}
@@ -151,6 +151,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 								mutex.Lock()
 								for _, moduleDir := range puppetfile.moduleDirs {
 									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
+									checkDirAndCreate(filepath.Join(puppetfile.workDir, moduleDir), "moduledir for env")
 								}
 								allPuppetfiles[env] = puppetfile
 								allBasedirs[sa.Basedir] = true
@@ -162,7 +163,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 				}
 
 				if sa.WarnMissingBranch && !foundBranch {
-					Warnf("WARNING: Couldn't find specified branch '" + envBranch + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+					Warnf("WARNING: Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				}
 			} else {
 				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
@@ -183,110 +184,7 @@ func resolvePuppetEnvironment(envBranch string, tags bool, outputNameTag string)
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
 	//fmt.Printf("%+v\n", allEnvironments)
-	purgeUnmanagedContent(envBranch, allBasedirs, allEnvironments)
-}
-
-func purgeUnmanagedContent(envBranch string, allBasedirs map[string]bool, allEnvironments map[string]bool) {
-	if !stringSliceContains(config.PurgeLevels, "deployment") {
-		if !stringSliceContains(config.PurgeLevels, "environment") {
-			// nothing allowed to purge
-			return
-		}
-	}
-
-	for source, sa := range config.Sources {
-		prefix := resolveSourcePrefix(source, sa)
-
-		if len(environmentParam) > 0 {
-			if !strings.HasPrefix(environmentParam, prefix) {
-				Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + environmentParam)
-				continue
-			}
-		}
-
-		// Clean up unknown environment directories
-		if len(envBranch) == 0 {
-			for basedir, _ := range allBasedirs {
-				globPath := filepath.Join(basedir, prefix+"*")
-				Debugf("Glob'ing with path " + globPath)
-				environments, _ := filepath.Glob(globPath)
-
-				whitelistEnvironments := []string{}
-				if len(config.DeploymentPurgeWhitelist) > 0 {
-					for _, wlpattern := range config.DeploymentPurgeWhitelist {
-						whitelistGlobPath := filepath.Join(basedir, wlpattern)
-						Debugf("deployment_purge_whitelist Glob'ing with path " + whitelistGlobPath)
-						we, _ := filepath.Glob(whitelistGlobPath)
-						whitelistEnvironments = append(whitelistEnvironments, we...)
-					}
-				}
-
-				for _, env := range environments {
-					envPath := strings.Split(env, "/")
-					envName := envPath[len(envPath)-1]
-					if len(environmentParam) > 0 {
-						if envName != environmentParam {
-							Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + environmentParam)
-							continue
-						}
-					}
-					if stringSliceContains(config.PurgeLevels, "environment") {
-						if allEnvironments[envName] {
-							checkForStaleContent(env)
-						}
-					}
-					if stringSliceContains(config.PurgeLevels, "deployment") {
-						Debugf("Checking if environment should exist: " + envName)
-						if allEnvironments[envName] {
-							Debugf("Not purging environment " + envName)
-						} else if stringSliceContains(whitelistEnvironments, filepath.Join(basedir, envName)) {
-							Debugf("Not purging environment " + envName + " due to deployment_purge_whitelist match")
-						} else {
-							Infof("Removing unmanaged environment " + envName)
-							if !dryRun {
-								purgeDir(filepath.Join(basedir, envName), "purgeStaleContent()")
-							}
-						}
-					}
-				}
-			}
-		} else {
-			if stringSliceContains(config.PurgeLevels, "environment") {
-				// check for purgeable content inside -branch folder
-				checkForStaleContent(filepath.Join(sa.Basedir, prefix+envBranch))
-			}
-		}
-	}
-}
-
-func checkForStaleContent(workDir string) {
-	// add purge whitelist
-	if len(config.PurgeWhitelist) > 0 {
-		Debugf("additional purge whitelist items: " + strings.Join(config.PurgeWhitelist, " "))
-		for _, wlItem := range config.PurgeWhitelist {
-			desiredContent = append(desiredContent, filepath.Join(workDir, wlItem))
-		}
-	}
-
-	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
-		stale := true
-		for _, desiredFile := range desiredContent {
-			if strings.HasPrefix(path, desiredFile) || path == workDir {
-				stale = false
-			}
-		}
-
-		if stale {
-			Infof("Removing unmanaged path " + path)
-			purgeDir(path, "checkForStaleContent()")
-		}
-		return nil
-	}
-
-	c := make(chan error)
-	Debugf("filepath.Walk'ing directory " + workDir)
-	go func() { c <- filepath.Walk(workDir, checkForStaleContent) }()
-	<-c // Walk done
+	purgeUnmanagedContent(allBasedirs, allEnvironments)
 }
 
 // resolveSourcePrefix implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
@@ -372,33 +270,27 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		if !pfMode {
 			basedir = checkDirAndCreate(pf.workDir, "basedir 2 for source "+pf.source)
 		}
-		var envBranch string
-		if !pfMode {
-			// we want only the branch name of the control repo and not the resulting
-			// Puppet environment folder name, which could contain a prefix
-			envBranch = pf.controlRepoBranch
-		}
 
 		for _, moduleDir := range pf.moduleDirs {
-			exisitingModuleDirsFI, _ := ioutil.ReadDir(pf.workDir + moduleDir)
-			moduleDir = normalizeDir(pf.workDir + moduleDir)
+			moduleDir = normalizeDir(filepath.Join(pf.workDir, moduleDir))
+			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
 				//fmt.Println("adding dir: ", moduleDir+exisitingModuleDir.Name())
-				exisitingModuleDirs[moduleDir+exisitingModuleDir.Name()] = empty
+				exisitingModuleDirs[filepath.Join(moduleDir, exisitingModuleDir.Name())] = empty
 			}
 			mutex.Unlock()
 		}
 
 		for gitName, gitModule := range pf.gitModules {
-			moduleDir := pf.workDir + gitModule.moduleDir
+			moduleDir := filepath.Join(pf.workDir, gitModule.moduleDir)
 			moduleDir = normalizeDir(moduleDir)
 			if gitModule.local {
-				Debugf("Not deleting " + moduleDir + gitName + " as it is declared as a local module")
+				moduleDirectory := filepath.Join(moduleDir, gitName)
+				Debugf("Not deleting " + moduleDirectory + " as it is declared as a local module")
 				// remove this module from the exisitingModuleDirs map
-				moduleDirectory := moduleDir + gitName
 				if len(gitModule.installPath) > 0 {
-					moduleDirectory = normalizeDir(basedir) + normalizeDir(gitModule.installPath) + gitName
+					moduleDirectory = filepath.Join(normalizeDir(basedir), normalizeDir(gitModule.installPath), gitName)
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
@@ -418,7 +310,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			wg.Add()
 			go func(gitName string, gitModule GitModule, env string) {
 				defer wg.Done()
-				targetDir := normalizeDir(moduleDir + gitName)
+				targetDir := normalizeDir(filepath.Join(moduleDir, gitName))
 				//fmt.Println("targetDir: " + targetDir)
 				tree := "master"
 				if len(gitModule.branch) > 0 {
@@ -439,20 +331,22 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 							Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as g10k can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch' or using the -branch parameter")
 						}
 					} else {
-						tree = envBranch
+						// we want only the branch name of the control repo and not the resulting
+						// Puppet environment folder name, which could contain a prefix
+						tree = pf.controlRepoBranch
 					}
 				}
 
 				if len(gitModule.installPath) > 0 {
-					targetDir = basedir + normalizeDir(gitModule.installPath) + gitName
+					targetDir = filepath.Join(basedir, normalizeDir(gitModule.installPath), gitName)
 				}
 				targetDir = normalizeDir(targetDir)
 				success := false
-				moduleCacheDir := config.ModulesCacheDir + strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1)
+				moduleCacheDir := filepath.Join(config.ModulesCacheDir, strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1))
 
 				if gitModule.link {
 					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
-					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable, env, false)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, true, gitModule.ignoreUnreachable, env)
 				}
 
 				if len(gitModule.fallback) > 0 {
@@ -463,14 +357,14 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 								gitModule.ignoreUnreachable = true
 							}
 							Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
-							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable, env, false)
+							success = syncToModuleDir(moduleCacheDir, targetDir, fallbackBranch, true, gitModule.ignoreUnreachable, env)
 							if success {
 								break
 							}
 						}
 					}
 				} else {
-					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env, false)
+					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
 				}
 
 				// remove this module from the exisitingModuleDirs map
@@ -502,8 +396,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				syncForgeToModuleDir(forgeModuleName, fm, moduleDir, env)
 				// remove this module from the exisitingModuleDirs map
 				mutex.Lock()
-				if _, ok := exisitingModuleDirs[moduleDir+fm.name]; ok {
-					delete(exisitingModuleDirs, moduleDir+fm.name)
+				mDir := filepath.Join(moduleDir, fm.name)
+				if _, ok := exisitingModuleDirs[mDir]; ok {
+					delete(exisitingModuleDirs, mDir)
 				}
 				mutex.Unlock()
 			}(forgeModuleName, fm, moduleDir, env)
