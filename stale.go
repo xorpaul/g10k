@@ -89,7 +89,7 @@ func checkForStaleContent(workDir string) {
 	}
 
 	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
-		Debugf("filepath.Walk'ing found path: " + path)
+		//Debugf("filepath.Walk'ing found path: " + path)
 		stale := true
 		for _, desiredFile := range desiredContent {
 			//Debugf("comparing found path: " + path + " with managed path: " + desiredFile)
