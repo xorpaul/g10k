@@ -83,8 +83,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			writer.Close()
 
 		case tar.TypeSymlink:
-			link, _ := os.Readlink(targetFilename)
-			if link != header.Linkname && fileExists(targetFilename) {
+			if fileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
@@ -94,8 +93,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			}
 
 		case tar.TypeLink:
-			link, _ := os.Readlink(targetFilename)
-			if link != header.Linkname && fileExists(targetFilename) {
+			if fileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
