@@ -132,19 +132,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
 							syncToModuleDir(workDir, targetDir, branch, false, false, env)
 							pf := filepath.Join(targetDir, "Puppetfile")
-							deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 							if !fileExists(pf) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
-								if fileExists(deployFile) {
-									pfHashSum := getSha256sumFile(pf)
-									dr := readDeployResultFile(deployFile)
-									if pfHashSum == dr.PuppetfileChecksum && dr.DeploySuccess {
-										Infof("Skipping Puppetfile sync of branch " + source + "_" + branch + " because " + pf + " did not change")
-										dr.FinishedAt = time.Now()
-										writeStructJSONFile(deployFile, dr)
-									}
-								}
 								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
