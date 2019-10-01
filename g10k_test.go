@@ -1870,6 +1870,7 @@ func TestMultipleModuledirs(t *testing.T) {
 	//purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
 	moduleParam = ""
+	branchParam = ""
 	debug = false
 }
 
@@ -2498,62 +2499,6 @@ func TestEnvironmentParameter(t *testing.T) {
 	purgeDir("/tmp/out", funcName)
 }
 
-func TestDetectPuppetfileChanges(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		info = true
-		branchParam = "single"
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-
-	purgeDir("/tmp/example", funcName)
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"Need to sync /tmp/example/single",
-		"Need to sync /tmp/example/single/external_modules/inifile",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	// do it again, now g10k should detect that it's the same Puppetfile
-	cmdCached := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmdCached.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	outCached, err := cmdCached.CombinedOutput()
-	//fmt.Println(string(outCached))
-
-	expectedLines = []string{
-		"Skipping Puppetfile sync of branch example_single because /tmp/example/single/Puppetfile did not change",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(outCached), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-}
-
 func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
@@ -2633,4 +2578,76 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 		t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
 	}
 
+}
+
+func TestSymlink(t *testing.T) {
+	path, err := exec.LookPath("hashdeep")
+	if err != nil {
+		t.Skip("Skipping full Puppet environment resolve test, because package hashdeep is missing")
+	}
+
+	quiet = true
+	purgeDir("/tmp/g10k", "TestSymlink()")
+	purgeDir("/tmp/out", "TestSymlink()")
+	config = readConfigfile("tests/both.yaml")
+	// increase maxworker to finish the test quicker
+	config.Maxworker = 500
+	environmentParam = "full_symlinks"
+
+	//do it twice to detect errors
+	for i := 0; i < 3; {
+		i++
+
+		resolvePuppetEnvironment(false, "")
+
+		// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
+		removeTimestampsFromDeployfile("/tmp/out/full_symlinks/.g10k-deploy.json")
+
+		cmd := exec.Command(path, "-vv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep")
+		out, err := cmd.CombinedOutput()
+		exitCode := 0
+		if msg, ok := err.(*exec.ExitError); ok { // there is error code
+			exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+		}
+		if exitCode != 0 {
+			t.Errorf("hashdeep terminated with %v, but we expected exit status 0\nOutput: %v", exitCode, string(out))
+		}
+		if !strings.Contains(string(out), "") {
+			t.Errorf("resolvePuppetfile() terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+		}
+		Debugf("hashdeep output:" + string(out))
+
+		// check if the symlinks with non-existent targets are there #150
+		// because hashdeep ignores them
+		invalidSymlinks := []string{
+			"/tmp/out/full_symlinks/modules/testmodule/not-working-symlink",
+			"/tmp/out/full_symlinks/1/not-working-symlink",
+		}
+
+		for _, invalidSymlink := range invalidSymlinks {
+			if !fileExists(invalidSymlink) {
+				t.Errorf("symlink with non-existent target missing: %s", invalidSymlink)
+			}
+		}
+
+		purgeDir("/tmp/out/full_symlinks/modules/testmodule/files/docs/another_dir/file", "TestResolveStatic()")
+
+		cmd = exec.Command("hashdeep", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep")
+		out, err = cmd.CombinedOutput()
+		exitCode = 0
+		if msg, ok := err.(*exec.ExitError); ok { // there is error code
+			exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+		}
+
+		if exitCode != 1 {
+			t.Errorf("hashdeep terminated with %v, but we expected exit status 1\nOutput: %v", exitCode, string(out))
+		}
+		purgeDir("/tmp/out/full_symlinks/modules/testmodule/.latest_commit", "TestResolveStatic()")
+
+		f, _ := os.Create("/tmp/out/full_symlinks/modules/testmodule/.latest_commit")
+		defer f.Close()
+		f.WriteString("foobarinvalidgitcommithashthatshouldtriggeraresyncofthismodule")
+		f.Sync()
+
+	}
 }
