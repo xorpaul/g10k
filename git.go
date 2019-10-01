@@ -173,8 +173,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			desiredContent = append(desiredContent, hashFile)
 			desiredContent = append(desiredContent, targetDir)
 			mutex.Unlock()
-			targetHash, _ := ioutil.ReadFile(hashFile)
-			if string(targetHash) == strings.TrimSuffix(er.output, "\n") {
+			targetHashByte, _ := ioutil.ReadFile(hashFile)
+			targetHash := string(targetHashByte)
+			if targetHash == strings.TrimSuffix(er.output, "\n") {
 				needToSync = false
 				//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
 			}
