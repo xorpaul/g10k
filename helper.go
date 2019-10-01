@@ -84,7 +84,7 @@ func Fatalf(s string) {
 // fileExists checks if the given file exists and returns a bool
 func fileExists(file string) bool {
 	//Debugf("checking for file existence " + file)
-	if _, err := os.Stat(file); os.IsNotExist(err) {
+	if _, err := os.Lstat(file); os.IsNotExist(err) {
 		return false
 	}
 	return true
