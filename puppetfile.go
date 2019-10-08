@@ -35,6 +35,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
 	allBasedirs := make(map[string]bool)
+	desiredContent = make([]string, 0)
 	foundMatch := false
 	for source, sa := range config.Sources {
 		wg.Add()
