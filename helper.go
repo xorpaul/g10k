@@ -161,9 +161,9 @@ func purgeDir(dir string, callingFunction string) {
 	} else {
 		Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 		if err := os.RemoveAll(dir); err != nil {
-			log.Print("purgeDir(): os.RemoveAll() error: removing dir failed: ", err)
+			log.Print("purgeDir(): os.RemoveAll() error: removing dir failed: ", err.Error())
 			if err = syscall.Unlink(dir); err != nil {
-				log.Print("purgeDir(): syscall.Unlink() error: removing link failed: ", err)
+				log.Print("purgeDir(): syscall.Unlink() error: removing link failed: ", err.Error())
 			}
 		}
 	}
