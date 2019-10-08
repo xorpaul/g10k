@@ -22,10 +22,32 @@ import (
 	"github.com/xorpaul/uiprogress"
 )
 
+func checkDeprecation(fm ForgeModule, lastCheckedFile string) (bool) {
+	// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
+	// return false if the api needs to be queried again
+	if fileInfo, err := os.Stat(lastCheckedFile); err == nil {
+		if fileInfo.Size() < 1 {
+			Debugf("found empty file " + lastCheckedFile)
+			return false
+		} else if fm.cacheTTL > 0 && fileInfo.ModTime().Add(fm.cacheTTL).Before(time.Now()) {
+			return false
+		} else {
+			json, err := ioutil.ReadFile(lastCheckedFile)
+			if err != nil {
+				Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
+			}
+			_ = parseForgeAPIResult(string(json), fm)
+			return true
+		}
+	}
+	return false
+}
+
 func doModuleInstallOrNothing(fm ForgeModule) {
 	moduleName := fm.author + "-" + fm.name
 	moduleVersion := fm.version
 	workDir := filepath.Join(config.ForgeCacheDir, moduleName+"-"+fm.version)
+	lastCheckedFile := filepath.Join(config.ForgeCacheDir, moduleName+"-latest-last-checked")
 	fr := ForgeResult{false, fm.version, "", 0}
 	if check4update {
 		moduleVersion = "latest"
@@ -56,7 +78,6 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 			}
 		} else {
 			if fm.cacheTTL > 0 {
-				lastCheckedFile := workDir + "-last-checked"
 				//Debugf("checking for " + lastCheckedFile)
 				if fileInfo, err := os.Lstat(lastCheckedFile); err == nil {
 					//Debugf("found " + lastCheckedFile + " with mTime " + fileInfo.ModTime().String())
@@ -68,20 +89,8 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 						latestForgeModules.m[moduleName] = me.version
 						latestForgeModules.Unlock()
 
-						// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
-
-						if fi, err := os.Stat(lastCheckedFile); err == nil {
-							if fi.Size() < 1 {
-								Debugf("found empty file " + lastCheckedFile)
-								fr = queryForgeAPI(fm)
-							} else {
-								json, err := ioutil.ReadFile(lastCheckedFile)
-								if err != nil {
-									Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
-								}
-								_ = parseForgeAPIResult(string(json), fm)
-								return
-							}
+						if checkDeprecation(fm, lastCheckedFile) {
+							return
 						}
 
 					}
@@ -111,11 +120,13 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		}
 		Debugf("Nothing to do for module " + fm.author + "-" + fm.name + "-" + fm.version + ", because " + latestDir + " exists")
 	} else {
-		// check for deprecation notice
-		_ = queryForgeAPI(fm)
 		if !isDir(workDir) {
+			_ = queryForgeAPI(fm)
 			fr.needToGet = true
 		} else {
+			if !checkDeprecation(fm, lastCheckedFile) {
+				_ = queryForgeAPI(fm)
+			}
 			Debugf("Using cache for " + moduleName + " in version " + moduleVersion + " because " + workDir + " exists")
 			return
 		}
