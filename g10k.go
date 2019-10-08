@@ -58,6 +58,7 @@ var (
 	maxExtractworker             int
 	forgeModuleDeprecationNotice string
 	desiredContent               []string
+	unchangedModuleDirs          []string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
@@ -238,7 +239,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k version 0.8.4 Build time:", buildtime, "UTC")
+		fmt.Println("g10k version 0.8.1 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
