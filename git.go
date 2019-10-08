@@ -165,6 +165,8 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 				dr := readDeployResultFile(deployFile)
 				if dr.Signature == strings.TrimSuffix(er.output, "\n") {
 					needToSync = false
+					// need to get the content of the git repository to detect and purge unmanaged files
+					addDesiredContent(srcDir, tree, targetDir)
 				}
 			}
 		} else {
@@ -177,6 +179,9 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			targetHash := string(targetHashByte)
 			if targetHash == strings.TrimSuffix(er.output, "\n") {
 				needToSync = false
+				mutex.Lock()
+				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
+				mutex.Unlock()
 				//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
 			}
 		}
@@ -245,4 +250,28 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 		}
 	}
 	return true
+}
+
+// addDesiredContent takes the given git repository directory and the
+// relevant reference (branch, commit hash, tag) and adds its content to
+// the global desiredContent slice so that it doesn't get purged by g10k
+func addDesiredContent(gitDir string, tree string, targetDir string) {
+	treeCmd := "git --git-dir " + gitDir + " ls-tree --full-tree -r -t --name-only " + tree
+	er := executeCommand(treeCmd, config.Timeout, false)
+	foundGitFiles := strings.Split(er.output, "\n")
+	mutex.Lock()
+	for _, desiredFile := range foundGitFiles[:len(foundGitFiles)-1] {
+		desiredContent = append(desiredContent, filepath.Join(targetDir, desiredFile))
+
+		// because we're using -r which prints git managed files in subfolders like this: foo/test3
+		// we have to split up the given string and add the possible parent directories (foo in this case)
+		parentDirs := strings.Split(desiredFile, "/")
+		if len(parentDirs) > 1 {
+			for _, dir := range parentDirs[:len(parentDirs)-1] {
+				desiredContent = append(desiredContent, filepath.Join(targetDir, dir))
+			}
+		}
+	}
+	mutex.Unlock()
+
 }
