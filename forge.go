@@ -665,6 +665,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
 				latestForgeModules.RUnlock()
 			}
+			mutex.Lock()
+			unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
+			mutex.Unlock()
 			return
 		}
 		// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
@@ -691,6 +694,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 			}
 			if me.version == m.version {
 				Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
+				mutex.Lock()
+				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
+				mutex.Unlock()
 				return
 			}
 			Infof("Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
