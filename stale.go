@@ -92,10 +92,15 @@ func checkForStaleContent(workDir string) {
 		//Debugf("filepath.Walk'ing found path: " + path)
 		stale := true
 		for _, desiredFile := range desiredContent {
-			//Debugf("comparing found path: " + path + " with managed path: " + desiredFile)
-			//if strings.HasPrefix(path, desiredFile) || path == workDir {
+			for _, unchangedModuleDir := range unchangedModuleDirs {
+				if strings.HasPrefix(path, unchangedModuleDir) {
+					stale = false
+					break
+				}
+			}
 			if path == desiredFile || path == workDir {
 				stale = false
+				break
 			}
 		}
 
