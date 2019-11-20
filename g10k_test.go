@@ -52,7 +52,8 @@ func TestConfigPrefix(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: ""}
+		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: "",
+		AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
@@ -77,7 +78,8 @@ func TestConfigForceForgeVersions(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true, WarnMissingBranch: false}
+		Basedir: "/tmp/example", Prefix: "foobar", PrivateKey: "", ForceForgeVersions: true,
+		WarnMissingBranch: false, AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
@@ -102,7 +104,8 @@ func TestConfigAddWarning(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false, WarnMissingBranch: true}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false,
+		WarnMissingBranch: true, AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
@@ -127,7 +130,8 @@ func TestConfigSimplePostrunCommand(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-environment.git",
-		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false,
+		AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	postrunCommand := []string{"/usr/bin/touch", "-f", "/tmp/g10kfoobar"}
 	expected := ConfigSettings{
@@ -153,7 +157,8 @@ func TestConfigPostrunCommand(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["example"] = Source{Remote: "https://github.com/xorpaul/g10k-test-environment.git",
-		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false, Prefix: "true"}
+		Basedir: "/tmp/example", PrivateKey: "", ForceForgeVersions: false, Prefix: "true",
+		AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	postrunCommand := []string{"tests/postrun.sh", "$modifiedenvs"}
 	expected := ConfigSettings{
@@ -179,7 +184,8 @@ func TestConfigDeploy(t *testing.T) {
 
 	s := make(map[string]Source)
 	s["full"] = Source{Remote: "https://github.com/xorpaul/g10k-fullworking-env.git",
-		Basedir: "/tmp/full", Prefix: "true", PrivateKey: ""}
+		Basedir: "/tmp/full", Prefix: "true", PrivateKey: "",
+		AutoCorrectEnvironmentNames: "correct_and_warn"}
 
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
@@ -1493,32 +1499,35 @@ func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
 
 }
 
-func TestAutoCorrectEnvironmentNames(t *testing.T) {
+func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
+	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
-	branchParam = "single_autocorrect-%-fooo"
-	resolvePuppetEnvironment(false, "")
-
 	firewallDir := "/tmp/example/single_autocorrect___fooo/modules/firewall"
 	metadataFile := firewallDir + "/metadata.json"
-	if !fileExists(metadataFile) {
-		t.Errorf("expected module metadata.json is missing %s", metadataFile)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		branchParam = "single_autocorrect-%-fooo"
+		resolvePuppetEnvironment(false, "")
+		return
 	}
 
-	purgeDir("/tmp/example", funcName)
-	moduleParam = ""
-	debug = false
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
 
-}
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
 
-func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
-	branchParam = "single_autocorrect-%-fooo"
-	resolvePuppetEnvironment(false, "")
+	if 0 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
 
-	firewallDir := "/tmp/example/single_autocorrect-%-fooo/modules/firewall"
-	metadataFile := firewallDir + "/metadata.json"
+	if !strings.Contains(string(out), "Renaming branch single_autocorrect-%-fooo to single_autocorrect___fooo") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+
 	if !fileExists(metadataFile) {
 		t.Errorf("expected module metadata.json is missing %s", metadataFile)
 	}
@@ -2650,4 +2659,67 @@ func TestSymlink(t *testing.T) {
 		f.Sync()
 
 	}
+}
+
+func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/autocorrect.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = false
+		info = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/out", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Renaming branch invalid-name to invalid_name",
+		"Need to sync /tmp/out/autocorrect_invalid_name",
+		"Need to sync /tmp/out/autocorrect_master",
+		"Need to sync /tmp/out/autocorrect_invalid_name/modules/inifile",
+		"Need to sync /tmp/out/autocorrect_master/modules/inifile",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/out/autocorrect_master/",
+		"/tmp/out/autocorrect_master/Puppetfile",
+		"/tmp/out/autocorrect_master/modules/inifile/metadata.json",
+		"/tmp/out/autocorrect_invalid_name/",
+		"/tmp/out/autocorrect_invalid_name/Puppetfile",
+		"/tmp/out/autocorrect_invalid_name/modules/inifile/metadata.json",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+		}
+	}
+
+	purgeDir("/tmp/out", funcName)
+
 }
