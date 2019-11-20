@@ -119,6 +119,12 @@ func readConfigfile(configFile string) ConfigSettings {
 
 	for source, sa := range config.Sources {
 		sa.Basedir = normalizeDir(sa.Basedir)
+
+		// set default to "correct_and_warn" like r10k
+		// https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches
+		if len(sa.AutoCorrectEnvironmentNames) == 0 {
+			sa.AutoCorrectEnvironmentNames = "correct_and_warn"
+		}
 		config.Sources[source] = sa
 	}
 
