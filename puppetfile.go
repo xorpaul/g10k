@@ -83,9 +83,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
-					mutex.Lock()
-					allEnvironments[prefix+branch] = true
-					mutex.Unlock()
 					if len(branchParam) > 0 {
 						if branch == branchParam {
 							foundBranch = true
@@ -127,6 +124,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								}
 							}
 
+							mutex.Lock()
+							allEnvironments[prefix+renamedBranch] = true
+							mutex.Unlock()
 							targetDir := filepath.Join(sa.Basedir, prefix+strings.Replace(renamedBranch, "/", "_", -1))
 							targetDir = normalizeDir(targetDir)
 
