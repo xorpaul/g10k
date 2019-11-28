@@ -22,7 +22,7 @@ import (
 	"github.com/xorpaul/uiprogress"
 )
 
-func checkDeprecation(fm ForgeModule, lastCheckedFile string) (bool) {
+func checkDeprecation(fm ForgeModule, lastCheckedFile string) bool {
 	// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
 	// return false if the api needs to be queried again
 	if fileInfo, err := os.Stat(lastCheckedFile); err == nil {
