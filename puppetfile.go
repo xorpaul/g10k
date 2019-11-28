@@ -355,7 +355,10 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						}
 					}
 				} else {
-					syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
+					success = syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
+					if !success && !config.IgnoreUnreachableModules {
+						Fatalf("Failed to resolve git module gitModule with repository " + gitModule.git + " and reference " + tree)
+					}
 				}
 
 				// remove this module from the exisitingModuleDirs map
