@@ -1248,9 +1248,9 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	if !strings.Contains(string(out), "WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git remote update --prune deleting local cached repository and retrying...") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
-	//if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
-	//	t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
-	//}
+	if !fileExists("/tmp/example/single_git/modules/firewall/metadata.json") {
+		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
+	}
 }
 
 func TestConfigRetryGitCommandsFail(t *testing.T) {
