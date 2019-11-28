@@ -1253,6 +1253,39 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	//}
 }
 
+func TestConfigRetryGitCommandsFail(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigRetryGitCommands.yaml"))
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		branchParam = "invalid_git_object"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	//fmt.Println(string(out))
+	expectedExitCode := 1
+	if expectedExitCode != exitCode {
+		t.Fatalf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	if !strings.Contains(string(out), "Failed to resolve git module gitModule with repository https://github.com/puppetlabs/puppetlabs-firewall.git and reference 0000000000000000000000000000000000000000") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
+	}
+	//if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
+	//	t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
+	//}
+}
+
 func TestResolvePuppetfileLocalModules(t *testing.T) {
 	quiet = true
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
