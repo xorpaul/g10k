@@ -79,10 +79,11 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			repoDir := strings.Replace(strings.Replace(url, "/", "_", -1), ":", "-", -1)
 			workDir := filepath.Join(config.ModulesCacheDir, repoDir)
 
-			success := doMirrorOrUpdate(url, workDir, privateKey, gm.ignoreUnreachable, 1)
+			success := doMirrorOrUpdate(url, workDir, privateKey, "", gm.ignoreUnreachable, 1)
 			if !success && config.UseCacheFallback == false {
 				Fatalf("Fatal: Could not reach git repository " + url)
 			}
+
 			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 			done <- true
 		}(url, privateKey, gm, bar)
@@ -93,16 +94,20 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	wg.Wait()
 }
 
-func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFail bool, retryCount int) bool {
+func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, envBranch string, allowFail bool, retryCount int) bool {
 	needSSHKey := true
 	if strings.Contains(url, "github.com") || len(sshPrivateKey) == 0 {
 		needSSHKey = false
 	}
 
 	er := ExecResult{}
-	gitCmd := "git clone --mirror " + url + " " + workDir
+	gitCmd := fmt.Sprintf(`git clone --mirror %s %s && git --git-dir %s remote update --prune`, url, workDir, workDir)
 	if isDir(workDir) {
-		gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		if envBranch == "" {
+			gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		} else {
+			gitCmd = "git --git-dir " + workDir + " fetch --force origin " + envBranch + ":" + envBranch
+		}
 	}
 
 	if needSSHKey {
@@ -119,7 +124,7 @@ func doMirrorOrUpdate(url string, workDir string, sshPrivateKey string, allowFai
 		} else if config.RetryGitCommands && retryCount > 0 {
 			Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
-			return doMirrorOrUpdate(url, workDir, sshPrivateKey, false, retryCount-1)
+			return doMirrorOrUpdate(url, workDir, sshPrivateKey, envBranch, false, retryCount-1)
 		}
 		Warnf("WARN: git repository " + url + " does not exist or is unreachable at this moment!")
 		return false

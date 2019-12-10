@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -170,7 +171,6 @@ func purgeDir(dir string, callingFunction string) {
 }
 
 func executeCommand(command string, timeout int, allowFail bool) ExecResult {
-	Debugf("Executing " + command)
 	parts := strings.SplitN(command, " ", 2)
 	cmd := parts[0]
 	cmdArgs := []string{}
@@ -183,10 +183,26 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 		}
 	}
 
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
+
 	before := time.Now()
-	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
+	out, err := exec.CommandContext(ctx, cmd, cmdArgs...).CombinedOutput()
 	duration := time.Since(before).Seconds()
-	er := ExecResult{0, string(out)}
+
+	var errmsg string
+	if err != nil {
+		errmsg = err.Error()
+	}
+	Debugf("Executing " + command + " gave output: " + string(out) + ", and error: " + errmsg)
+
+	er := ExecResult{0, string(out), err}
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
@@ -205,7 +221,6 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 			}
 		} else {
 			er.returnCode = 1
-			er.output = fmt.Sprint(err)
 		}
 	}
 	return er

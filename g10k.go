@@ -181,10 +181,11 @@ type ForgeResult struct {
 	fileSize      int64
 }
 
-// ExecResult contains the exit code and output of an external command (e.g. git)
+// ExecResult contains the exit code, output of an external command (e.g. git), and the error (if any)
 type ExecResult struct {
 	returnCode int
 	output     string
+	err        error
 }
 
 // DeployResult contains information about the Puppet environment which was deployed by g10k and tries to emulate the .r10k-deploy.json
