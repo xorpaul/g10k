@@ -59,6 +59,7 @@ var (
 	forgeModuleDeprecationNotice string
 	desiredContent               []string
 	unchangedModuleDirs          []string
+	mapModulesRefsToPuppetEnv    map[string]string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
@@ -139,6 +140,7 @@ type Puppetfile struct {
 	gitModules        map[string]GitModule
 	privateKey        string
 	source            string
+	sourceBranch      string
 	workDir           string
 	moduleDirs        []string
 	controlRepoBranch string
@@ -146,15 +148,16 @@ type Puppetfile struct {
 
 // ForgeModule contains information (Version, Name, Author, md5 checksum, file size of the tar.gz archive, Forge BaseURL if custom) about a Puppetlabs Forge module
 type ForgeModule struct {
-	version   string
-	name      string
-	author    string
-	md5sum    string
-	fileSize  int64
-	baseURL   string
-	cacheTTL  time.Duration
-	sha256sum string
-	moduleDir string
+	version      string
+	name         string
+	author       string
+	md5sum       string
+	fileSize     int64
+	baseURL      string
+	cacheTTL     time.Duration
+	sha256sum    string
+	moduleDir    string
+	sourceBranch string
 }
 
 // GitModule contains information about a Git Puppet module
@@ -299,7 +302,7 @@ func main() {
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
-			puppetfile := readPuppetfile(target, "", "cmdlineparam", false, false)
+			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
 			puppetfile.workDir = ""
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile
