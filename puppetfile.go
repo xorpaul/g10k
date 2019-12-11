@@ -136,7 +136,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							if !fileExists(pf) {
 								Debugf("Skipping branch " + source + "_" + branch + " because " + targetDir + "Puppetfile does not exist")
 							} else {
-								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, sa.ForceForgeVersions, false)
+								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
 								mutex.Lock()
@@ -299,7 +299,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				continue
 			}
 			wg.Add()
-			go func(gitName string, gitModule GitModule, env string) {
+			go func(gitName string, gitModule GitModule, env string, pf Puppetfile) {
 				defer wg.Done()
 				targetDir := normalizeDir(filepath.Join(moduleDir, gitName))
 				//fmt.Println("targetDir: " + targetDir)
@@ -353,11 +353,12 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 								break
 							}
 						}
+						// possible TODO: shouldn't this fail if all fallback branches fail?
 					}
 				} else {
 					success = syncToModuleDir(moduleCacheDir, targetDir, tree, gitModule.ignoreUnreachable, gitModule.ignoreUnreachable, env)
 					if !success && !config.IgnoreUnreachableModules {
-						Fatalf("Failed to resolve git module gitModule with repository " + gitModule.git + " and reference " + tree)
+						Fatalf("Failed to resolve git module '" + gitName + "' with repository " + gitModule.git + " and branch/reference '" + tree + "' used in control repository branch '" + pf.sourceBranch + "' or Puppet environment '" + env + "'")
 					}
 				}
 
@@ -379,7 +380,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					}
 				}
 				mutex.Unlock()
-			}(gitName, gitModule, env)
+			}(gitName, gitModule, env, pf)
 		}
 		for forgeModuleName, fm := range pf.forgeModules {
 			wg.Add()
