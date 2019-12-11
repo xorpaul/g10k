@@ -1,0 +1,13 @@
+---
+:cachedir: '/tmp/g10k'
+use_cache_fallback: false
+
+deploy:
+  purge_levels: [ 'deployment', 'environment', 'puppetfile' ]
+
+sources:
+  failgit:
+    remote: 'https://github.com/xorpaul/g10k-test-env-invalid-git.git'
+    basedir: '/tmp/failgit/'
+    prefix: true
+    force_forge_versions: false

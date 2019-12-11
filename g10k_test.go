@@ -552,7 +552,7 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 }
 
 func TestModuleDirOverride(t *testing.T) {
-	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", false, false)
+	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
 	//fmt.Println(got.forgeModules["apt"].moduleDir)
 	if "external_modules" != got.forgeModules["apt"].moduleDir {
 		t.Error("Expected 'external_modules' for module dir, but got", got.forgeModules["apt"].moduleDir)
@@ -561,7 +561,7 @@ func TestModuleDirOverride(t *testing.T) {
 		t.Error("Expected 'modules' for module dir, but got", got.gitModules["another_module"].moduleDir)
 	}
 	moduleDirParam = "foobar"
-	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", false, false)
+	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
 	if "foobar" != got.forgeModules["apt"].moduleDir {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
@@ -714,7 +714,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git remote update --prune exit status 1\nOutput: Fetching origin\nfatal: unable to access 'https://.com/puppetlabs/puppetlabs-firewall.git/': Could") {
+	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!\nFatal: Could not reach git repository https://.com/puppetlabs/puppetlabs-firewall.git") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
@@ -1278,7 +1278,7 @@ func TestConfigRetryGitCommandsFail(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Fatalf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	if !strings.Contains(string(out), "Failed to resolve git module gitModule with repository https://github.com/puppetlabs/puppetlabs-firewall.git and reference 0000000000000000000000000000000000000000") {
+	if !strings.Contains(string(out), "Failed to resolve git module 'firewall' with repository https://github.com/puppetlabs/puppetlabs-firewall.git and branch/reference '0000000000000000000000000000000000000000' used in control repository branch 'invalid_git_object' or Puppet environment 'invalid_git_object'") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	//if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
@@ -1364,7 +1364,7 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
 	}
 
-	expectingString := "executeCommand(): git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git rev-parse --verify '0000000000000000000000000000000000000000^{object}' exit status 128"
+	expectingString := "Failed to resolve git module 'firewall' with repository https://github.com/puppetlabs/puppetlabs-firewall.git and branch/reference '0000000000000000000000000000000000000000' used in control repository branch 'invalid_git_object' or Puppet environment 'foobar_invalid_git_object'"
 	if !strings.Contains(string(out), expectingString) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s\nExpecting string: %s", string(out), expectingString)
 	}
@@ -2561,6 +2561,11 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 		f, _ := os.Create("/tmp/out/example_single_git/mymodule2/dir1/file3")
 		f.WriteString("slddkasjld")
 		f.Close()
+		// do not manipulate a module locally, because r10k and g10k doesn't scan
+		// the module's directory content, if its version/commit hash didn't change
+		//f, _ = os.Create("/tmp/out/example_single_git/modules/firewall/unmanaged_file")
+		//f.WriteString("slddkasjld33")
+		//f.Close()
 		f.Sync()
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
@@ -2755,4 +2760,88 @@ func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
 
 	purgeDir("/tmp/out", funcName)
 
+}
+
+func TestUnresolveableModuleReferenceOutputGit(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/failingEnvGit.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = false
+		info = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/failgit", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Failed to resolve git module 'testmodule' with repository https://github.com/xorpaul/g10k_testmodule.git and branch/reference 'nonexisting' used in control repository branch 'failing_branch_git' or Puppet environment 'failgit_failing_branch_git'",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+}
+
+func TestUnresolveableModuleReferenceOutputForge(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/failingEnvForge.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = false
+		info = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/failforge", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Received 404 from Forge using URL https://forgeapi.puppetlabs.com/v3/files/puppetlabs-stdlib-0.0.1.tar.gz",
+		"Check if the module name 'puppetlabs-stdlib' and version '0.0.1' really exist",
+		"Used in Puppet environment 'failforge_failing_branch_forge'",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
 }
