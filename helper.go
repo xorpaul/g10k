@@ -196,17 +196,8 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 		Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	}
 	if err != nil {
-		if !allowFail && !config.UseCacheFallback && !config.RetryGitCommands {
-			if cmd == "git" {
-				Fatalf("executeCommand(): git command failed: " + command + " " + err.Error() + "\nOutput: " + string(out) +
-					"\nIf you are using GitLab please ensure that you've added your deploy key to your repository")
-			} else {
-				Fatalf("executeCommand(): command failed: " + command + " " + err.Error() + "\nOutput: " + string(out))
-			}
-		} else {
-			er.returnCode = 1
-			er.output = fmt.Sprint(err)
-		}
+		er.returnCode = 1
+		er.output = fmt.Sprint(err)
 	}
 	return er
 }
