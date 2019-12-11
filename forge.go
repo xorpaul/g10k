@@ -419,8 +419,12 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 					Fatalf("Error while writing to MultiWriter " + err.Error())
 				}
 			}()
+		} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
+			Fatalf("Received 404 from Forge using URL " + url +
+				"\nCheck if the module name '" + fm.author + "-" + fm.name + "' and version '" + version + "' really exist" +
+				"\nUsed in Puppet environment '" + fm.sourceBranch + "'")
 		} else {
-			Fatalf(funcName + "(): Unexpected response code while GETing " + url + " " + resp.Status)
+			Fatalf("Unexpected response code while GETing " + url + " " + resp.Status)
 		}
 	} else {
 		Debugf("Using cache for Forge module " + name + " version: " + version)
