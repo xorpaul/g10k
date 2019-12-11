@@ -223,11 +223,16 @@ func syncToModuleDir(srcDir string, targetDir string, tree string, allowFail boo
 			err = cmd.Wait()
 			if err != nil {
 				Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + tree + " Error: " + err.Error())
+				//"\nIf you are using GitLab please ensure that you've added your deploy key to your repository." +
+				//"\nThe Puppet environment which is using this unresolveable repository is " + correspondingPuppetEnvironment)
 			}
 
 			Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 
 			er = executeCommand(logCmd, config.Timeout, false)
+			if er.returnCode != 0 {
+				Fatalf("executeCommand(): git command failed: " + logCmd + " " + err.Error() + "\nOutput: " + er.output)
+			}
 			if len(er.output) > 0 {
 				commitHash := strings.TrimSuffix(er.output, "\n")
 				if strings.HasPrefix(srcDir, config.EnvCacheDir) {
