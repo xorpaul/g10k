@@ -174,7 +174,7 @@ func preparePuppetfile(pf string) string {
 }
 
 // readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions bool, replacedPuppetfileContent bool) Puppetfile {
+func readPuppetfile(pf string, sshKey string, source string, branch string, forceForgeVersions bool, replacedPuppetfileContent bool) Puppetfile {
 	var puppetFile Puppetfile
 	var n string
 	puppetFile.privateKey = sshKey
@@ -290,7 +290,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 								//fmt.Print("n:", n)
 								newN := strings.Replace(n, line, replacedLine, 1)
 								//fmt.Print("newN:", newN)
-								return readPuppetfile(newN, sshKey, source, forceForgeVersions, true)
+								return readPuppetfile(newN, sshKey, source, branch, forceForgeVersions, true)
 							}
 						}
 					}
@@ -302,7 +302,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if _, ok := puppetFile.gitModules[comp[1]]; ok {
 				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
 			}
-			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir}
+			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir, sourceBranch: source + "_" + branch}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
@@ -424,6 +424,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 	}
 
 	puppetFile.moduleDirs = moduleDirs
+	puppetFile.sourceBranch = branch
 	//fmt.Printf("%+v\n", puppetFile)
 	return puppetFile
 }
