@@ -94,6 +94,7 @@ type ConfigSettings struct {
 	GenerateTypes               bool           `yaml:"generate_types"`
 	PuppetPath                  string         `yaml:"puppet_path"`
 	PurgeBlacklist              []string       `yaml:"purge_blacklist"`
+	CloneGitModules             bool           `yaml:"clone_git_modules"`
 }
 
 // DeploySettings is a struct for settings for controlling how g10k deploys behave.
@@ -168,6 +169,7 @@ type GitModule struct {
 	tag               string
 	commit            string
 	ref               string
+	tree              string
 	link              bool
 	ignoreUnreachable bool
 	fallback          []string
