@@ -26,7 +26,7 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 
 		// Clean up unknown environment directories
 		if len(branchParam) == 0 {
-			for basedir, _ := range allBasedirs {
+			for basedir := range allBasedirs {
 				globPath := filepath.Join(basedir, prefix+"*")
 				Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
