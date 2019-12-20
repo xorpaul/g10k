@@ -635,7 +635,9 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	}
 
 	// get the module to cache it
-	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", "false", false, 0)
+	gm := GitModule{}
+	gm.git = "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	doMirrorOrUpdate(gm, "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", 0)
 
 	// rename the cached module dir to match the otherwise failing single_fail env
 	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git"
@@ -684,7 +686,9 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	}
 
 	// get the module to cache it
-	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", "false", false, 0)
+	gm := GitModule{}
+	gm.git = "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	doMirrorOrUpdate(gm, "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", 0)
 
 	// rename the cached module dir to match the otherwise failing single_fail env
 	unresolvableGitDir := "/tmp/g10k/modules/https-__.com_puppetlabs_puppetlabs-firewall.git"
@@ -1218,7 +1222,9 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	purgeDir(localGitRepoDir, funcName)
 
 	// get the module to cache it
-	doMirrorOrUpdate("https://github.com/puppetlabs/puppetlabs-firewall.git", localGitRepoDir, "false", false, 0)
+	gm := GitModule{}
+	gm.git = "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	doMirrorOrUpdate(gm, localGitRepoDir, 0)
 
 	// corrupt the local git module repository
 	matches, _ := filepath.Glob(filepath.Join(localGitRepoDir, "objects/pack/*.idx"))
@@ -1928,9 +1934,10 @@ func TestFailedGit(t *testing.T) {
 
 	// get the module to cache it
 	gitDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git"
-	gitUrl := "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	gm := GitModule{}
+	gm.git = "https://github.com/puppetlabs/puppetlabs-firewall.git"
 	purgeDir(gitDir, funcName)
-	doMirrorOrUpdate(gitUrl, gitDir, "false", false, 0)
+	doMirrorOrUpdate(gm, gitDir, 0)
 
 	// change the git remote url to something that does not resolve https://.com/...
 	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
@@ -1965,12 +1972,11 @@ func TestCheckDirPermissions(t *testing.T) {
 		branchParam = "single"
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		purgeDir(cacheDir, funcName)
-		// create cacheDir and make sure the cachedir does not have write permissions
-		if err := os.MkdirAll(cacheDir, 0444); err != nil {
-			Fatalf("checkDirAndCreate(): Error: failed to create directory: " + cacheDir + " Error: " + err.Error())
-		}
+	}
+	purgeDir(cacheDir, funcName)
+	// create cacheDir and make sure the cachedir does not have write permissions
+	if err := os.MkdirAll(cacheDir, 0444); err != nil {
+		Fatalf("checkDirAndCreate(): Error: failed to create directory: " + cacheDir + " Error: " + err.Error())
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
@@ -2006,15 +2012,14 @@ func TestPurgeWhitelist(t *testing.T) {
 		branchParam = "single"
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		purgeDir("/tmp/example", funcName)
-		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
-		f, _ := os.Create("/tmp/example/single/.latest_revision")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	purgeDir("/tmp/example", funcName)
+	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
+	f, _ := os.Create("/tmp/example/single/.latest_revision")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2065,14 +2070,13 @@ func TestPurgeStaleContent(t *testing.T) {
 		branchParam = "single"
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged2", funcName)
-		f, _ := os.Create("/tmp/example/single/stale_directory_that_should_be_purged/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged2", funcName)
+	f, _ := os.Create("/tmp/example/single/stale_directory_that_should_be_purged/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2127,14 +2131,13 @@ func TestPurgeStaleEnvironments(t *testing.T) {
 		config = readConfigfile("tests/TestConfigFullworking.yaml")
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2193,16 +2196,15 @@ func TestPurgeStaleEnvironmentOnly(t *testing.T) {
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2267,16 +2269,15 @@ func TestPurgeStalePuppetfileOnly(t *testing.T) {
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2342,16 +2343,15 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2413,18 +2413,17 @@ func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
 		return
-	} else {
-		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-		createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-		createOrPurgeDir("/tmp/full/full_hiera_master/hiera_dir", funcName)
-		createOrPurgeDir("/tmp/full/full_hiera_qa/hiera_dir_qa", funcName)
-		f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
 	}
+	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
+	createOrPurgeDir("/tmp/full/full_hiera_master/hiera_dir", funcName)
+	createOrPurgeDir("/tmp/full/full_hiera_qa/hiera_dir_qa", funcName)
+	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2842,6 +2841,77 @@ func TestUnresolveableModuleReferenceOutputForge(t *testing.T) {
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
 			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+}
+
+func TestCloneGitModules(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigFullworkingCloneGitModules.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/full", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"DEBUG executeCommand(): Executing git clone --single-branch --branch 11.0.0 https://github.com/theforeman/puppet-puppet.git /tmp/full/full_master/modules/puppet",
+		"DEBUG executeCommand(): Executing git clone --single-branch --branch release https://github.com/puppetlabs/puppetlabs-stdlib.git /tmp/full/full_another/modules/stdlib",
+		"DEBUG executeCommand(): Executing git clone --single-branch --branch symlinks https://github.com/xorpaul/g10k-test-module.git /tmp/full/full_symlinks/modules/testmodule",
+		"DEBUG executeCommand(): Executing git clone --single-branch --branch master https://github.com/elastic/puppet-kibana.git /tmp/full/full_qa/modules/kibana",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	expectedDirs := []string{
+		"/tmp/full/full_master/modules/puppet/.git",
+		"/tmp/full/full_another/modules/stdlib/.git",
+		"/tmp/full/full_symlinks/modules/testmodule/.git",
+		"/tmp/full/full_qa/modules/kibana/.git",
+	}
+
+	for _, expectedDir := range expectedDirs {
+		if !isDir(expectedDir) {
+			t.Errorf("This Puppet module is not a cloned git repository despite clone_git_modules set to true :" + expectedDir)
+		}
+	}
+	// check
+	for _, expectedDir := range expectedDirs {
+		headFile := filepath.Join(expectedDir, "HEAD")
+		content, err := ioutil.ReadFile(headFile)
+		if err != nil {
+			t.Errorf("Error while reading content of file " + headFile + " Error: " + err.Error())
+		}
+		stringContent := string(content)
+		if headFile == "/tmp/full/full_another/modules/stdlib/.git/HEAD" {
+			expectedBranch := "ref: refs/heads/release"
+			if strings.TrimRight(stringContent, "\n") != expectedBranch {
+				t.Errorf("Error wrong branch found in checked out Git repo for " + expectedDir + " We expected " + expectedBranch + ", but found content: " + stringContent)
+			}
 		}
 	}
 }
