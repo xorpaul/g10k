@@ -1,0 +1,11 @@
+---
+cachedir: '/tmp/g10k'
+
+deploy:
+  purge_levels: [ 'deployment', 'environment', 'puppetfile' ]
+
+sources:
+  autocorrect:
+    remote: 'https://github.com/xorpaul/g10k-autocorrect-envs.git'
+    basedir: '/tmp/out/'
+    prefix: true

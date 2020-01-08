@@ -13,13 +13,11 @@ My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r1
 
 ```
 mod 'theforeman/puppet'
-
 ```
   - Git modules must be specified like this:
 ```
 mod 'apache',
   :git => 'https://github.com/puppetlabs/puppetlabs-apache.git'
-
 ```
 
 ### Non-breaking changes to r10k
@@ -68,6 +66,13 @@ https://github.com/xorpaul/g10k/releases
 - If you are using a private Git or Forge server think about adjusting the `-maxworker` parameter/config setting before DOSing your own infrastructure ;) (default 50)
 - To protect your local machine use `-maxextractworker` parameter/config setting with wich you can limit the number of Goroutines that are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip) (default 20)
 
+## installation of g10k via Puppet module
+
+User @Conzar was so nice and shared his g10k Puppet module that you can check out here:
+
+* [Puppet Forge](https://forge.puppet.com/landcareresearch/g10k)
+* [Source code](https://bitbucket.org/landcareresearch/puppet-g10k)
+
 
 ## Usage Docs
 ```
@@ -88,6 +93,8 @@ Usage of ./g10k:
         do not modify anything, just print what would be changed
   -force
         purge the Puppet environment directory and do a full sync
+  -gitobjectsyntaxnotsupported
+        if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax
   -info
         log info output, defaults to false
   -maxextractworker int
@@ -98,6 +105,8 @@ Usage of ./g10k:
         which module of the Puppet environment to update, e.g. stdlib
   -moduledir string
         allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted
+  -outputname string
+        overwrite the environment name if -branch is specified
   -puppetfile
         install all modules from Puppetfile in cwd
   -puppetfilelocation string
@@ -106,6 +115,8 @@ Usage of ./g10k:
         no output, defaults to false
   -retrygitcommands
         if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing
+  -tags
+        to pull tags as well as branches
   -usecachefallback
         if g10k should try to use its cache for sources and modules instead of failing
   -usemove
@@ -116,8 +127,12 @@ Usage of ./g10k:
         show build time and version number
 ```
 
-Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged. 
-  
+Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged.
+
+## Using g10k behind a proxy
+Set the environment variables `http_proxy` or `https_proxy` to make g10k use a proxy.
+E.g. ```http_proxy=http://proxy.domain.tld:8080 ./g10k -puppetfile```
+See https://golang.org/pkg/net/http/#ProxyFromEnvironment for details.
 
 # additional Puppetfile features
 
@@ -268,10 +283,10 @@ sources:
     basedir: '/tmp/failing/'
 ```
 
-If you then call g10k with this config file and at least the `info` verbosity level, you should get: 
+If you then call g10k with this config file and `debug` verbosity level, you should get:
 
 ```
-Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
+DEBUG: Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
 ```
 
 See [#57](https://github.com/xorpaul/g10k/issues/57) for details.
@@ -340,6 +355,93 @@ WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_pup
 ```
 
 See [#76](https://github.com/xorpaul/g10k/issues/76) for details.
+
+- Autocorrecting Puppet environment names
+
+Like in [r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches) for each source in your g10k config you can set the attribute `invalid_branches` with the following values:
+
+  * `correct_and_warn`: Non-word characters will be replaced with underscores and a warning will be emitted.
+  * `correct`: Non-word characters will silently be replaced with underscores.
+  * `error`: Branches with non-word characters will be ignored and an error will be emitted.
+
+The default value is to leave the environment unchanged, which differs from the r10k default!
+
+Example:
+```
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    invalid_branches: 'correct'
+```
+
+If you then call g10k with this config file and have a branch named something like `single_autocorrect-%-fooo` it will be renamed to `single_autocorrect___fooo`
+
+See [#81](https://github.com/xorpaul/g10k/issues/81) for details.
+
+- Support for older Git versions, like on CentOS 6
+
+To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91)
+g10k will skip this sanity check when the g10k config setting `git_object_syntax_not_supported` is set to `true` (defaults to `false`)
+Example:
+```
+---
+:cachedir: '/tmp/g10k'
+git_object_syntax_not_supported: true
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+```
+
+- Added support for r10k-like purge behaviour of stale content
+
+Starting with [v.0.7.0](https://github.com/xorpaul/g10k/releases/tag/v0.7.0) g10k supports the r10k-like purge behaviour of stale content with the different configuration settings `purge_level` and `purge_whitelist` as documented [here for purge_levels](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_levels) and [here for purge_whiltelist](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_whitelist)
+
+Please check if you need to whitelist files/folders inside your Puppet environments!
+
+As an additional setting, you can also whitelist Puppet environments with `deployment_purge_whitelist`, that would've been purged by the [deployment](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deployment) `purge_level`.
+This can be helpful if you have a similar source name or prefix set. E.g. having a source called `foobar` and another one `foobar_hiera` would have purged all foobar_hiera_\* branches if there are not branches called `hiera_master` or similar in the `foobar` source.
+
+Example:
+```
+---
+deploy:
+  purge_levels: ['deployment', 'puppetfile', 'environment']
+  purge_whitelist: [ '.latest_revision', '.resource_types' ]
+  deployment_purge_whitelist: [ 'example_hiera_*', '.resource_types' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/out/'
+    prefix: true
+  example_hiera:
+    remote: 'https://github.com/xorpaul/g10k-hiera.git'
+    basedir: '/tmp/out/'
+    prefix: true
+```
+
+Starting with [v.0.7.1](https://github.com/xorpaul/g10k/releases/tag/v0.7.1) g10k supports `purge_blacklist` feature to remove unnecessary files from the sync / Puppetservers.
+
+Example:
+
+```
+---
+deploy:
+  purge_blacklist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    prefix: true
+    basedir: './example/'
+```
+
 # building
 ```
 # only initially needed to resolve all dependencies

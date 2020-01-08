@@ -7,3 +7,5 @@ example/
 *.zip
 modules/
 tmp/
+.g10k_cache/
+external_modules/

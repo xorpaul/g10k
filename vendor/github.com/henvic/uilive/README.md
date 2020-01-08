@@ -1,6 +1,8 @@
-# uilive [![GoDoc](https://godoc.org/github.com/gosuri/uilive?status.svg)](https://godoc.org/github.com/gosuri/uilive) [![Build Status](https://travis-ci.org/gosuri/uilive.svg?branch=master)](https://travis-ci.org/gosuri/uilive)
+# uilive [![GoDoc](https://godoc.org/github.com/henvic/uilive?status.svg)](https://godoc.org/github.com/henvic/uilive) [![Build Status](https://travis-ci.org/henvic/uilive.svg?branch=master)](https://travis-ci.org/henvic/uilive)
 
-uilive is a go library for updating terminal output in realtime. It provides a buffered [io.Writer](https://golang.org/pkg/io/#Writer) that is flushed at a timed interval. uilive powers [uiprogress](https://github.com/gosuri/uiprogress).
+uilive is a go library for updating terminal output in realtime. It provides a buffered [io.Writer](https://golang.org/pkg/io/#Writer) that you can flush when it is time.
+
+**This is an API-incompatible modified fork** ([original](https://github.com/gosuri/uilive)) that removes the timed interval ticker, so that you have full control of flushing lines to terminal.
 
 ## Usage Example
 
@@ -8,24 +10,18 @@ Calling `uilive.New()` will create a new writer. To start rendering, simply call
 
 ```go
 writer := uilive.New()
-// start listening for updates and render
-writer.Start()
 
-for i := 0; i <= 100; i++ {
-  fmt.Fprintf(writer, "Downloading.. (%d/%d) GB\n", i, 100)
-  time.Sleep(time.Millisecond * 5)
+for _, f := range []string{"Foo.zip", "Bar.iso"} {
+    for i := 0; i <= 50; i++ {
+        fmt.Fprintf(writer, "Downloading %s.. (%d/%d) GB\n", f, i, 50)
+        writer.Flush()
+        time.Sleep(time.Millisecond * 70)
+    }
+
+    fmt.Fprintf(writer.Bypass(), "Downloaded %s\n", f)
 }
 
 fmt.Fprintln(writer, "Finished: Downloaded 100GB")
-writer.Stop() // flush and stop rendering
 ```
 
-The above will render
-
-![example](doc/example.gif)
-
-## Installation
-
-```sh
-$ go get -v github.com/gosuri/uilive
-```
+[![asciicast](https://asciinema.org/a/9lo78nlgj1q9jptd9ovbt5okw.png)](https://asciinema.org/a/9lo78nlgj1q9jptd9ovbt5okw)

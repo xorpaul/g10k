@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,9 +38,6 @@ func readConfigfile(configFile string) ConfigSettings {
 		Fatalf("YAML unmarshal error: " + err.Error())
 	}
 
-	//fmt.Print("config: ")
-	//fmt.Printf("%+v\n", config)
-
 	if len(os.Getenv("g10k_cachedir")) > 0 {
 		cachedir := os.Getenv("g10k_cachedir")
 		Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
@@ -48,9 +47,9 @@ func readConfigfile(configFile string) ConfigSettings {
 	}
 
 	config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir")
-	config.ForgeCacheDir = checkDirAndCreate(config.CacheDir+"forge/", "cachedir/forge")
-	config.ModulesCacheDir = checkDirAndCreate(config.CacheDir+"modules/", "cachedir/modules")
-	config.EnvCacheDir = checkDirAndCreate(config.CacheDir+"environments/", "cachedir/environments")
+	config.ForgeCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "forge"), "cachedir/forge")
+	config.ModulesCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
+	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
 
 	if len(config.Forge.Baseurl) == 0 {
 		config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
@@ -69,6 +68,10 @@ func readConfigfile(configFile string) ConfigSettings {
 
 	if retryGitCommands {
 		config.RetryGitCommands = true
+	}
+
+	if gitObjectSyntaxNotSupported {
+		config.GitObjectSyntaxNotSupported = true
 	}
 
 	// set default max Go routines for Forge and Git module resolution if none is given
@@ -95,6 +98,41 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.MaxExtractworker = 20
 	}
 
+	// check for non-empty config.Deploy which takes precedence over the non-deploy scoped settings
+	// See https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
+	emptyDeploy := DeploySettings{}
+	if !reflect.DeepEqual(config.Deploy, emptyDeploy) {
+		Debugf("detected deploy configration hash, which takes precedence over the non-deploy scoped settings")
+		config.PurgeLevels = config.Deploy.PurgeLevels
+		config.PurgeWhitelist = config.Deploy.PurgeWhitelist
+		config.DeploymentPurgeWhitelist = config.Deploy.DeploymentPurgeWhitelist
+		config.WriteLock = config.Deploy.WriteLock
+		config.GenerateTypes = config.Deploy.GenerateTypes
+		config.PuppetPath = config.Deploy.PuppetPath
+		config.PurgeBlacklist = config.Deploy.PurgeBlacklist
+		config.Deploy = emptyDeploy
+	}
+
+	if len(config.PurgeLevels) == 0 {
+		config.PurgeLevels = []string{"deployment", "puppetfile"}
+	}
+
+	for source, sa := range config.Sources {
+		sa.Basedir = normalizeDir(sa.Basedir)
+
+		// set default to "correct_and_warn" like r10k
+		// https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches
+		if len(sa.AutoCorrectEnvironmentNames) == 0 {
+			sa.AutoCorrectEnvironmentNames = "correct_and_warn"
+		}
+		config.Sources[source] = sa
+	}
+
+	if validate {
+		Validatef()
+	}
+
+	//fmt.Printf("%+v\n", config)
 	return config
 }
 
@@ -106,6 +144,7 @@ func preparePuppetfile(pf string) string {
 	}
 	defer file.Close()
 
+	reComma := regexp.MustCompile(",\\s*$")
 	reComment := regexp.MustCompile("^\\s*#")
 	reEmpty := regexp.MustCompile("^$")
 
@@ -118,7 +157,7 @@ func preparePuppetfile(pf string) string {
 				Debugf("found inline comment in " + pf + "line: " + line)
 				line = strings.Split(line, "#")[0]
 			}
-			if regexp.MustCompile(",\\s*$").MatchString(line) {
+			if reComma.MatchString(line) {
 				pfString += line
 				Debugf("adding line:" + line)
 			} else {
@@ -135,57 +174,85 @@ func preparePuppetfile(pf string) string {
 }
 
 // readPuppetfile creates the ConfigSettings struct from the Puppetfile
-func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions bool) Puppetfile {
+func readPuppetfile(pf string, sshKey string, source string, branch string, forceForgeVersions bool, replacedPuppetfileContent bool) Puppetfile {
 	var puppetFile Puppetfile
+	var n string
 	puppetFile.privateKey = sshKey
 	puppetFile.source = source
 	puppetFile.forgeModules = map[string]ForgeModule{}
 	puppetFile.gitModules = map[string]GitModule{}
-	Debugf("Trying to parse: " + pf)
+	if replacedPuppetfileContent {
+		Debugf("Using replaced Puppetfile content, probably because a Git module was found in Forge notation")
+		n = pf
+	} else {
+		Debugf("Trying to parse: " + pf)
+		n = preparePuppetfile(pf)
+	}
 
-	n := preparePuppetfile(pf)
-
+	reEmptyLine := regexp.MustCompile("^\\s*$")
 	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeCacheTtl := regexp.MustCompile("^\\s*(?:forge.cacheTtl)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.baseUrl)\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeCacheTTL := regexp.MustCompile("^\\s*(?:forge.cache(?:TTL|Ttl))\\s+['\"]?([^'\"]+)['\"]?")
+	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.base(?:URL|Url))\\s+['\"]?([^'\"]+)['\"]?")
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
 	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
-	//moduleName := ""
+	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
+	moduleDir := "modules"
+	var moduleDirs []string
 	//nextLineAttr := false
 
-	for _, line := range strings.Split(n, "\n") {
-		//fmt.Println("found line ---> ", line)
+	lines := strings.Split(n, "\n")
+	for i, line := range lines {
+		//fmt.Println("found line ---> ", line, "$")
+		if m := reEmptyLine.FindStringSubmatch(line); len(m) > 0 {
+			continue
+		}
 		if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
 			Fatalf("Error: trailing comma found in " + pf + " somewhere here: " + line)
 		}
+		if m := reDanglingAttribute.FindStringSubmatch(line); len(m) >= 1 {
+			previousLine := ""
+			if i-1 >= 0 {
+				previousLine = lines[i-1]
+			}
+			Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
+		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
-			puppetFile.moduleDir = m[1]
+			// moduledir CLI parameter override
+			if len(moduleDirParam) != 0 {
+				moduleDir = moduleDirParam
+			} else {
+				moduleDir = normalizeDir(m[1])
+			}
+			moduleDirs = append(moduleDirs, moduleDir)
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
 			//fmt.Println("found forge base URL parameter ---> ", m[1])
-		} else if m := reForgeCacheTtl.FindStringSubmatch(line); len(m) > 1 {
+		} else if m := reForgeCacheTTL.FindStringSubmatch(line); len(m) > 1 {
 			ttl, err := time.ParseDuration(m[1])
 			if err != nil {
 				Fatalf("Error: Can not convert value " + m[1] + " of parameter " + m[0] + " to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In " + pf + " line: " + line)
 			}
-			puppetFile.forgeCacheTtl = ttl
+			puppetFile.forgeCacheTTL = ttl
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
 			forgeModuleName := strings.TrimSpace(m[1])
-			//fmt.Println("found forge mod name ---> ", forgeModuleName)
+			//fmt.Println("found forge mod name ------------------------------> ", forgeModuleName)
 			comp := strings.Split(forgeModuleName, "/")
+			forgeModuleNameSeparator := "/"
 			if len(comp) != 2 {
 				comp = strings.Split(forgeModuleName, "-")
+				forgeModuleNameSeparator = "-"
 				if len(comp) != 2 {
-					Fatalf("Error: Forge module name is invalid + should be like puppetlabs/apt or puppetlabs-apt ,but is: " + m[2] + " in " + pf + " line: " + line)
+					Fatalf("Error: Forge module name is invalid! Should be like puppetlabs/apt or puppetlabs-apt, but is: " + m[2] + " in " + pf + " line: " + line)
 				}
 			}
 			forgeModuleName = comp[0] + "/" + comp[1]
 			if _, ok := puppetFile.forgeModules[comp[1]]; ok {
 				Fatalf("Error: Duplicate forge module found in " + pf + " for module " + forgeModuleName + " line: " + line)
 			}
+			//Debugf("Found Forge module name " + forgeModuleName + " with " + forgeModuleNameSeparator + " as a separator")
 			forgeModuleVersion := "present"
 			forgeChecksum := ""
 			// try to find a forge module attribute
@@ -209,6 +276,22 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						Debugf("found forge attribute ---> " + forgeAttributeName + " with value ---> " + forgeAttributeValue)
 						if forgeAttributeName == ":sha256sum" {
 							forgeChecksum = forgeAttributeValue
+						} else if forgeAttribute == "git" {
+							// try to detect Git modules in Forge <AUTHOR>/<MODULENAME> notation, fixes #104
+							Debugf("Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue)
+							//fmt.Println("line:", line)
+							removeForgeNotationAuthor := strings.Split(line, forgeModuleNameSeparator)
+							if len(removeForgeNotationAuthor) < 2 {
+								Fatalf("Error: Found git module in Forge notation: " + forgeModuleName + " with git url: " + forgeAttributeValue + ", but something went wrong while trying to remove the author part to make g10k detect it as an Git module module:" + comp[1] + " line: " + line)
+							} else {
+								//fmt.Println("removeForgeNotationAuthor:", removeForgeNotationAuthor[0])
+								replacedLine := strings.Replace(line, removeForgeNotationAuthor[0]+forgeModuleNameSeparator, "mod '", 1)
+								//fmt.Println("replacedLine:", replacedLine)
+								//fmt.Print("n:", n)
+								newN := strings.Replace(n, line, replacedLine, 1)
+								//fmt.Print("newN:", newN)
+								return readPuppetfile(newN, sshKey, source, branch, forceForgeVersions, true)
+							}
 						}
 					}
 				}
@@ -219,7 +302,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 			if _, ok := puppetFile.gitModules[comp[1]]; ok {
 				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
 			}
-			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum}
+			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir, sourceBranch: source + "_" + branch}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
 			gitModuleName := m[1]
 			//fmt.Println("found git mod name ---> ", gitModuleName)
@@ -248,7 +331,7 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 					Fatalf("Error: Found conflicting git attributes " + cga + "in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
 				puppetFile.gitModules[gitModuleName] = GitModule{}
-				gm := GitModule{}
+				gm := GitModule{moduleDir: moduleDir}
 				gitModuleAttributesArray := strings.Split(gitModuleAttributes, ",")
 				//fmt.Println("found git mod attribute array ---> ", gitModuleAttributesArray)
 				//fmt.Println("len(gitModuleAttributesArray) --> ", len(gitModuleAttributesArray))
@@ -270,12 +353,10 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 						gm.git = a[2]
 					} else if gitModuleAttribute == "branch" {
 						if a[2] == ":control_branch" || a[2] == "control_branch" {
-							if strings.HasPrefix(a[2], ":") {
-								a[2] = strings.TrimLeft(a[2], ":")
-							}
 							gm.link = true
+						} else {
+							gm.branch = a[2]
 						}
-						gm.branch = a[2]
 					} else if gitModuleAttribute == "tag" {
 						gm.tag = a[2]
 					} else if gitModuleAttribute == "commit" {
@@ -323,18 +404,27 @@ func readPuppetfile(pf string, sshKey string, source string, forceForgeVersions 
 				}
 				puppetFile.gitModules[gitModuleName] = gm
 			}
+		} else {
+			// for now only in dry run mode
+			if dryRun {
+				Fatalf("Error: Could not interpret line: " + line + " In " + pf)
+			}
+
 		}
 
 	}
-	// check if we need to set defaults
-	if len(moduleDirParam) != 0 {
-		puppetFile.moduleDir = moduleDirParam
-	} else {
-		if len(puppetFile.moduleDir) == 0 {
-			puppetFile.moduleDir = "modules"
-		}
+
+	if len(moduleDirs) < 1 {
+		// adding at least the default module directory
+		moduleDirs = append(moduleDirs, moduleDir)
 	}
-	Debugf("Setting moduledir for Puppetfile " + pf + " to " + puppetFile.moduleDir)
-	//fmt.Println(puppetFile)
+
+	if validate {
+		Validatef()
+	}
+
+	puppetFile.moduleDirs = moduleDirs
+	puppetFile.sourceBranch = branch
+	//fmt.Printf("%+v\n", puppetFile)
 	return puppetFile
 }

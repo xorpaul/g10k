@@ -1,0 +1,10 @@
+---
+cachedir: './cache'
+deploy:
+  purge_blacklist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    prefix: true
+    basedir: './example/'

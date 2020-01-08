@@ -1,0 +1,4 @@
+# issue #104
+mod 'elastic/elasticsearch',
+  :git => 'https://github.com/elastic/puppet-elasticsearch.git',
+  :branch => '5.x'

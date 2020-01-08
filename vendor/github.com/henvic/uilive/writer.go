@@ -6,14 +6,10 @@ import (
 	"io"
 	"os"
 	"sync"
-	"time"
 )
 
 // ESC is the ASCII code for escape character
 const ESC = 27
-
-// RefreshInterval is the default refresh interval to update the ui
-var RefreshInterval = time.Millisecond
 
 // Out is the default output writer for the Writer
 var Out = os.Stdout
@@ -32,12 +28,6 @@ type Writer struct {
 	// Out is the writer to write to
 	Out io.Writer
 
-	// RefreshInterval is the time the UI sould refresh
-	RefreshInterval time.Duration
-
-	ticker *time.Ticker
-	tdone  chan bool
-
 	buf       bytes.Buffer
 	mtx       *sync.Mutex
 	lineCount int
@@ -50,9 +40,7 @@ type bypass struct {
 // New returns a new Writer with defaults
 func New() *Writer {
 	return &Writer{
-		Out:             Out,
-		RefreshInterval: RefreshInterval,
-
+		Out: Out,
 		mtx: &sync.Mutex{},
 	}
 }
@@ -80,40 +68,6 @@ func (w *Writer) Flush() error {
 	_, err := w.Out.Write(w.buf.Bytes())
 	w.buf.Reset()
 	return err
-}
-
-// Start starts the listener in a non-blocking manner
-func (w *Writer) Start() {
-	if w.ticker == nil {
-		w.ticker = time.NewTicker(w.RefreshInterval)
-		w.tdone = make(chan bool, 1)
-	}
-
-	go w.Listen()
-}
-
-// Stop stops the listener that updates the terminal
-func (w *Writer) Stop() {
-	w.Flush()
-	close(w.tdone)
-}
-
-// Listen listens for updates to the writer's buffer and flushes to the out provided. It blocks the runtime.
-func (w *Writer) Listen() {
-	for {
-		select {
-		case <-w.ticker.C:
-			if w.ticker != nil {
-				w.Flush()
-			}
-		case <-w.tdone:
-			w.mtx.Lock()
-			w.ticker.Stop()
-			w.ticker = nil
-			w.mtx.Unlock()
-			return
-		}
-	}
 }
 
 // Write save the contents of b to its buffers. The only errors returned are ones encountered while writing to the underlying buffer.

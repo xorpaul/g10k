@@ -1,0 +1,9 @@
+---
+git_object_syntax_not_supported: true
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    prefix: foobar

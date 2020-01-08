@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/henvic/uilive"
+	"github.com/gosuri/uilive"
 )
 
 // Out is the default writer to render progress bars to
@@ -33,10 +33,9 @@ type Progress struct {
 	// RefreshInterval in the time duration to wait for refreshing the output
 	RefreshInterval time.Duration
 
-	lw     *uilive.Writer
-	ticker *time.Ticker
-	tdone  chan bool
-	mtx    *sync.RWMutex
+	lw       *uilive.Writer
+	stopChan chan struct{}
+	mtx      *sync.RWMutex
 }
 
 // New returns a new progress bar with defaults
@@ -47,8 +46,9 @@ func New() *Progress {
 		Bars:            make([]*Bar, 0),
 		RefreshInterval: RefreshInterval,
 
-		lw:  uilive.New(),
-		mtx: &sync.RWMutex{},
+		lw:       uilive.New(),
+		stopChan: make(chan struct{}),
+		mtx:      &sync.RWMutex{},
 	}
 }
 
@@ -85,55 +85,35 @@ func (p *Progress) AddBar(total int) *Bar {
 
 // Listen listens for updates and renders the progress bars
 func (p *Progress) Listen() {
-	var tickChan = p.ticker.C
 	p.lw.Out = p.Out
-
 	for {
 		select {
-		case <-tickChan:
+		case <-p.stopChan:
+			return
+		default:
+			time.Sleep(p.RefreshInterval)
 			p.mtx.RLock()
-
-			if p.ticker != nil {
-				p.print()
-				p.lw.Flush()
+			for _, bar := range p.Bars {
+				fmt.Fprintln(p.lw, bar.String())
 			}
-
+			p.lw.Flush()
 			p.mtx.RUnlock()
-		case <-p.tdone:
-			if p.ticker != nil {
-				p.ticker.Stop()
-				p.ticker = nil
-				return
-			}
 		}
-	}
-}
-
-func (p *Progress) print() {
-	for _, bar := range p.Bars {
-		fmt.Fprintln(p.lw, bar.String())
 	}
 }
 
 // Start starts the rendering the progress of progress bars. It listens for updates using `bar.Set(n)` and new bars when added using `AddBar`
 func (p *Progress) Start() {
-	p.mtx.Lock()
-	if p.ticker == nil {
-		p.ticker = time.NewTicker(RefreshInterval)
-		p.tdone = make(chan bool, 1)
+	if p.stopChan == nil {
+		p.stopChan = make(chan struct{})
 	}
-	p.mtx.Unlock()
-
 	go p.Listen()
 }
 
 // Stop stops listening
 func (p *Progress) Stop() {
-	p.mtx.Lock()
-	close(p.tdone)
-	p.print()
-	p.lw.Flush()
-	p.mtx.Unlock()
+	close(p.stopChan)
+	p.stopChan = nil
 }
 
 // Bypass returns a writer which allows non-buffered data to be written to the underlying output

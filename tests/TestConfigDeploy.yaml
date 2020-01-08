@@ -1,0 +1,13 @@
+---
+:cachedir: '/tmp/g10k'
+
+deploy:
+  purge_levels: ['deployment']
+  purge_whitelist: [ 'custom.json', '**/*.xpp' ]
+  deployment_purge_whitelist: ['full_hiera_*']
+
+sources:
+  full:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env.git'
+    basedir: '/tmp/full/'
+    prefix: true

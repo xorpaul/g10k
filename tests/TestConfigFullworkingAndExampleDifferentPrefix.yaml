@@ -1,0 +1,15 @@
+---
+:cachedir: '/tmp/g10k'
+deploy:
+  purge_levels: ['deployment', 'puppetfile', 'environment']
+  purge_whitelist: [ '.latest_revision', '.resource_types' ]
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/out/'
+    prefix: true
+  full:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env.git'
+    basedir: '/tmp/out/'
+    prefix: false
