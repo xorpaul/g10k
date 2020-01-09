@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/mistifyio/go-zfs"
 )
 
 var (
@@ -60,6 +63,12 @@ var (
 	desiredContent               []string
 	unchangedModuleDirs          []string
 	mapModulesRefsToPuppetEnv    map[string]string
+	useZfs                       bool
+	zfsPool                      string
+	zfsMountpoint                string
+	zfsOwner                     string
+	zfsGroup                     string
+	zfsG10kmountpoint            string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
@@ -238,6 +247,12 @@ func main() {
 	flag.BoolVar(&usecacheFallback, "usecachefallback", false, "if g10k should try to use its cache for sources and modules instead of failing")
 	flag.BoolVar(&retryGitCommands, "retrygitcommands", false, "if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing")
 	flag.BoolVar(&gitObjectSyntaxNotSupported, "gitobjectsyntaxnotsupported", false, "if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax")
+	flag.BoolVar(&useZfs, "zfs-enable", false, "enable ZFS snapshot. Requires root user! To use hardlinks the cache must be kept inside this same ZFS Pool")
+	flag.StringVar(&zfsPool, "zfspool", "", "ZFS Pool name")
+	flag.StringVar(&zfsMountpoint, "zfsmountpoint", "/etc/puppetlabs/code", "ZFS r/o snapshot mount point")
+	flag.StringVar(&zfsOwner, "zfsowner", "puppet", "Files user owner")
+	flag.StringVar(&zfsGroup, "zfsgroup", "puppet", "Files group owner")
+	flag.StringVar(&zfsG10kmountpoint, "zfsg10kmountpoint", "/g10k", "G10k mount point. It is safe to use the default")
 	flag.Parse()
 
 	configFile = *configFileFlag
@@ -330,6 +345,37 @@ func main() {
 	}
 	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)
+	}
+
+	if useZfs {
+		if zfsPool == "" {
+			Fatalf("Error: zfs enabled but zfspool not specified")
+		}
+		curUser, _ := user.Current()
+		if curUser.Uid != "0" {
+			Fatalf("Error: ZFS requires root privileges")
+		}
+
+		zDevice := zfsPool + zfsG10kmountpoint
+		currentTime := time.Now()
+		nextSnapshot := fmt.Sprintf(currentTime.Format("Date-02-Jan-2006_Time-15.4.5"))
+		snapshotList, _ := zfs.Snapshots("")
+		fmt.Printf("creating ZFS snapshot\n")
+
+		// first ensure that user exist and then use numericals
+		checkUserGroupExistence(zfsOwner, zfsGroup)
+		userID, _ := user.Lookup(zfsOwner)
+		groupID, _ := user.LookupGroup(zfsGroup)
+		zfsUID, _ := strconv.Atoi(userID.Uid)
+		zfsGID, _ := strconv.Atoi(groupID.Gid)
+
+		createZdevice(zDevice)
+		ensureG10kMounted(zDevice, zfsG10kmountpoint)
+		chownRecursive(zfsG10kmountpoint, zfsUID, zfsGID)
+		createSnapshot(nextSnapshot, zDevice)
+		umountSnapshot(zfsMountpoint)
+		mountSnapshot(zfsMountpoint, zDevice, nextSnapshot)
+		destroySnapshots(snapshotList, zfsPool)
 	}
 
 	checkForAndExecutePostrunCommand()

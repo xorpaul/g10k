@@ -4,7 +4,9 @@ go 1.13
 
 require (
 	github.com/davecgh/go-spew v1.1.1
+	github.com/docker/docker v1.13.1
 	github.com/fatih/color v1.7.1-0.20180516100307-2d684516a886
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/gosuri/uilive v0.0.3
 	github.com/gosuri/uiprogress v0.0.1
 	github.com/henvic/uilive v0.0.0-20170601211230-dc7a6ced9df3
@@ -16,7 +18,9 @@ require (
 	github.com/klauspost/pgzip v1.2.1
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10
+	github.com/mistifyio/go-zfs v2.1.2-0.20190318212943-b6cafe7fb92e+incompatible
 	github.com/remeh/sizedwaitgroup v1.0.0
+	github.com/stamblerre/gocode v1.0.0 // indirect
 	github.com/tidwall/gjson v1.3.5
 	github.com/tidwall/match v1.0.1
 	github.com/xorpaul/uiprogress v0.0.0-20170224063937-d0567a9d84a1
