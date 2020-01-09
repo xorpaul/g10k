@@ -351,8 +351,8 @@ func main() {
 		if zfsPool == "" {
 			Fatalf("Error: zfs enabled but zfspool not specified")
 		}
-		user, _ := user.Current()
-		if user.Uid != 0 {
+		curUser, _ := user.Current()
+		if curUser.Uid != "0" {
 			Fatalf("Error: ZFS requires root privileges")
 		}
 
