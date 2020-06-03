@@ -125,6 +125,8 @@ type Git struct {
 type Source struct {
 	Remote                      string
 	Basedir                     string
+	Branch                      string
+	Ref                         string
 	Prefix                      string
 	PrivateKey                  string `yaml:"private_key"`
 	ForceForgeVersions          bool   `yaml:"force_forge_versions"`
@@ -244,7 +246,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k version 0.8.9 Build time:", buildtime, "UTC")
+		fmt.Println("g10k version 0.8.10 Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 

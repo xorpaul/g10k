@@ -58,23 +58,40 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 			controlRepoGit := GitModule{}
 			controlRepoGit.git = sa.Remote
 			controlRepoGit.privateKey = sa.PrivateKey
+			singleRef := branchParam
+			if len(singleRef) == 0 && len(sa.Ref) > 0 {
+				singleRef = sa.Ref
+			} else if len(singleRef) == 0 && len(sa.Branch) > 0 {
+				singleRef = sa.Branch
+			}
 			if success := doMirrorOrUpdate(controlRepoGit, workDir, 0); success {
+				prefix := resolveSourcePrefix(source, sa)
 
-				// get all branches
-				er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
-				outputBranches := er.output
-				outputTags := ""
+				var refs = []string{}
+				if len(sa.Ref) > 0 {
+					// check if commit hash exists
+					er := executeCommand("git --git-dir "+workDir+" cat-file -t "+sa.Ref, config.Timeout, false)
+					if er.returnCode != 0 {
+						Warnf("WARNING: Couldn't find specified commit hash '" + sa.Ref + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+						return
+					}
+					refs = append(refs, sa.Ref)
+				} else {
+					// get all branches
+					er := executeCommand("git --git-dir "+workDir+" branch", config.Timeout, false)
+					outputBranches := er.output
+					outputTags := ""
 
-				if tags == true {
-					er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
-					outputTags = er.output
+					if tags == true {
+						er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
+						outputTags = er.output
+					}
+
+					refs = strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
 				}
 
-				branches := strings.Split(strings.TrimSpace(outputBranches+outputTags), "\n")
-
 				foundBranch := false
-				prefix := resolveSourcePrefix(source, sa)
-				for _, branch := range branches {
+				for _, branch := range refs {
 					branch = strings.TrimLeft(branch, "* ")
 					reInvalidCharacters := regexp.MustCompile("\\W")
 					if sa.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
@@ -86,8 +103,8 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
-					if len(branchParam) > 0 {
-						if branch == branchParam {
+					if len(singleRef) > 0 {
+						if branch == singleRef {
 							foundBranch = true
 						} else {
 							Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + branchParam + "', skipping")

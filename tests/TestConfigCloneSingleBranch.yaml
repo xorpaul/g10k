@@ -1,0 +1,9 @@
+---
+    :cachedir: '/tmp/g10k'
+    
+    sources:
+      testmodule:
+        remote: 'git://github.com/xorpaul/g10k_testmodule.git'
+        basedir: '/tmp/g10k_testmodule/'
+        branch: 'update_master'
+    
