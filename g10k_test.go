@@ -2915,3 +2915,107 @@ func TestCloneGitModules(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigCloneSingleBranch(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigCloneSingleBranch.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir(config.CacheDir, funcName)
+	purgeDir("/tmp/g10k_testmodule", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+
+	expectedLines := []string{
+		"DEBUG executeCommand(): Executing git clone --mirror git://github.com/xorpaul/g10k_testmodule.git " + config.CacheDir + "/environments/testmodule.git",
+		"DEBUG syncToModuleDir(): Executing git --git-dir " + config.CacheDir + "/environments/testmodule.git archive update_master",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	expectedDirs := []string{
+		"/tmp/g10k_testmodule/update_master/manifests/",
+		"/tmp/g10k_testmodule/update_master/hieradata/",
+	}
+
+	for _, expectedDir := range expectedDirs {
+		if !isDir(expectedDir) {
+			t.Errorf("This Puppet module is not a cloned git repository despite clone_git_modules set to true :" + expectedDir)
+		}
+	}
+}
+
+func TestConfigCloneGitCommitHash(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigCloneGitCommitHash.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir(config.CacheDir, funcName)
+	purgeDir("/tmp/g10k_testmodule", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+
+	expectedLines := []string{
+		"DEBUG executeCommand(): Executing git clone --mirror git://github.com/xorpaul/g10k_testmodule.git " + config.CacheDir + "/environments/testmodule.git",
+		"DEBUG syncToModuleDir(): Executing git --git-dir " + config.CacheDir + "/environments/testmodule.git archive 124ad4fda7cb6da36a0b69c7e52ef3bcde534d16",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	expectedDirs := []string{
+		"/tmp/g10k_testmodule/124ad4fda7cb6da36a0b69c7e52ef3bcde534d16/manifests/",
+		"/tmp/g10k_testmodule/124ad4fda7cb6da36a0b69c7e52ef3bcde534d16/hieradata/",
+	}
+
+	for _, expectedDir := range expectedDirs {
+		if !isDir(expectedDir) {
+			t.Errorf("This Puppet module is not a cloned git repository despite clone_git_modules set to true :" + expectedDir)
+		}
+	}
+}

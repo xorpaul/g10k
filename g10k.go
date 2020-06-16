@@ -125,6 +125,8 @@ type Git struct {
 type Source struct {
 	Remote                      string
 	Basedir                     string
+	Branch                      string
+	Ref                         string
 	Prefix                      string
 	PrivateKey                  string `yaml:"private_key"`
 	ForceForgeVersions          bool   `yaml:"force_forge_versions"`
