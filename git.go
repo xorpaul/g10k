@@ -206,6 +206,9 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		mutex.Unlock()
 
 		if !dryRun && !config.CloneGitModules || isControlRepo {
+			if pfMode {
+				purgeDir(targetDir, "git dir with changes in -puppetfile mode")
+			}
 			checkDirAndCreate(targetDir, "git dir")
 			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", gitModule.tree}
 			cmd := exec.Command("git", gitArchiveArgs...)
