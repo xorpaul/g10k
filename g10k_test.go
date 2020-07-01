@@ -1227,16 +1227,7 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	doMirrorOrUpdate(gm, localGitRepoDir, 0)
 
 	// corrupt the local git module repository
-	matches, _ := filepath.Glob(filepath.Join(localGitRepoDir, "objects/pack/*.idx"))
-	for _, m := range matches {
-		if err := os.RemoveAll(m); err != nil {
-			t.Error("Error: deleting Git *.idx file to corrupt the local Git repository")
-		}
-		f, _ := os.Create(m)
-		defer f.Close()
-		f.WriteString("foobar")
-		f.Sync()
-	}
+	purgeDir(filepath.Join(localGitRepoDir, "objects"), "corrupt local git repository for TestConfigRetryGitCommands")
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
