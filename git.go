@@ -104,7 +104,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + gitModule.git + " " + workDir
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
-		fmt.Printf("%+v\n", gitModule)
+		//fmt.Printf("%+v\n", gitModule)
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
