@@ -94,13 +94,18 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 }
 
 func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool {
-	needSSHKey := true
-	if strings.Contains(gitModule.git, "github.com") || len(gitModule.privateKey) == 0 {
-		needSSHKey = false
-	}
 	isControlRepo := strings.HasPrefix(workDir, config.EnvCacheDir)
 	isInModulesCacheDir := strings.HasPrefix(workDir, config.ModulesCacheDir)
 
+	needSSHKey := true
+	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") {
+		if isControlRepo {
+			needSSHKey = true
+		} else {
+			needSSHKey = false
+		}
+	}
+	fmt.Println("needSSHKey is set to:", needSSHKey)
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + gitModule.git + " " + workDir
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
