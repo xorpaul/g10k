@@ -10,3 +10,4 @@ tmp/
 .g10k_cache/
 external_modules/
 .scannerwork/
+tests/github-test-private/
