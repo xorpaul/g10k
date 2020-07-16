@@ -105,7 +105,6 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 			needSSHKey = false
 		}
 	}
-	fmt.Println("needSSHKey is set to:", needSSHKey)
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + gitModule.git + " " + workDir
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
