@@ -1,0 +1,8 @@
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  private:
+    remote: 'git@github.com:xorpaul/g10k-environment-private'
+    basedir: '/tmp/private/'
+    private_key: 'tests/github-test-private/github-test-private'
