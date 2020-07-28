@@ -131,6 +131,8 @@ type Source struct {
 	WarnMissingBranch           bool   `yaml:"warn_if_branch_is_missing"`
 	ExitIfUnreachable           bool   `yaml:"exit_if_unreachable"`
 	AutoCorrectEnvironmentNames string `yaml:"invalid_branches"`
+	FilterCommand               string `yaml:"filter_command"`
+	FilterRegex                 string `yaml:"filter_regex"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile
