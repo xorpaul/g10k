@@ -82,9 +82,15 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 func checkForStaleContent(workDir string) {
 	// add purge whitelist
 	if len(config.PurgeWhitelist) > 0 {
-		Debugf("additional purge whitelist items: " + strings.Join(config.PurgeWhitelist, " "))
+		Debugf("interpreting purge whitelist globs: " + strings.Join(config.PurgeWhitelist, " "))
 		for _, wlItem := range config.PurgeWhitelist {
-			desiredContent = append(desiredContent, filepath.Join(workDir, wlItem))
+			globPath := filepath.Join(workDir, wlItem)
+			Debugf("Glob'ing with path " + globPath)
+			wlPaths, _ := filepath.Glob(globPath)
+			Debugf("additional purge whitelist items: " + strings.Join(wlPaths, ""))
+			for _, wlPath := range wlPaths {
+				desiredContent = append(desiredContent, wlPath)
+			}
 		}
 	}
 
