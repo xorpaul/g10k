@@ -2952,3 +2952,119 @@ func TestPrivateGithubRepository(t *testing.T) {
 
 	purgeDir("/tmp/private", funcName)
 }
+
+func TestBranchFilterCommand(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigFullworkingBranchFilter.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/branchfilter", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	_, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+	expectedFiles := []string{
+		"/tmp/branchfilter/full_single/.g10k-deploy.json",
+		"/tmp/branchfilter/full_single/Puppetfile",
+		"/tmp/branchfilter/full_single/modules/ntp/manifests/init.pp",
+		"/tmp/branchfilter/full_master/.g10k-deploy.json",
+		"/tmp/branchfilter/full_master/Puppetfile",
+		"/tmp/branchfilter/full_master/modules/stdlib/manifests/init.pp",
+		"/tmp/branchfilter/full_master/modules/puppet/manifests/init.pp",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+		}
+	}
+
+	expectedMissingFiles := []string{
+		"/tmp/branchfilter/full_qa/.g10k-deploy.json",
+		"/tmp/branchfilter/full_qa/modules/apache/manifests/init.pp",
+		"/tmp/branchfilter/full_symlinks/Puppetfile",
+	}
+	for _, expectedMissingFile := range expectedMissingFiles {
+		if fileExists(expectedMissingFile) {
+			t.Errorf("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
+		}
+	}
+
+	purgeDir("/tmp/branchfilter", funcName)
+}
+
+func TestBranchFilterRegex(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigFullworkingBranchFilterRegex.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		environmentParam = ""
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	purgeDir("/tmp/branchfilter", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	fmt.Println(string(out))
+	expectedFiles := []string{
+		"/tmp/branchfilter/full_single/.g10k-deploy.json",
+		"/tmp/branchfilter/full_single/Puppetfile",
+		"/tmp/branchfilter/full_single/modules/ntp/manifests/init.pp",
+		"/tmp/branchfilter/full_master/.g10k-deploy.json",
+		"/tmp/branchfilter/full_master/Puppetfile",
+		"/tmp/branchfilter/full_master/modules/stdlib/manifests/init.pp",
+		"/tmp/branchfilter/full_master/modules/puppet/manifests/init.pp",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+		}
+	}
+
+	expectedMissingFiles := []string{
+		"/tmp/branchfilter/full_qa/.g10k-deploy.json",
+		"/tmp/branchfilter/full_qa/modules/apache/manifests/init.pp",
+		"/tmp/branchfilter/full_symlinks/Puppetfile",
+	}
+	for _, expectedMissingFile := range expectedMissingFiles {
+		if fileExists(expectedMissingFile) {
+			t.Errorf("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
+		}
+	}
+
+	purgeDir("/tmp/branchfilter", funcName)
+}

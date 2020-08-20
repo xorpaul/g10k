@@ -86,6 +86,20 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
+
+					if len(sa.FilterCommand) > 0 {
+						if skipBasedOnFilterCommand(branch, source, sa, workDir) {
+							Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_command setting")
+							continue
+						}
+					}
+					if len(sa.FilterRegex) > 0 {
+						if skipBasedOnFilterRegex(branch, source, sa, workDir) {
+							Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_regex setting")
+							continue
+						}
+					}
+
 					if len(branchParam) > 0 {
 						if branch == branchParam {
 							foundBranch = true
@@ -440,5 +454,35 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			mutex.Unlock()
 		}
 	}
+
+}
+
+func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workDir string) bool {
+	branchFilterCommand := sa.FilterCommand
+	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$R10K_BRANCH", branch)
+	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$G10K_BRANCH", branch)
+	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$R10K_NAME", sourceName)
+	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$G10K_NAME", sourceName)
+	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$GIT_DIR", workDir)
+	Debugf("executing filter_command: " + branchFilterCommand)
+	er := executeCommand(branchFilterCommand, 30, true)
+	fmt.Printf("%+v", er)
+	if er.returnCode != 0 {
+		return true
+	}
+	return false
+}
+
+func skipBasedOnFilterRegex(branch string, sourceName string, sa Source, workDir string) bool {
+	reFilterRegex, err := regexp.Compile(sa.FilterRegex)
+	if err != nil {
+		Fatalf("Setting filter_branch of source " + sourceName + " could not be compiled to a valid Go regex please fix!")
+	}
+
+	m := reFilterRegex.FindStringSubmatch(branch)
+	if len(m) > 0 {
+		return false
+	}
+	return true
 
 }
