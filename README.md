@@ -442,6 +442,31 @@ sources:
     basedir: './example/'
 ```
 
+Starting with [v.0.8.12](https://github.com/xorpaul/g10k/releases/tag/v0.8.12) g10k supports filtering branches via regex or an external script:
+
+Example using external script:
+
+```
+---
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: './example/'
+    filter_command: 'tests/branch_filter_command.sh $R10K_BRANCH ^(single|master)$'
+```
+or via regex
+```
+---
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: './example/'
+    filter_regex: '^(single|master)$'
+```
+
+See #166 for the discussion and #167 for the merge request.
+
+
 # building
 ```
 # only initially needed to resolve all dependencies
