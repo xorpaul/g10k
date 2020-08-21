@@ -197,7 +197,7 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	}
 	if err != nil {
 		er.returnCode = 1
-		er.output = fmt.Sprint(err)
+		er.output = fmt.Sprint(err) + " " + fmt.Sprint(string(out))
 	}
 	return er
 }
