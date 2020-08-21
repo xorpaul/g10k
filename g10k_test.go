@@ -25,6 +25,8 @@ func removeTimestampsFromDeployfile(file string) {
 			Name:               dr.Name,
 			Signature:          dr.Signature,
 			PuppetfileChecksum: dr.PuppetfileChecksum,
+			GitDir:             dr.GitDir,
+			GitURL:             dr.GitURL,
 		}
 
 		writeStructJSONFile(file, newDr)
