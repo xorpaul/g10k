@@ -129,6 +129,7 @@ type Source struct {
 	PrivateKey                  string `yaml:"private_key"`
 	ForceForgeVersions          bool   `yaml:"force_forge_versions"`
 	WarnMissingBranch           bool   `yaml:"warn_if_branch_is_missing"`
+	ErrorMissingBranch          bool   `yaml:"error_if_branch_is_missing"`
 	ExitIfUnreachable           bool   `yaml:"exit_if_unreachable"`
 	AutoCorrectEnvironmentNames string `yaml:"invalid_branches"`
 	FilterCommand               string `yaml:"filter_command"`

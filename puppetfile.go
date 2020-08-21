@@ -174,7 +174,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 					}(branch, sa, prefix)
 				}
 
-				if sa.WarnMissingBranch && !foundBranch {
+				if sa.ErrorMissingBranch && !foundBranch {
+					Fatalf("Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+				} else if sa.WarnMissingBranch && !foundBranch {
 					Warnf("WARNING: Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				}
 			} else {
