@@ -3027,7 +3027,7 @@ func TestBranchFilterRegex(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
+	_, err := cmd.CombinedOutput()
 
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -3038,7 +3038,6 @@ func TestBranchFilterRegex(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	fmt.Println(string(out))
 	expectedFiles := []string{
 		"/tmp/branchfilter/full_single/.g10k-deploy.json",
 		"/tmp/branchfilter/full_single/Puppetfile",
