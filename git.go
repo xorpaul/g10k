@@ -131,7 +131,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
 			return doMirrorOrUpdate(gitModule, workDir, retryCount-1)
 		}
-		Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment!")
+		Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
 		return false
 	}
 	return true
