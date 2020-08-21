@@ -2,6 +2,7 @@
 g10k
 *.upx
 .modules/
+example/
 Puppetfile*
 cache/
 example/
