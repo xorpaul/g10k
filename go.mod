@@ -22,6 +22,7 @@ require (
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10
 	github.com/remeh/sizedwaitgroup v1.0.0
+	github.com/stretchr/testify v1.6.1
 	github.com/tidwall/gjson v1.3.5
 	github.com/tidwall/match v1.0.1
 	github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 // indirect
