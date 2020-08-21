@@ -412,7 +412,7 @@ Example:
 ---
 deploy:
   purge_levels: ['deployment', 'puppetfile', 'environment']
-  purge_whitelist: [ '.latest_revision', '.resource_types' ]
+  purge_whitelist: [ '.latest_revision', '.resource_types', 'resource_types/*.pp', '**/*.pp'. ]
   deployment_purge_whitelist: [ 'example_hiera_*', '.resource_types' ]
 
 sources:
