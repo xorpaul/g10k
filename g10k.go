@@ -145,6 +145,7 @@ type Puppetfile struct {
 	source            string
 	sourceBranch      string
 	workDir           string
+	gitDir            string
 	moduleDirs        []string
 	controlRepoBranch string
 }
@@ -202,6 +203,7 @@ type DeployResult struct {
 	FinishedAt         time.Time `json:"finished_at"`
 	DeploySuccess      bool      `json:"deploy_success"`
 	PuppetfileChecksum string    `json:"puppetfile_checksum"`
+	GitDir             string    `json:"git_dir"`
 }
 
 func init() {

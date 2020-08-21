@@ -158,6 +158,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
+								puppetfile.gitDir = workDir
 								mutex.Lock()
 								for _, moduleDir := range puppetfile.moduleDirs {
 									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
@@ -448,6 +449,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			dr.DeploySuccess = true
 			dr.FinishedAt = time.Now()
 			dr.PuppetfileChecksum = getSha256sumFile(filepath.Join(pf.workDir, "Puppetfile"))
+			dr.GitDir = pf.gitDir
 			writeStructJSONFile(deployFile, dr)
 			mutex.Lock()
 			desiredContent = append(desiredContent, deployFile)
