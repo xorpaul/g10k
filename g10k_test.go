@@ -591,7 +591,7 @@ func TestResolveConfigExitIfUnreachable(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
@@ -619,7 +619,7 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!\nWARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
@@ -667,7 +667,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	if 0 != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!\nWARN: Trying to use cache for https://.com/puppetlabs/puppetlabs-firewall.git git repository") {
+	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARN: Trying to use cache for https://.com/puppetlabs/puppetlabs-firewall.git git repository") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
@@ -718,7 +718,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!\nFatal: Could not reach git repository https://.com/puppetlabs/puppetlabs-firewall.git") {
+	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "Fatal: Could not reach git repository https://.com/puppetlabs/puppetlabs-firewall.git") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
@@ -2000,17 +2000,28 @@ func TestPurgeWhitelist(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
-		branchParam = "single"
+		branchParam = "single_git"
 		resolvePuppetEnvironment(false, "")
 		return
 	}
 	purgeDir("/tmp/example", funcName)
-	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
-	f, _ := os.Create("/tmp/example/single/.latest_revision")
+	createOrPurgeDir("/tmp/example/single_git/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/example/single_git/.resource_types", funcName)
+	f, _ := os.Create("/tmp/example/single_git/.latest_revision")
 	defer f.Close()
 	f.WriteString("foobar")
 	f.Sync()
+	frt, err := os.Create("/tmp/example/single_git/.resource_types/foobar.pp")
+	defer frt.Close()
+	frt.WriteString("fake resource type")
+	frt.Sync()
+	createOrPurgeDir("/tmp/example/single_git/modules/", funcName)
+	createOrPurgeDir("/tmp/example/single_git/modules/firewall/", funcName)
+	createOrPurgeDir("/tmp/example/single_git/modules/firewall/manifests/", funcName)
+	fpf, _ := os.Create("/tmp/example/single_git/modules/firewall/manifests/stale.pp")
+	defer fpf.Close()
+	fpf.WriteString("fake stale module file")
+	fpf.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2028,9 +2039,9 @@ func TestPurgeWhitelist(t *testing.T) {
 	//fmt.Println(string(out))
 
 	expectedLines := []string{
-		"DEBUG checkForStaleContent(): additional purge whitelist items: .latest_revision .resource_types",
-		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single/stale_directory_that_should_be_purged called from checkForStaleContent()",
+		"Removing unmanaged path /tmp/example/single_git/stale_directory_that_should_be_purged",
+		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/modules/firewall/manifests/stale.pp called from checkForStaleContent()",
+		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/stale_directory_that_should_be_purged called from checkForStaleContent()",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2039,12 +2050,114 @@ func TestPurgeWhitelist(t *testing.T) {
 		}
 	}
 
-	if !fileExists("/tmp/example/single/.resource_types") ||
-		!fileExists("/tmp/example/single/.latest_revision") {
-		t.Errorf("purge whitelist item was purged!")
+	expectedFiles := []string{
+		"/tmp/example/single_git/.resource_types",
+		"/tmp/example/single_git/.resource_types/foobar.pp",
+		"/tmp/example/single_git/.latest_revision",
 	}
 
-	if !fileExists("/tmp/example/single/external_modules/inifile/README.md") {
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("purge_whitelist item was purged: " + expectedFile)
+		}
+	}
+
+	missingFiles := []string{
+		"/tmp/example/single_git/stale_directory_that_should_be_purged",
+		"/tmp/example/single_git/modules/firewall/manifests/stale.pp",
+	}
+	for _, missingFile := range missingFiles {
+		if fileExists(missingFile) {
+			t.Errorf("stale file and/or directory still exists! " + missingFile)
+		}
+	}
+
+	if !fileExists("/tmp/example/single_git/modules/firewall/README.markdown") {
+		t.Errorf("Missing module file that should be there")
+	}
+
+	purgeDir(cacheDir, funcName)
+	purgeDir("/tmp/example", funcName)
+}
+
+func TestPurgeWhitelistRecursive(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	cacheDir := "/tmp/g10k"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		config = readConfigfile("tests/TestConfigExamplePurgeEnvironmentRecursive.yaml")
+		branchParam = "single_git"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example", funcName)
+	createOrPurgeDir("/tmp/example/single_git/stale_directory_that_should_be_purged", funcName)
+	createOrPurgeDir("/tmp/example/single_git/.resource_types", funcName)
+	f, _ := os.Create("/tmp/example/single_git/.latest_revision")
+	defer f.Close()
+	f.WriteString("foobar")
+	f.Sync()
+	frt, _ := os.Create("/tmp/example/single_git/.resource_types/foobar.pp")
+	defer frt.Close()
+	frt.WriteString("fake resource type")
+	frt.Sync()
+	createOrPurgeDir("/tmp/example/single_git/modules/", funcName)
+	createOrPurgeDir("/tmp/example/single_git/modules/firewall/", funcName)
+	createOrPurgeDir("/tmp/example/single_git/modules/firewall/manifests/", funcName)
+	fpf, _ := os.Create("/tmp/example/single_git/modules/firewall/manifests/stale.pp")
+	defer fpf.Close()
+	fpf.WriteString("fake stale module file")
+	fpf.Sync()
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if expectedExitCode != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	//fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Removing unmanaged path /tmp/example/single_git/stale_directory_that_should_be_purged",
+		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/stale_directory_that_should_be_purged called from checkForStaleContent()",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/example/single_git/.resource_types",
+		"/tmp/example/single_git/.resource_types/foobar.pp",
+		"/tmp/example/single_git/.latest_revision",
+		"/tmp/example/single_git/modules/firewall/manifests/stale.pp",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("purge_whitelist item was purged: " + expectedFile)
+		}
+	}
+
+	missingFiles := []string{
+		"/tmp/example/single_git/stale_directory_that_should_be_purged",
+	}
+	for _, missingFile := range missingFiles {
+		if fileExists(missingFile) {
+			t.Errorf("stale file and/or directory still exists! " + missingFile)
+		}
+	}
+
+	if !fileExists("/tmp/example/single_git/modules/firewall/README.markdown") {
 		t.Errorf("Missing module file that should be there")
 	}
 
