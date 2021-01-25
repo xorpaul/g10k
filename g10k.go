@@ -52,6 +52,7 @@ var (
 	metadataJSONParseTime        float64
 	gmetadataJSONParseTime       float64
 	buildtime                    string
+	buildversion                 string
 	uniqueForgeModules           map[string]ForgeModule
 	latestForgeModules           LatestForgeModules
 	maxworker                    int
@@ -251,7 +252,7 @@ func main() {
 	version := *versionFlag
 
 	if version {
-		fmt.Println("g10k version 0.8.12 Build time:", buildtime, "UTC")
+		fmt.Println("g10k ", buildversion, " Build time:", buildtime, "UTC")
 		os.Exit(0)
 	}
 
