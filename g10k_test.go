@@ -278,7 +278,7 @@ func TestResolveStatic(t *testing.T) {
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
 	removeTimestampsFromDeployfile("example/example_static/.g10k-deploy.json")
 
-	cmd := exec.Command(path, "-vv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	cmd := exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_example_static.hashdeep", "./example")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -294,7 +294,7 @@ func TestResolveStatic(t *testing.T) {
 
 	purgeDir("example/example_static/external_modules/stdlib/spec/unit/facter/util", "TestResolveStatic()")
 
-	cmd = exec.Command("hashdeep", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static.hashdeep")
+	cmd = exec.Command("hashdeep", "-l", "-r", "-a", "-k", "tests/hashdeep_example_static.hashdeep", "./example")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -330,7 +330,7 @@ func TestResolveStaticBlacklist(t *testing.T) {
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
 	removeTimestampsFromDeployfile("example/example_blacklist/.g10k-deploy.json")
 
-	cmd := exec.Command(path, "-vv", "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	cmd := exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep", "./example")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -357,7 +357,7 @@ func TestResolveStaticBlacklist(t *testing.T) {
 
 	purgeDir("example/example_blacklist/Puppetfile", "TestResolveStaticBlacklist()")
 
-	cmd = exec.Command(path, "-l", "-r", "./example", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep")
+	cmd = exec.Command(path, "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep", "./example")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -2746,7 +2746,7 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	removeTimestampsFromDeployfile("/tmp/out/full_single/.g10k-deploy.json")
 	removeTimestampsFromDeployfile("/tmp/out/example_single_git/.g10k-deploy.json")
 
-	cmd = exec.Command(path, "-vv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_multiple.hashdeep")
+	cmd = exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_both_multiple.hashdeep", "/tmp/out")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -2781,7 +2781,7 @@ func TestSymlink(t *testing.T) {
 		// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
 		removeTimestampsFromDeployfile("/tmp/out/full_symlinks/.g10k-deploy.json")
 
-		cmd := exec.Command(path, "-vv", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep")
+		cmd := exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep", "/tmp/out")
 		out, err := cmd.CombinedOutput()
 		exitCode := 0
 		if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -2810,7 +2810,7 @@ func TestSymlink(t *testing.T) {
 
 		purgeDir("/tmp/out/full_symlinks/modules/testmodule/files/docs/another_dir/file", "TestResolveStatic()")
 
-		cmd = exec.Command("hashdeep", "-l", "-r", "/tmp/out", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep")
+		cmd = exec.Command("hashdeep", "-l", "-r", "-a", "-k", "tests/hashdeep_both_symlinks.hashdeep", "/tmp/out")
 		out, err = cmd.CombinedOutput()
 		exitCode = 0
 		if msg, ok := err.(*exec.ExitError); ok { // there is error code
