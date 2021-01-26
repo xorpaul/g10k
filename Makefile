@@ -36,4 +36,7 @@ test: lint vet imports
 clean:
 	rm -f g10k coverage.txt
 
+build-image:
+	docker build -t g10k:${BUILDVERSION} .
+
 .PHONY: all lint vet imports test clean
