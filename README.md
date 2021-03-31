@@ -194,6 +194,19 @@ Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git
 
 Now also supports the r10k setting name `:default_branch => 'master'` See [#73](https://github.com/xorpaul/g10k/issues/73)
 
+- additionl Git attribute `:use_ssh_agent`:
+
+Normally g10k adds the SSH key specified in the g10k config for each SSH+Git module in your Puppetfile.
+If you don't want to use this SSH key, need a different key for a certain Git module or have the key encrypted in your SSH agent, then use this parameter to skip the `ssh-add` commands:
+
+```
+mod 'example_module',
+  :git => 'git@somehost.com/foo/example-module.git',
+  :branch => 'foo',
+  :use_ssh_agent => true
+```
+See [#171](https://github.com/xorpaul/g10k/issues/171) for more details.
+
 - additional Forge attribute `:sha256sum`:
 
 For (some) increased security you can add a SHA256 sum for each Forge module, which g10k will verify after downloading the respective .tar.gz file:
