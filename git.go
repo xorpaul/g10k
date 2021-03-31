@@ -58,7 +58,6 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	wg.Add(len(uniqueGitModules))
 
 	for url, gm := range uniqueGitModules {
-		Debugf("git repo url " + url)
 		privateKey := gm.privateKey
 		go func(url string, gm GitModule, bar *uiprogress.Bar) {
 			// Try to receive from the concurrentGoroutines channel. When we have something,
@@ -69,8 +68,10 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			defer bar.Incr()
 			defer wg.Done()
 
-			if len(gm.privateKey) > 0 {
-				Debugf("git repo url " + url + " with ssh key " + privateKey)
+			if gm.useSSHAgent {
+				Debugf("git repo url " + url + " with loaded SSH keys from ssh-agent")
+			} else if len(gm.privateKey) > 0 {
+				Debugf("git repo url " + url + " with SSH key " + privateKey)
 			} else {
 				Debugf("git repo url " + url + " without ssh key")
 			}
@@ -95,11 +96,12 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 }
 
 func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool {
+	//fmt.Printf("%+v\n", gitModule)
 	isControlRepo := strings.HasPrefix(workDir, config.EnvCacheDir)
 	isInModulesCacheDir := strings.HasPrefix(workDir, config.ModulesCacheDir)
 
 	needSSHKey := true
-	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") {
+	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent == true {
 		if isControlRepo {
 			needSSHKey = true
 		} else {
@@ -109,7 +111,6 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + gitModule.git + " " + workDir
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
-		//fmt.Printf("%+v\n", gitModule)
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {

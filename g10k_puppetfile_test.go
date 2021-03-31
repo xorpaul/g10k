@@ -98,7 +98,9 @@ func equalGitModule(a, b GitModule) bool {
 		a.ref != b.ref ||
 		a.link != b.link ||
 		a.ignoreUnreachable != b.ignoreUnreachable ||
-		a.installPath != b.installPath {
+		a.installPath != b.installPath ||
+		a.local != b.local ||
+		a.useSSHAgent != b.useSSHAgent {
 		return false
 	}
 	if len(a.fallback) != len(b.fallback) {
@@ -496,6 +498,27 @@ func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
 
 	if !equalPuppetfile(got, expected) {
 		spew.Dump(expected)
+		spew.Dump(got)
+		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
+	}
+}
+
+func TestReadPuppetfileSSHKeyAlreadyLoaded(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
+
+	fm := make(map[string]ForgeModule)
+	gm := make(map[string]GitModule)
+	gm["example_module"] = GitModule{git: "git@somehost.com/foo/example-module.git", branch: "foo", useSSHAgent: true}
+
+	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
+	//fmt.Println(got)
+
+	if !equalPuppetfile(got, expected) {
+		fmt.Println("Expected:")
+		spew.Dump(expected)
+		fmt.Println("Got:")
 		spew.Dump(got)
 		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
 	}

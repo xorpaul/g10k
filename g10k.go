@@ -182,6 +182,7 @@ type GitModule struct {
 	installPath       string
 	local             bool
 	moduleDir         string
+	useSSHAgent       bool
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded
