@@ -196,7 +196,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
 	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
 	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
+	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local|use_ssh_agent)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
 	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
 	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
 	moduleDir := "modules"
@@ -392,6 +392,12 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 						if local {
 							gm.local = true
 						}
+					} else if gitModuleAttribute == "use_ssh_agent" {
+						useSSHAgent, err := strconv.ParseBool(a[2])
+						if err != nil {
+							Fatalf("Error: Can not convert value " + a[2] + " of parameter " + gitModuleAttribute + " to boolean. In " + pf + " for module " + gitModuleName + " line: " + line)
+						}
+						gm.useSSHAgent = useSSHAgent
 					}
 
 				}

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -3207,4 +3208,57 @@ func TestBranchFilterRegex(t *testing.T) {
 	}
 
 	purgeDir("/tmp/branchfilter", funcName)
+}
+
+func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	configFile = "tests/TestConfigUseSSHAgent.yaml"
+	config = readConfigfile(configFile)
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		purgeDir("/tmp/example/", funcName)
+		purgeDir("/tmp/g10k/", funcName)
+		debug = true
+		branchParam = "use_ssh_agent"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if 1 != exitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
+	}
+	//fmt.Println(string(out))
+
+	sshAddCmd := "ssh-add"
+	if runtime.GOOS == "darwin" {
+		sshAddCmd = "ssh-add -K"
+	}
+
+	expectedLines := []string{
+		"DEBUG git repo url git@local.git.server:foo/git_module_with_ssh_agent.git with loaded SSH keys from ssh-agent",
+		"DEBUG git repo url git@github.com:foobar/github_module_without_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
+		"DEBUG git repo url git@local.git.server:bar/git_module_with_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
+		"DEBUG executeCommand(): Executing git clone --mirror git@local.git.server:foo/git_module_with_ssh_agent.git /tmp/g10k/modules/git@local.git.server-foo_git_module_with_ssh_agent.git",
+		"DEBUG executeCommand(): Executing git clone --mirror git@github.com:foobar/github_module_without_ssh_add.git /tmp/g10k/modules/git@github.com-foobar_github_module_without_ssh_add.git",
+		"DEBUG executeCommand(): Executing ssh-agent bash -c '" + sshAddCmd + " tests/TestConfigUseSSHAgent.yaml; git clone --mirror git@local.git.server:bar/git_module_with_ssh_add.git /tmp/g10k/modules/git@local.git.server-bar_git_module_with_ssh_add.git'",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+
+	moduleParam = ""
+	debug = false
+
 }

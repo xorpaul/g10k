@@ -1,0 +1,8 @@
+---
+:cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
+    private_key: 'tests/TestConfigUseSSHAgent.yaml' # just some existing file, we just want to check if the ssh-add command isn't used

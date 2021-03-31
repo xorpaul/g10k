@@ -1,0 +1,5 @@
+mod 'example_module',
+  :git => 'git@somehost.com/foo/example-module.git',
+  :branch => 'foo',
+  :use_ssh_agent => true
+
