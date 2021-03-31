@@ -13,3 +13,4 @@ tmp/
 external_modules/
 .scannerwork/
 tests/github-test-private/
+coverage.txt

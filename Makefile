@@ -1,43 +1,42 @@
 DEPS = $(wildcard */*.go)
-VERSION = $(shell git describe --always)
+BUILDVERSION = $(shell git describe --tags)
+BUILDTIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+UNAME := $(shell uname)
 
 all: test g10k
 
 g10k: g10k.go $(DEPS)
+ifeq ($(UNAME), Darwin)
+	GO111MODULE=on CGO_ENABLED=1 GOOS=darwin go build \
+		-race -ldflags "-s -w -X main.buildversion=${BUILDVERSION} -X main.buildtime=${BUILDTIME}" \
+	-o $@
+	strip -X $@
+endif
+ifeq ($(UNAME), Linux)
 	GO111MODULE=on CGO_ENABLED=1 GOOS=linux go build \
-	  -ldflags "-linkmode external -extldflags -static -X main.version=$(VERSION)" \
+		-race -ldflags "-s -w -X main.buildversion=${BUILDVERSION} -X main.buildtime=${BUILDTIME}" \
 	-o $@
 	strip $@
+endif
 
 lint:
-	@ go get -v golang.org/x/lint/golint
-	@for file in $$(git ls-files '*.go' | grep -v '_workspace/'); do \
-		export output="$$(golint $${file} | grep -v 'type name will be used as docker.DockerInfo')"; \
-		[ -n "$${output}" ] && echo "$${output}" && export status=1; \
-	done; \
-	exit $${status:-0}
+	GO111MODULE=on go get golang.org/x/lint/golint && \
+	golint *.go
 
-vet: main.go
-	go vet $<
+vet: g10k.go
+	GO111MODULE=on go vet
 
-imports: main.go
-	go get golang.org/x/tools/cmd/goimports && goimports -d $<
+imports: g10k.go
+	GO111MODULE=on go get golang.org/x/tools/cmd/goimports && \
+	goimports -d .
 
 test: lint vet imports
-	GO111MODULE=on go test -v ./...
-
-vendor:
-	GO111MODULE=on go mod vendor
-
-coverage:
-	rm -rf *.out
-	go test -coverprofile=coverage.out
-	for i in config util s3 db api compare auth; do \
-	 	go test -coverprofile=$$i.coverage.out github.com/xorpaul/g10k/$$i; \
-		tail -n +2 $$i.coverage.out >> coverage.out; \
-		done
+	GO111MODULE=on go test -race -coverprofile=coverage.txt -covermode=atomic -v
 
 clean:
-	rm -f g10k
+	rm -f g10k coverage.txt
 
-.PHONY: all lint vet imports test coverage clean
+build-image:
+	docker build -t g10k:${BUILDVERSION} .
+
+.PHONY: all lint vet imports test clean

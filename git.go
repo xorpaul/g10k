@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -116,7 +117,11 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	}
 
 	if needSSHKey {
-		er = executeCommand("ssh-agent bash -c 'ssh-add "+gitModule.privateKey+"; "+gitCmd+"'", config.Timeout, gitModule.ignoreUnreachable)
+		sshAddCmd := "ssh-add "
+		if runtime.GOOS == "darwin" {
+			sshAddCmd = "ssh-add -K "
+		}
+		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", config.Timeout, gitModule.ignoreUnreachable)
 	} else {
 		er = executeCommand(gitCmd, config.Timeout, gitModule.ignoreUnreachable)
 	}
