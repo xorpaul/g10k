@@ -101,11 +101,11 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	isInModulesCacheDir := strings.HasPrefix(workDir, config.ModulesCacheDir)
 
 	needSSHKey := true
-	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent == true {
+	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent == false {
 		if isControlRepo {
-			needSSHKey = true
-		} else {
 			needSSHKey = false
+		} else {
+			needSSHKey = true
 		}
 	}
 	er := ExecResult{}
