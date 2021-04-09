@@ -24,7 +24,7 @@ func readConfigfile(configFile string) ConfigSettings {
 
 	rubySymbolsRemoved := ""
 	for _, line := range strings.Split(string(data), "\n") {
-		reWhitespaceColon := regexp.MustCompile("^(\\s*):")
+		reWhitespaceColon := regexp.MustCompile(`^(\s*):`)
 		m := reWhitespaceColon.FindStringSubmatch(line)
 		if len(m) > 0 {
 			rubySymbolsRemoved += reWhitespaceColon.ReplaceAllString(line, m[1]) + "\n"
@@ -144,8 +144,8 @@ func preparePuppetfile(pf string) string {
 	}
 	defer file.Close()
 
-	reComma := regexp.MustCompile(",\\s*$")
-	reComment := regexp.MustCompile("^\\s*#")
+	reComma := regexp.MustCompile(`,\s*$`)
+	reComment := regexp.MustCompile(`^\s*#`)
 	reEmpty := regexp.MustCompile("^$")
 
 	pfString := ""
@@ -189,16 +189,16 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 		n = preparePuppetfile(pf)
 	}
 
-	reEmptyLine := regexp.MustCompile("^\\s*$")
-	reModuledir := regexp.MustCompile("^\\s*(?:moduledir)\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeCacheTTL := regexp.MustCompile("^\\s*(?:forge.cache(?:TTL|Ttl))\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeBaseURL := regexp.MustCompile("^\\s*(?:forge.base(?:URL|Url))\\s+['\"]?([^'\"]+)['\"]?")
-	reForgeModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\\s*)[,]?(.*)")
-	reForgeAttribute := regexp.MustCompile("\\s*['\"]?([^\\s'\"]+)\\s*['\"]?(?:=>)?\\s*['\"]?([^'\"]+)?")
-	reGitModule := regexp.MustCompile("^\\s*(?:mod)\\s+['\"]?([^'\"/]+)['\"]\\s*,(.*)")
-	reGitAttribute := regexp.MustCompile("\\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local|use_ssh_agent)\\s*=>\\s*['\"]?([^'\"]+)['\"]?")
-	reUniqueGitAttribute := regexp.MustCompile("\\s*:(?:commit|tag|branch|ref|link)\\s*=>")
-	reDanglingAttribute := regexp.MustCompile("^\\s*:[^ ]+\\s*=>")
+	reEmptyLine := regexp.MustCompile(`^\s*$`)
+	reModuledir := regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
+	reForgeCacheTTL := regexp.MustCompile(`^\s*(?:forge.cache(?:TTL|Ttl))\s+['\"]?([^'\"]+)['\"]?`)
+	reForgeBaseURL := regexp.MustCompile(`^\s*(?:forge.base(?:URL|Url))\s+['\"]?([^'\"]+)['\"]?`)
+	reForgeModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\s*)[,]?(.*)`)
+	reForgeAttribute := regexp.MustCompile(`\s*['\"]?([^\s'\"]+)\s*['\"]?(?:=>)?\s*['\"]?([^'\"]+)?`)
+	reGitModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"/]+)['\"]\s*,(.*)`)
+	reGitAttribute := regexp.MustCompile(`\s*:(git|commit|tag|branch|ref|link|ignore[-_]unreachable|fallback|install_path|default_branch|local|use_ssh_agent)\s*=>\s*['\"]?([^'\"]+)['\"]?`)
+	reUniqueGitAttribute := regexp.MustCompile(`\s*:(?:commit|tag|branch|ref|link)\s*=>`)
+	reDanglingAttribute := regexp.MustCompile(`^\s*:[^ ]+\s*=>`)
 	moduleDir := "modules"
 	var moduleDirs []string
 	//nextLineAttr := false

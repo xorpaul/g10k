@@ -65,7 +65,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 				outputBranches := er.output
 				outputTags := ""
 
-				if tags == true {
+				if tags {
 					er := executeCommand("git --git-dir "+workDir+" tag", config.Timeout, false)
 					outputTags = er.output
 				}
@@ -76,7 +76,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 				prefix := resolveSourcePrefix(source, sa)
 				for _, branch := range branches {
 					branch = strings.TrimLeft(branch, "* ")
-					reInvalidCharacters := regexp.MustCompile("\\W")
+					reInvalidCharacters := regexp.MustCompile(`\W`)
 					if sa.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
 						Warnf("Ignoring branch " + branch + ", because it contains invalid characters")
 						continue
@@ -181,7 +181,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 				}
 			} else {
 				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
-				if sa.ExitIfUnreachable == true {
+				if sa.ExitIfUnreachable {
 					os.Exit(1)
 				}
 			}
@@ -308,9 +308,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
-				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
 					delete(exisitingModuleDirs, moduleDirectory)
-				}
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
@@ -395,9 +393,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
-				if _, ok := exisitingModuleDirs[moduleDirectory]; ok {
 					delete(exisitingModuleDirs, moduleDirectory)
-				}
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
@@ -418,9 +414,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				// remove this module from the exisitingModuleDirs map
 				mutex.Lock()
 				mDir := filepath.Join(moduleDir, fm.name)
-				if _, ok := exisitingModuleDirs[mDir]; ok {
 					delete(exisitingModuleDirs, mDir)
-				}
 				mutex.Unlock()
 			}(forgeModuleName, fm, moduleDir, env)
 		}
@@ -473,10 +467,7 @@ func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workD
 	Debugf("executing filter_command: " + branchFilterCommand)
 	er := executeCommand(branchFilterCommand, 30, true)
 	fmt.Printf("%+v", er)
-	if er.returnCode != 0 {
-		return true
-	}
-	return false
+	return er.returnCode != 0
 }
 
 func skipBasedOnFilterRegex(branch string, sourceName string, sa Source, workDir string) bool {
@@ -486,9 +477,6 @@ func skipBasedOnFilterRegex(branch string, sourceName string, sa Source, workDir
 	}
 
 	m := reFilterRegex.FindStringSubmatch(branch)
-	if len(m) > 0 {
-		return false
-	}
-	return true
+	return len(m) <= 0
 
 }

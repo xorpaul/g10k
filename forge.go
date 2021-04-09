@@ -282,6 +282,9 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 	}
 	url := baseURL + "/v3/releases/" + fm.author + "-" + fm.name + "-" + fm.version
 	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		Fatalf("getMetadataForgeModule(): Error while creating GET http request with url " + url + " Error: " + err.Error())
+	}
 	req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 	req.Header.Set("Connection", "keep-alive")
 	proxyURL, err := http.ProxyFromEnvironment(req)
@@ -364,6 +367,9 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		}
 		url := baseURL + "/v3/files/" + fileName
 		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			Fatalf("getMetadataForgeModule(): Error while creating GET http request with url " + url + " Error: " + err.Error())
+		}
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
 		proxyURL, err := http.ProxyFromEnvironment(req)
@@ -410,9 +416,8 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 				defer extractW.Close()
 				defer saveFileW.Close()
 
-				var mw io.Writer
 				// build the multiwriter for all the pipes
-				mw = io.MultiWriter(extractW, saveFileW)
+				mw := io.MultiWriter(extractW, saveFileW)
 
 				// copy the data into the multiwriter
 				if _, err := io.Copy(mw, resp.Body); err != nil {
@@ -773,6 +778,9 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		needSyncForgeCount++
 		mutex.Unlock()
 		destination := func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				Fatalf(funcName + "(): Error while calling generic func() Error " + err.Error())
+			}
 			target, err := filepath.Rel(resolvedWorkDir, path)
 			if err != nil {
 				Fatalf(funcName + "(): Can't make " + path + " relative to " + resolvedWorkDir + " Error: " + err.Error())
