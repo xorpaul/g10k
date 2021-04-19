@@ -2833,9 +2833,9 @@ func TestSymlink(t *testing.T) {
 		defer f.Close()
 		f.WriteString("foobarinvalidgitcommithashthatshouldtriggeraresyncofthismodule")
 		f.Sync()
-		environmentParam = ""
 
 	}
+	environmentParam = ""
 }
 
 func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
