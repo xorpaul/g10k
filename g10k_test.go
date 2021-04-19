@@ -227,7 +227,7 @@ func TestResolveConfigAddWarning(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	if !strings.Contains(string(out), "WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)") {
@@ -253,7 +253,7 @@ func TestResolveConfigAddError(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	if !strings.Contains(string(out), "Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)") {
@@ -307,6 +307,9 @@ func TestResolveStatic(t *testing.T) {
 	}
 
 	fileMode, err := os.Stat("./example/example_static/external_modules/aws/examples/audit-security-groups/count_out_of_sync_resources.sh")
+	if err != nil {
+		t.Error("Error while trying to stat() testfile")
+	}
 	if fileMode.Mode().String() != "-rwxrwxr-x" {
 		t.Error("Wrong file permission for test file. Check unTar()")
 	}
@@ -391,7 +394,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules/sensu but ignore-unreachable is set. Continuing...") {
@@ -583,15 +586,15 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 func TestModuleDirOverride(t *testing.T) {
 	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
 	//fmt.Println(got.forgeModules["apt"].moduleDir)
-	if "external_modules" != got.forgeModules["apt"].moduleDir {
+	if got.forgeModules["apt"].moduleDir != "external_modules" {
 		t.Error("Expected 'external_modules' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
-	if "modules" != got.gitModules["another_module"].moduleDir {
+	if got.gitModules["another_module"].moduleDir != "modules" {
 		t.Error("Expected 'modules' for module dir, but got", got.gitModules["another_module"].moduleDir)
 	}
 	moduleDirParam = "foobar"
 	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
-	if "foobar" != got.forgeModules["apt"].moduleDir {
+	if got.forgeModules["apt"].moduleDir != "foobar" {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
 	moduleDirParam = ""
@@ -616,7 +619,7 @@ func TestResolveConfigExitIfUnreachable(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
@@ -645,7 +648,7 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
@@ -693,7 +696,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	}
 	//fmt.Println(string(out))
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARN: Trying to use cache for https://.com/puppetlabs/puppetlabs-firewall.git git repository") {
@@ -743,11 +746,11 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "Fatal: Could not reach git repository https://.com/puppetlabs/puppetlabs-firewall.git") {
+	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "Fatal: Failed to clone or pull https://.com/puppetlabs/puppetlabs-firewall.git") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
@@ -779,7 +782,7 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 
@@ -821,7 +824,7 @@ func TestReadPuppetfileUseCacheFallbackFalse(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
 	//fmt.Println(string(out))
@@ -853,7 +856,7 @@ func TestResolvePuppetfileInstallPath(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -895,7 +898,7 @@ func TestResolvePuppetfileInstallPathTwice(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -949,7 +952,7 @@ func TestResolvePuppetfileSingleModuleForge(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1003,7 +1006,7 @@ func TestResolvePuppetfileSingleModuleGit(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1056,7 +1059,7 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1110,7 +1113,7 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1119,7 +1122,7 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master^{object}' took") {
+	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'main^{object}' took") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -1160,7 +1163,7 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1215,7 +1218,7 @@ func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1224,7 +1227,7 @@ func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
-	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'master^{object}' took") {
+	if !strings.Contains(string(out), "Executing git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-apache.git rev-parse --verify 'main^{object}' took") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 
@@ -1267,7 +1270,7 @@ func TestConfigRetryGitCommands(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	//fmt.Println(string(out))
@@ -1333,7 +1336,7 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1386,7 +1389,7 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 	}
 
 	//fmt.Println(string(out))
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
 	}
 
@@ -1420,7 +1423,7 @@ func TestUnTarPreserveTimestamp(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1481,7 +1484,7 @@ func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1536,7 +1539,7 @@ func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
@@ -1579,7 +1582,7 @@ func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1618,7 +1621,7 @@ func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1657,7 +1660,7 @@ func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1694,7 +1697,7 @@ func TestLastCheckedFile(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1766,7 +1769,7 @@ func TestSimplePostrunCommand(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1806,7 +1809,7 @@ func TestPostrunCommand(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1857,7 +1860,7 @@ func TestPostrunCommandDirs(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1907,7 +1910,7 @@ func TestMultipleModuledirs(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 0 != exitCode {
+	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 
@@ -1974,7 +1977,7 @@ func TestFailedGit(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
 	//fmt.Println(string(out))
@@ -2041,6 +2044,9 @@ func TestPurgeWhitelist(t *testing.T) {
 	f.WriteString("foobar")
 	f.Sync()
 	frt, err := os.Create("/tmp/example/single_git/.resource_types/foobar.pp")
+	if err != nil {
+		t.Errorf("Error while creating test file")
+	}
 	defer frt.Close()
 	frt.WriteString("fake resource type")
 	frt.Sync()
@@ -2829,6 +2835,7 @@ func TestSymlink(t *testing.T) {
 		f.Sync()
 
 	}
+	environmentParam = ""
 }
 
 func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
@@ -3233,7 +3240,7 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
 
-	if 1 != exitCode {
+	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
 	}
 	//fmt.Println(string(out))
@@ -3261,4 +3268,33 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 	moduleParam = ""
 	debug = false
 
+}
+
+func TestResolvePuppetfileAutoDetectDefaultBranch(t *testing.T) {
+	quiet = true
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigUseCacheFallback.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		//debug = true
+		branchParam = "single_git_non_master_as_default"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example", funcName)
+	branchParam = "single_git_non_master_as_default"
+	resolvePuppetEnvironment(false, "")
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if exitCode != 0 {
+		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
+	}
+	//fmt.Println(string(out))
 }

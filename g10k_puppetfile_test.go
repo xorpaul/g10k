@@ -152,7 +152,7 @@ func TestPreparePuppetfile(t *testing.T) {
 }
 
 func TestCommentPuppetfile(t *testing.T) {
-	expected := regexp.MustCompile("mod 'sensu',\\s*:git => 'https://github.com/sensu/sensu-puppet.git',\\s*:commit => '8f4fc5780071c4895dec559eafc6030511b0caaa'")
+	expected := regexp.MustCompile(`mod 'sensu',\s*:git => 'https://github.com/sensu/sensu-puppet.git',\s*:commit => '8f4fc5780071c4895dec559eafc6030511b0caaa'`)
 	got := preparePuppetfile("tests/TestCommentPuppetfile")
 
 	if !expected.MatchString(got) {

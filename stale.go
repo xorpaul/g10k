@@ -90,9 +90,7 @@ func checkForStaleContent(workDir string) {
 			Debugf("Glob'ing with purge whitelist glob " + globPath)
 			wlPaths, _ := filepathx.Glob(globPath)
 			Debugf("additional purge whitelist items: " + strings.Join(wlPaths, " "))
-			for _, wlPath := range wlPaths {
-				desiredContent = append(desiredContent, wlPath)
-			}
+				desiredContent = append(desiredContent, wlPaths...)
 		}
 	}
 

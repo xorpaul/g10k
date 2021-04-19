@@ -50,7 +50,6 @@ var (
 	ioForgeTime                  float64
 	forgeJSONParseTime           float64
 	metadataJSONParseTime        float64
-	gmetadataJSONParseTime       float64
 	buildtime                    string
 	buildversion                 string
 	uniqueForgeModules           map[string]ForgeModule

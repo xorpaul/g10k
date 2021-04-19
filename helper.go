@@ -25,7 +25,7 @@ var validationMessages []string
 
 // Debugf is a helper function for debug logging if global variable debug is set to true
 func Debugf(s string) {
-	if debug != false {
+	if debug {
 		pc, _, _, _ := runtime.Caller(1)
 		callingFunctionName := strings.Split(runtime.FuncForPC(pc).Name(), ".")[len(strings.Split(runtime.FuncForPC(pc).Name(), "."))-1]
 		if strings.HasPrefix(callingFunctionName, "func") {
@@ -39,14 +39,14 @@ func Debugf(s string) {
 
 // Verbosef is a helper function for verbose logging if global variable verbose is set to true
 func Verbosef(s string) {
-	if debug != false || verbose != false {
+	if debug || verbose {
 		log.Print(fmt.Sprint(s))
 	}
 }
 
 // Infof is a helper function for info logging if global variable info is set to true
 func Infof(s string) {
-	if debug != false || verbose != false || info != false {
+	if debug || verbose || info {
 		color.Green(s)
 	}
 }
@@ -258,24 +258,24 @@ func getSha256sumFile(file string) string {
 func moveFile(sourcePath, destPath string, deleteSourceFileToggle bool) error {
 	inputFile, err := os.Open(sourcePath)
 	if err != nil {
-		return fmt.Errorf("Couldn't open source file: %s", err)
+		return fmt.Errorf("couldn't open source file: %s", err)
 	}
 	outputFile, err := os.Create(destPath)
 	if err != nil {
 		inputFile.Close()
-		return fmt.Errorf("Couldn't open dest file: %s", err)
+		return fmt.Errorf("couldn't open dest file: %s", err)
 	}
 	defer outputFile.Close()
 	_, err = io.Copy(outputFile, inputFile)
 	inputFile.Close()
 	if err != nil {
-		return fmt.Errorf("Writing to output file failed: %s", err)
+		return fmt.Errorf("writing to output file failed: %s", err)
 	}
 	if deleteSourceFileToggle {
 		// The copy was successful, so now delete the original file
 		err = os.Remove(sourcePath)
 		if err != nil {
-			return fmt.Errorf("Failed removing original file: %s", err)
+			return fmt.Errorf("failed removing original file: %s", err)
 		}
 	}
 	return nil

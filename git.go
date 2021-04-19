@@ -82,10 +82,9 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			workDir := filepath.Join(config.ModulesCacheDir, repoDir)
 
 			success := doMirrorOrUpdate(gm, workDir, 0)
-			if !success && config.UseCacheFallback == false {
-				Fatalf("Fatal: Could not reach git repository " + url)
+			if !success && !config.UseCacheFallback {
+				Fatalf("Fatal: Failed to clone or pull " + url + " to " + workDir)
 			}
-			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 			done <- true
 		}(url, gm, bar)
 	}
@@ -100,12 +99,12 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	isControlRepo := strings.HasPrefix(workDir, config.EnvCacheDir)
 	isInModulesCacheDir := strings.HasPrefix(workDir, config.ModulesCacheDir)
 
-	needSSHKey := true
-	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent == true {
+	explicitlyLoadSSHKey := true
+	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent {
 		if isControlRepo {
-			needSSHKey = true
+			explicitlyLoadSSHKey = true
 		} else {
-			needSSHKey = false
+			explicitlyLoadSSHKey = false
 		}
 	}
 	er := ExecResult{}
@@ -117,7 +116,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		gitCmd = "git --git-dir " + workDir + " remote update --prune"
 	}
 
-	if needSSHKey {
+	if explicitlyLoadSSHKey {
 		sshAddCmd := "ssh-add "
 		if runtime.GOOS == "darwin" {
 			sshAddCmd = "ssh-add -K "
@@ -154,7 +153,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		}
 	}
 	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + gitModule.tree
-	if config.GitObjectSyntaxNotSupported != true {
+	if !config.GitObjectSyntaxNotSupported {
 		logCmd = logCmd + "^{object}'"
 	} else {
 		logCmd = logCmd + "'"
@@ -302,4 +301,19 @@ func addDesiredContent(gitDir string, tree string, targetDir string) {
 	}
 	mutex.Unlock()
 
+}
+
+func detectDefaultBranch(gitDir string) string {
+	remoteShowOriginCmd := "git ls-remote --symref " + gitDir
+	er := executeCommand(remoteShowOriginCmd, config.Timeout, false)
+	foundRefs := strings.Split(er.output, "\n")
+	if len(foundRefs) < 1 {
+		Fatalf("Unable to detect default branch for git repository with command git ls-remote --symref " + gitDir)
+	}
+	// should look like this:
+	// ref: refs/heads/main\tHEAD
+	headBranchParts := strings.Split(foundRefs[0], "\t")
+	defaultBranch := strings.TrimPrefix(string(headBranchParts[0]), "ref: refs/heads/")
+	//fmt.Println(defaultBranch)
+	return defaultBranch
 }
