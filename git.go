@@ -83,9 +83,8 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 
 			success := doMirrorOrUpdate(gm, workDir, 0)
 			if !success && !config.UseCacheFallback {
-				Fatalf("Fatal: Could not reach git repository " + url)
+				Fatalf("Fatal: Failed to clone or pull " + url + " to " + workDir)
 			}
-			//	doCloneOrPull(source, workDir, targetDir, sa.Remote, branch, sa.PrivateKey)
 			done <- true
 		}(url, gm, bar)
 	}
@@ -154,7 +153,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		}
 	}
 	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + gitModule.tree
-	if !config.GitObjectSyntaxNotSupported{
+	if !config.GitObjectSyntaxNotSupported {
 		logCmd = logCmd + "^{object}'"
 	} else {
 		logCmd = logCmd + "'"
@@ -302,4 +301,19 @@ func addDesiredContent(gitDir string, tree string, targetDir string) {
 	}
 	mutex.Unlock()
 
+}
+
+func detectDefaultBranch(gitDir string) string {
+	remoteShowOriginCmd := "git ls-remote --symref " + gitDir
+	er := executeCommand(remoteShowOriginCmd, config.Timeout, false)
+	foundRefs := strings.Split(er.output, "\n")
+	if len(foundRefs) < 1 {
+		Fatalf("Unable to detect default branch for git repository with command git ls-remote --symref " + gitDir)
+	}
+	// should look like this:
+	// ref: refs/heads/main\tHEAD
+	headBranchParts := strings.Split(foundRefs[0], "\t")
+	defaultBranch := strings.TrimPrefix(string(headBranchParts[0]), "ref: refs/heads/")
+	//fmt.Println(defaultBranch)
+	return defaultBranch
 }

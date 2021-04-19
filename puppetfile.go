@@ -308,7 +308,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
-					delete(exisitingModuleDirs, moduleDirectory)
+				delete(exisitingModuleDirs, moduleDirectory)
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
@@ -323,8 +323,9 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			go func(gitName string, gitModule GitModule, env string, pf Puppetfile) {
 				defer wg.Done()
 				targetDir := normalizeDir(filepath.Join(moduleDir, gitName))
-				//fmt.Println("targetDir: " + targetDir)
-				tree := "master"
+				moduleCacheDir := filepath.Join(config.ModulesCacheDir, strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1))
+				tree := detectDefaultBranch(moduleCacheDir)
+				Debugf("Setting " + tree + " as default branch for " + gitModule.git)
 				if len(gitModule.branch) > 0 {
 					tree = gitModule.branch
 				} else if len(gitModule.commit) > 0 {
@@ -354,7 +355,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				targetDir = normalizeDir(targetDir)
 				success := false
-				moduleCacheDir := filepath.Join(config.ModulesCacheDir, strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1))
 
 				if gitModule.link {
 					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
@@ -393,7 +393,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				moduleDirectory = normalizeDir(moduleDirectory)
 				mutex.Lock()
-					delete(exisitingModuleDirs, moduleDirectory)
+				delete(exisitingModuleDirs, moduleDirectory)
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
@@ -414,7 +414,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				// remove this module from the exisitingModuleDirs map
 				mutex.Lock()
 				mDir := filepath.Join(moduleDir, fm.name)
-					delete(exisitingModuleDirs, mDir)
+				delete(exisitingModuleDirs, mDir)
 				mutex.Unlock()
 			}(forgeModuleName, fm, moduleDir, env)
 		}
