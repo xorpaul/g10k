@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -309,7 +310,9 @@ func main() {
 			}
 			// default purge_levels
 			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: cachedir, EnvCacheDir: cachedir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			modulesCacheDir := filepath.Join(cachedir, "modules")
+			envsCacheDir := filepath.Join(cachedir, "environments")
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)

@@ -101,7 +101,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 
 	explicitlyLoadSSHKey := true
 	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent {
-		if isControlRepo {
+		if gitModule.useSSHAgent {
+			explicitlyLoadSSHKey = false
+		} else if isControlRepo {
 			explicitlyLoadSSHKey = true
 		} else {
 			explicitlyLoadSSHKey = false
