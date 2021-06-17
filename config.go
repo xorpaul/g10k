@@ -102,7 +102,7 @@ func readConfigfile(configFile string) ConfigSettings {
 	// See https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
 	emptyDeploy := DeploySettings{}
 	if !reflect.DeepEqual(config.Deploy, emptyDeploy) {
-		Debugf("detected deploy configration hash, which takes precedence over the non-deploy scoped settings")
+		Debugf("detected deploy configuration hash, which takes precedence over the non-deploy scoped settings")
 		config.PurgeLevels = config.Deploy.PurgeLevels
 		config.PurgeWhitelist = config.Deploy.PurgeWhitelist
 		config.DeploymentPurgeWhitelist = config.Deploy.DeploymentPurgeWhitelist
