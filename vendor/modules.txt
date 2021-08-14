@@ -1,0 +1,68 @@
+# github.com/davecgh/go-spew v1.1.1
+## explicit
+github.com/davecgh/go-spew/spew
+# github.com/dustin/go-humanize v1.0.0
+## explicit
+# github.com/fatih/color v1.12.0
+## explicit
+github.com/fatih/color
+# github.com/github-release/github-release v0.10.0
+## explicit
+# github.com/gosuri/uilive v0.0.4
+## explicit
+github.com/gosuri/uilive
+# github.com/gosuri/uiprogress v0.0.1
+## explicit
+github.com/gosuri/uiprogress/util/strutil
+# github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
+## explicit
+github.com/kballard/go-shellquote
+# github.com/kevinburke/rest v0.0.0-20210222204520-f7a2e216372f
+## explicit
+# github.com/klauspost/compress v1.13.4
+## explicit
+github.com/klauspost/compress/flate
+# github.com/klauspost/pgzip v1.2.5
+## explicit
+github.com/klauspost/pgzip
+# github.com/mattn/go-colorable v0.1.8
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.13
+## explicit
+github.com/mattn/go-isatty
+# github.com/remeh/sizedwaitgroup v1.0.0
+## explicit
+github.com/remeh/sizedwaitgroup
+# github.com/tidwall/gjson v1.8.1
+## explicit
+github.com/tidwall/gjson
+# github.com/tidwall/match v1.0.3
+github.com/tidwall/match
+# github.com/tidwall/pretty v1.2.0
+## explicit
+github.com/tidwall/pretty
+# github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80
+## explicit
+# github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
+## explicit
+# github.com/xorpaul/uiprogress v0.0.0-20201221143732-916122d4b58a
+## explicit
+github.com/xorpaul/uiprogress
+# github.com/yargevad/filepathx v1.0.0
+## explicit
+github.com/yargevad/filepathx
+# golang.org/x/crypto v0.0.0-20210813211128-0a44fdfbc16e
+## explicit
+golang.org/x/crypto/ssh/terminal
+# golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e
+## explicit
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/plan9
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+## explicit
+golang.org/x/term
+# gopkg.in/yaml.v2 v2.4.0
+## explicit
+gopkg.in/yaml.v2
