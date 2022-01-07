@@ -29,7 +29,7 @@ vet: g10k.go
 
 imports: g10k.go
 	GO111MODULE=on go install golang.org/x/tools/cmd/goimports@latest && \
-	goimports -d .
+	goimports -d *.go tests/
 
 test: lint vet imports
 # This is a workaround for Bug https://github.com/golang/go/issues/49138
@@ -41,9 +41,13 @@ ifeq ($(UNAME), Linux)
 endif
 
 clean:
-	rm -f g10k coverage.txt
+	rm -rf g10k coverage.txt cache example
 
 build-image:
 	docker build -t g10k:${BUILDVERSION} .
+
+update-deps:
+	GO111MODULE=on go get -u
+	GO111MODULE=on go mod vendor
 
 .PHONY: all lint vet imports test clean

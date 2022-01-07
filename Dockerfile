@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine as builder
+FROM golang:1.17-alpine as builder
 WORKDIR /usr/src/g10k
 COPY . /usr/src/g10k
 RUN apk add --no-cache gcc make musl-dev git openssh bash && \
