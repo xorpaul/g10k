@@ -20,14 +20,14 @@ ifeq ($(UNAME), Linux)
 endif
 
 lint:
-	GO111MODULE=on go get golang.org/x/lint/golint && \
+	GO111MODULE=on go install golang.org/x/lint/golint@latest && \
 	golint *.go
 
 vet: g10k.go
 	GO111MODULE=on go vet
 
 imports: g10k.go
-	GO111MODULE=on go get golang.org/x/tools/cmd/goimports && \
+	GO111MODULE=on go install golang.org/x/tools/cmd/goimports@latest && \
 	goimports -d .
 
 test: lint vet imports
