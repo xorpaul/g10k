@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -433,4 +434,14 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	puppetFile.sourceBranch = branch
 	//fmt.Printf("%+v\n", puppetFile)
 	return puppetFile
+}
+
+func readGitSubmodule(submoduleFile string) {
+	content, err := ioutil.ReadFile(submoduleFile)
+	if err != nil {
+		Fatalf("readGitSubmodule(): Error while reading submoduleFile " + submoduleFile + " Error: " + err.Error())
+	}
+
+	fmt.Print(string(content))
+
 }
