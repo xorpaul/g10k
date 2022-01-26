@@ -2843,7 +2843,7 @@ func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile("tests/autocorrect.yaml")
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = false
+		debug = true
 		info = true
 		environmentParam = ""
 		branchParam = ""
@@ -2866,7 +2866,7 @@ func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	//fmt.Println(string(out))
+	fmt.Println(string(out))
 
 	expectedLines := []string{
 		"Renaming branch invalid-name to invalid_name",
