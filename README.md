@@ -1,4 +1,4 @@
-[![Build Status](https://app.travis-ci.com/xorpaul/g10k.svg?branch=master)](https://app.travis-ci.com/github/xorpaul/g10k) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
+[![Build Status](https://github.com/xorpaul/g10k/actions/workflows/main.yml/badge.svg)](https://github.com/xorpaul/g10k/actions) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
 # g10k
 My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
