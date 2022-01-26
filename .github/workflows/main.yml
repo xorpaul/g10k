@@ -16,6 +16,8 @@ jobs:
       matrix:
         go_version: ['1.17']
         os: [ubuntu-latest, macOS-latest]
+      # Do not fail on all OS versions if one fail
+      fail-fast: false
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -24,6 +26,17 @@ jobs:
         uses: actions/setup-go@v2.1.5
         with:
           go-version: ${{ matrix.go_version }}
+      # Installs dependendencies for testing
+      - name: Install additional Packages on ${{ matrix.os }}
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+              sudo apt-get update
+              sudo apt-get install hashdeep
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+              brew update
+              brew install hashdeep
+          fi
+        shell: bash
       # Runs a single command using the runners shell
       - name: Run a one-line script
         run: make
