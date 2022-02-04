@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -193,6 +194,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	reModuledir := regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeCacheTTL := regexp.MustCompile(`^\s*(?:forge.cache(?:TTL|Ttl))\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeBaseURL := regexp.MustCompile(`^\s*(?:forge.base(?:URL|Url))\s+['\"]?([^'\"]+)['\"]?`)
+	reForgeProxy := regexp.MustCompile(`^\s*(?:forge.proxy)\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\s*)[,]?(.*)`)
 	reForgeAttribute := regexp.MustCompile(`\s*['\"]?([^\s'\"]+)\s*['\"]?(?:=>)?\s*['\"]?([^'\"]+)?`)
 	reGitModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"/]+)['\"]\s*,(.*)`)
@@ -227,6 +229,13 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 				moduleDir = normalizeDir(m[1])
 			}
 			moduleDirs = append(moduleDirs, moduleDir)
+		} else if m := reForgeProxy.FindStringSubmatch(line); len(m) > 1 {
+			puppetFile.forgeProxy = m[1]
+			// fmt.Println("found forge proxy parameter ---> ", m[1])
+			puppetFile.forgeProxy, err := url.Parse(m[1])
+			if err != nil {
+				Fatalf("Error: Can not convert forge proxy string " + m[1] + " to a URL. In " + pf + " line: " + line + " Error: " + err.Error())
+			}
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
 			//fmt.Println("found forge base URL parameter ---> ", m[1])

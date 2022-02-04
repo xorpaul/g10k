@@ -140,6 +140,7 @@ type Source struct {
 // Puppetfile contains the key value pairs from the Puppetfile
 type Puppetfile struct {
 	forgeBaseURL      string
+	forgeProxy        string
 	forgeCacheTTL     time.Duration
 	forgeModules      map[string]ForgeModule
 	gitModules        map[string]GitModule
@@ -161,6 +162,7 @@ type ForgeModule struct {
 	md5sum       string
 	fileSize     int64
 	baseURL      string
+	proxy        string
 	cacheTTL     time.Duration
 	sha256sum    string
 	moduleDir    string

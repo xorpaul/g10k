@@ -372,7 +372,12 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		}
 		req.Header.Set("User-Agent", "https://github.com/xorpaul/g10k/")
 		req.Header.Set("Connection", "close")
-		proxyURL, err := http.ProxyFromEnvironment(req)
+		proxyURL := nil
+		if fm.proxy == "disabled" {
+		} else {
+			proxyURL = fm.proxy
+		}
+		proxyURL, err = http.ProxyFromEnvironment(req)
 		if err != nil {
 			Fatalf(funcName + "(): Error while getting http proxy with golang http.ProxyFromEnvironment()" + err.Error())
 		}

@@ -247,6 +247,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 			}
 			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
+			fm.proxy = pf.forgeProxy
 			fm.baseURL = pf.forgeBaseURL
 			fm.cacheTTL = pf.forgeCacheTTL
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
