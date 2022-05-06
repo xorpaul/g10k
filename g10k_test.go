@@ -622,8 +622,8 @@ func TestResolveConfigExitIfUnreachable(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
-	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	// fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git repository git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
@@ -651,7 +651,8 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	// fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git repository git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }

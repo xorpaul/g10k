@@ -3,6 +3,6 @@
 
 sources:
   example:
-    remote: 'https://github.com/xorpaul/g10k-environment-unavailable.git'
+    remote: 'git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git'
     basedir: '/tmp/example/'
     exit_if_unreachable: false
