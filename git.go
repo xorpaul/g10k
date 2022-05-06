@@ -154,16 +154,16 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 			Fatalf("Could not find cached git module " + srcDir)
 		}
 	}
-	logCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + gitModule.tree
+	revParseCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + gitModule.tree
 	if !config.GitObjectSyntaxNotSupported {
-		logCmd = logCmd + "^{object}'"
+		revParseCmd = revParseCmd + "^{object}'"
 	} else {
-		logCmd = logCmd + "'"
+		revParseCmd = revParseCmd + "'"
 	}
 
 	isControlRepo := strings.HasPrefix(srcDir, config.EnvCacheDir)
 
-	er := executeCommand(logCmd, config.Timeout, gitModule.ignoreUnreachable)
+	er := executeCommand(revParseCmd, config.Timeout, gitModule.ignoreUnreachable)
 	hashFile := filepath.Join(targetDir, ".latest_commit")
 	deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 	needToSync := true
@@ -176,6 +176,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	}
 
 	if len(er.output) > 0 {
+		commitHash := strings.TrimSuffix(er.output, "\n")
 		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
 			mutex.Lock()
 			desiredContent = append(desiredContent, deployFile)
@@ -196,12 +197,15 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 			mutex.Unlock()
 			targetHashByte, _ := ioutil.ReadFile(hashFile)
 			targetHash := string(targetHashByte)
-			if targetHash == strings.TrimSuffix(er.output, "\n") {
+			Debugf("string content of " + hashFile + " is: " + targetHash)
+			if targetHash == commitHash {
 				needToSync = false
 				mutex.Lock()
 				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
 				mutex.Unlock()
-				//Debugf("Skipping, because no diff found between " + srcDir + "(" + er.output + ") and " + targetDir + "(" + string(targetHash) + ")")
+				Debugf("Skipping, because no diff found between " + srcDir + "(" + commitHash + ") and " + targetDir + "(" + targetHash + ")")
+			} else {
+				Debugf("Need to sync, because existing Git module: " + targetDir + " has commit " + targetHash + " and the to be synced commit is: " + commitHash)
 			}
 		}
 
@@ -251,29 +255,23 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 			Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + gitModule.tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 
-			er = executeCommand(logCmd, config.Timeout, false)
-			if er.returnCode != 0 {
-				Fatalf("executeCommand(): git command failed: " + logCmd + " " + err.Error() + "\nOutput: " + er.output)
-			}
-			if len(er.output) > 0 {
-				commitHash := strings.TrimSuffix(er.output, "\n")
-				if isControlRepo {
-					Debugf("Writing to deploy file " + deployFile)
-					dr := DeployResult{
-						Name:      gitModule.tree,
-						Signature: commitHash,
-						StartedAt: startedAt,
-					}
-					writeStructJSONFile(deployFile, dr)
-				} else {
-					Debugf("Writing hash " + commitHash + " from command " + logCmd + " to " + hashFile)
-					f, _ := os.Create(hashFile)
-					defer f.Close()
-					f.WriteString(commitHash)
-					f.Sync()
+			commitHash := strings.TrimSuffix(er.output, "\n")
+			if isControlRepo {
+				Debugf("Writing to deploy file " + deployFile)
+				dr := DeployResult{
+					Name:      gitModule.tree,
+					Signature: commitHash,
+					StartedAt: startedAt,
 				}
-
+				writeStructJSONFile(deployFile, dr)
+			} else {
+				Debugf("Writing hash " + commitHash + " from command " + revParseCmd + " to " + hashFile)
+				f, _ := os.Create(hashFile)
+				defer f.Close()
+				f.WriteString(commitHash)
+				f.Sync()
 			}
+
 		} else if config.CloneGitModules {
 			return doMirrorOrUpdate(gitModule, targetDir, 0)
 		}
