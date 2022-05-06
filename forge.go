@@ -357,7 +357,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	extractR, extractW := io.Pipe()
 	saveFileR, saveFileW := io.Pipe()
 
-	//url := "https://forgeapi.puppetlabs.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
+	//url := "https://forgeapi.puppet.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 
 	if !isDir(filepath.Join(config.ForgeCacheDir, name+"-"+version)) {
