@@ -52,7 +52,7 @@ func readConfigfile(configFile string) ConfigSettings {
 	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
 
 	if len(config.Forge.Baseurl) == 0 {
-		config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
+		config.Forge.Baseurl = "https://forgeapi.puppet.com"
 	}
 
 	//fmt.Println("Forge Baseurl: ", config.Forge.Baseurl)

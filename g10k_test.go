@@ -38,7 +38,7 @@ func removeTimestampsFromDeployfile(file string) {
 func TestForgeChecksum(t *testing.T) {
 	expectedFmm := ForgeModule{md5sum: "8a8c741978e578921e489774f05e9a65", fileSize: 57358}
 	fmm := getMetadataForgeModule(ForgeModule{version: "2.2.0", name: "apt",
-		author: "puppetlabs", baseURL: "https://forgeapi.puppetlabs.com"})
+		author: "puppetlabs", baseURL: "https://forgeapi.puppet.com"})
 
 	if fmm.md5sum != expectedFmm.md5sum {
 		t.Error("Expected md5sum", expectedFmm.md5sum, "got", fmm.md5sum)
@@ -62,7 +62,7 @@ func TestConfigPrefix(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
@@ -88,7 +88,7 @@ func TestConfigForceForgeVersions(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
@@ -114,7 +114,7 @@ func TestConfigAddWarning(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
@@ -141,7 +141,7 @@ func TestConfigSimplePostrunCommand(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
@@ -168,7 +168,7 @@ func TestConfigPostrunCommand(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
@@ -194,7 +194,7 @@ func TestConfigDeploy(t *testing.T) {
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
 		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppetlabs.com"},
+		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels:              []string{"deployment"},
 		PurgeWhitelist:           []string{"custom.json", "**/*.xpp"},
@@ -622,8 +622,8 @@ func TestResolveConfigExitIfUnreachable(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
-	//fmt.Println(string(out))
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	// fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git repository git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
@@ -651,7 +651,8 @@ func TestResolveConfigExitIfUnreachableFalse(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	if !strings.Contains(string(out), "WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)") {
+	// fmt.Println(string(out))
+	if !strings.Contains(string(out), "WARN: git repository git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "WARNING: Could not resolve git repository in source 'example' (git@github.com:xorpaul/g10k-environment-intentionally-unavailable.git)") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 }
@@ -770,7 +771,7 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	}
 	purgeDir("/tmp/example", funcName)
 	fm := ForgeModule{version: "1.9.0", author: "puppetlabs", name: "firewall"}
-	config.Forge.Baseurl = "https://forgeapi.puppetlabs.com"
+	config.Forge.Baseurl = "https://forgeapi.puppet.com"
 	downloadForgeModule("puppetlabs-firewall", "1.9.0", fm, 1)
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
@@ -2973,7 +2974,7 @@ func TestUnresolveableModuleReferenceOutputForge(t *testing.T) {
 	//fmt.Println(string(out))
 
 	expectedLines := []string{
-		"Received 404 from Forge using URL https://forgeapi.puppetlabs.com/v3/files/puppetlabs-stdlib-0.0.1.tar.gz",
+		"Received 404 from Forge using URL https://forgeapi.puppet.com/v3/files/puppetlabs-stdlib-0.0.1.tar.gz",
 		"Check if the module name 'puppetlabs-stdlib' and version '0.0.1' really exist",
 		"Used in Puppet environment 'failforge_failing_branch_forge'",
 	}

@@ -111,7 +111,7 @@ type DeploySettings struct {
 }
 
 // Forge is a simple struct that contains the base URL of
-// the Forge that g10k should use. Defaults to: https://forgeapi.puppetlabs.com
+// the Forge that g10k should use. Defaults to: https://forgeapi.puppet.com
 type Forge struct {
 	Baseurl string `yaml:"baseurl"`
 }
@@ -309,7 +309,7 @@ func main() {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
 			// default purge_levels
-			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppetlabs.com"}
+			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppet.com"}
 			modulesCacheDir := filepath.Join(cachedir, "modules")
 			envsCacheDir := filepath.Join(cachedir, "environments")
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
