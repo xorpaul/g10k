@@ -4,5 +4,5 @@ use_cache_fallback: false
 
 sources:
   example:
-    remote: 'git://github.com/xorpaul/g10k-environment.git'
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
     basedir: '/tmp/example/'
