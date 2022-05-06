@@ -12,7 +12,7 @@ import (
 
 	"github.com/remeh/sizedwaitgroup"
 	"github.com/xorpaul/uiprogress"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 // sourceSanityCheck is a validation function that checks if the given source has all necessary attributes (basedir, remote, SSH key exists if given)
@@ -262,7 +262,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 	}
-	if !debug && !verbose && !info && !quiet && terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if !debug && !verbose && !info && !quiet && term.IsTerminal(int(os.Stdout.Fd())) {
 		uiprogress.Start()
 	}
 	var wgResolve sync.WaitGroup
@@ -434,7 +434,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 	}
-	if !debug && !verbose && !info && !quiet && terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if !debug && !verbose && !info && !quiet && term.IsTerminal(int(os.Stdout.Fd())) {
 		uiprogress.Stop()
 	}
 
