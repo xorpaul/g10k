@@ -132,12 +132,12 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
 								oldBranch := renamedBranch
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
-								if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
-									if oldBranch != renamedBranch {
+								if oldBranch != renamedBranch {
+									if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
 										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
+									} else {
+										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
 									}
-								} else {
-									Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
 								}
 							}
 
@@ -148,9 +148,11 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							targetDir = normalizeDir(targetDir)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
-							gitModule := GitModule{}
-							gitModule.tree = branch
-							syncToModuleDir(gitModule, workDir, targetDir, env)
+							if len(moduleParam) == 0 {
+								gitModule := GitModule{}
+								gitModule.tree = branch
+								syncToModuleDir(gitModule, workDir, targetDir, env)
+							}
 							pf := filepath.Join(targetDir, "Puppetfile")
 							if !fileExists(pf) {
 								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
@@ -198,7 +200,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
 	//fmt.Printf("%+v\n", allEnvironments)
-	purgeUnmanagedContent(allBasedirs, allEnvironments)
+	if len(moduleParam) == 0 {
+		purgeUnmanagedContent(allBasedirs, allEnvironments)
+	}
 }
 
 // resolveSourcePrefix implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix

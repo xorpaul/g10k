@@ -60,7 +60,6 @@ var (
 	forgeModuleDeprecationNotice string
 	desiredContent               []string
 	unchangedModuleDirs          []string
-	mapModulesRefsToPuppetEnv    map[string]string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
