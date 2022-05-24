@@ -1,5 +1,5 @@
 ---
-purge_whitelist: [ '.latest_revision', '.resource_types' ]
+purge_allowlist: [ '.latest_revision', '.resource_types' ]
 
 :cachedir: '/tmp/g10k'
 
