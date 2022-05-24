@@ -428,9 +428,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	if stringSliceContains(config.PurgeLevels, "puppetfile") {
 		if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 			for d := range exisitingModuleDirs {
-				if strings.HasSuffix(d, ".resource_types") && isDir(d) {
-					continue
-				}
 				Infof("Removing unmanaged path " + d)
 				if !dryRun {
 					purgeDir(d, "purge_level puppetfile")

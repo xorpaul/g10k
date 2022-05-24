@@ -97,16 +97,20 @@ func checkForStaleContent(workDir string) {
 	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
 		//Debugf("filepath.Walk'ing found path: " + path)
 		stale := true
-		for _, desiredFile := range desiredContent {
-			for _, unchangedModuleDir := range unchangedModuleDirs {
-				if strings.HasPrefix(path, unchangedModuleDir) {
+		if strings.HasSuffix(path, ".resource_types") && isDir(path) {
+			stale = false
+		} else {
+			for _, desiredFile := range desiredContent {
+				for _, unchangedModuleDir := range unchangedModuleDirs {
+					if strings.HasPrefix(path, unchangedModuleDir) {
+						stale = false
+						break
+					}
+				}
+				if path == desiredFile || path == workDir {
 					stale = false
 					break
 				}
-			}
-			if path == desiredFile || path == workDir {
-				stale = false
-				break
 			}
 		}
 
