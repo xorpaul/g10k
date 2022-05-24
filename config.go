@@ -104,12 +104,12 @@ func readConfigfile(configFile string) ConfigSettings {
 	if !reflect.DeepEqual(config.Deploy, emptyDeploy) {
 		Debugf("detected deploy configuration hash, which takes precedence over the non-deploy scoped settings")
 		config.PurgeLevels = config.Deploy.PurgeLevels
-		config.PurgeWhitelist = config.Deploy.PurgeWhitelist
-		config.DeploymentPurgeWhitelist = config.Deploy.DeploymentPurgeWhitelist
+		config.PurgeAllowList = config.Deploy.PurgeAllowList
+		config.DeploymentPurgeAllowList = config.Deploy.DeploymentPurgeAllowList
 		config.WriteLock = config.Deploy.WriteLock
 		config.GenerateTypes = config.Deploy.GenerateTypes
 		config.PuppetPath = config.Deploy.PuppetPath
-		config.PurgeBlacklist = config.Deploy.PurgeBlacklist
+		config.PurgeSkiplist = config.Deploy.PurgeSkiplist
 		config.Deploy = emptyDeploy
 	}
 
