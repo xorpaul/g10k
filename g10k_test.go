@@ -1274,7 +1274,7 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git remote update --prune deleting local cached repository and retrying...") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
