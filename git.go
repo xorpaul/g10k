@@ -115,7 +115,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
-		if detectGitRemoteUrlChange(workDir, gitModule.git) && isControlRepo {
+		if detectGitRemoteURLChange(workDir, gitModule.git) && isControlRepo {
 			purgeDir(workDir, "git remote url changed")
 		} else {
 			gitCmd = "git --git-dir " + workDir + " remote update --prune"
@@ -322,7 +322,7 @@ func detectDefaultBranch(gitDir string) string {
 	return defaultBranch
 }
 
-func detectGitRemoteUrlChange(d string, url string) bool {
+func detectGitRemoteURLChange(d string, url string) bool {
 	gitRemoteCmd := "git --git-dir " + d + " remote -v"
 
 	er := executeCommand(gitRemoteCmd, config.Timeout, false)
