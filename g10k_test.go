@@ -2217,6 +2217,11 @@ func TestPurgeStaleContent(t *testing.T) {
 	defer f.Close()
 	f.WriteString("foobar")
 	f.Sync()
+	createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
+	r, _ := os.Create("/tmp/example/single/.resource_types/test.pp")
+	defer r.Close()
+	r.WriteString("foobar")
+	r.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2231,7 +2236,7 @@ func TestPurgeStaleContent(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	expectedLines := []string{
 		"DEBUG checkForStaleContent(): filepath.Walk'ing directory /tmp/example/single",
@@ -2257,6 +2262,10 @@ func TestPurgeStaleContent(t *testing.T) {
 
 	if !fileExists("/tmp/example/single/external_modules/inifile/README.md") {
 		t.Errorf("Missing module file that should be there")
+	}
+
+	if !fileExists("/tmp/example/single/.resource_types/test.pp") {
+		t.Errorf("Missing resource_types file /tmp/example/single/.resource_types/test.pp that should be there")
 	}
 
 	purgeDir(cacheDir, funcName)
