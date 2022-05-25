@@ -439,14 +439,14 @@ sources:
     prefix: true
 ```
 
-Starting with [v.0.7.1](https://github.com/xorpaul/g10k/releases/tag/v0.7.1) g10k supports `purge_blacklist` feature to remove unnecessary files from the sync / Puppetservers.
+Starting with [v.0.7.1](https://github.com/xorpaul/g10k/releases/tag/v0.7.1) g10k supports `purge_skiplist` feature to remove unnecessary files from the sync / Puppetservers.
 
 Example:
 
 ```
 ---
 deploy:
-  purge_blacklist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
+  purge_skiplist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
 
 sources:
   example:
