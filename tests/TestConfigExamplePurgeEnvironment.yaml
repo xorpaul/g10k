@@ -1,7 +1,7 @@
 ---
 :cachedir: '/tmp/g10k'
 purge_levels: ['environment']
-purge_allowlist: [ '.latest_revision', '.resource_types', '.resource_types/*.pp' ]
+purge_allowlist: [ '.latest_revision' ]
 
 sources:
   example:
