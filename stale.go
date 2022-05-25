@@ -95,9 +95,9 @@ func checkForStaleContent(workDir string) {
 	}
 
 	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
-		//Debugf("filepath.Walk'ing found path: " + path)
 		stale := true
-		if strings.HasSuffix(path, ".resource_types") && isDir(path) {
+		// never purge .resource_types dir and its content
+		if strings.HasSuffix(path, ".resource_types") || strings.HasSuffix(filepath.Dir(path), ".resource_types") {
 			stale = false
 		} else {
 			for _, desiredFile := range desiredContent {
