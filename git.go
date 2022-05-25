@@ -115,7 +115,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
-		if detectGitRemoteUrlChange(workDir, gitModule.git) {
+		if detectGitRemoteUrlChange(workDir, gitModule.git) && isControlRepo {
 			purgeDir(workDir, "git remote url changed")
 		} else {
 			gitCmd = "git --git-dir " + workDir + " remote update --prune"
@@ -327,13 +327,13 @@ func detectGitRemoteUrlChange(d string, url string) bool {
 
 	er := executeCommand(gitRemoteCmd, config.Timeout, false)
 	if er.returnCode != 0 {
-		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror is again")
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
 		return true
 	}
 
 	f := strings.Fields(er.output)
 	if len(f) < 3 {
-		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror is again")
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
 		return true
 	}
 	configuredRemote := f[1]
