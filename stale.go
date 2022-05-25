@@ -115,7 +115,7 @@ func checkForStaleContent(workDir string) {
 		}
 
 		if stale {
-			Infof("Removing unmanaged path " + path)
+			Debugf("Removing unmanaged path " + path)
 			purgeDir(path, "checkForStaleContent()")
 		}
 		return nil
