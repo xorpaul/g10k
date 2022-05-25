@@ -197,8 +197,8 @@ func TestConfigDeploy(t *testing.T) {
 		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
 		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels:              []string{"deployment"},
-		PurgeWhitelist:           []string{"custom.json", "**/*.xpp"},
-		DeploymentPurgeWhitelist: []string{"full_hiera_*"}}
+		PurgeAllowList:           []string{"custom.json", "**/*.xpp"},
+		DeploymentPurgeAllowList: []string{"full_hiera_*"}}
 
 	if !reflect.DeepEqual(got, expected) {
 		fmt.Println("### Expected:")
@@ -316,25 +316,25 @@ func TestResolveStatic(t *testing.T) {
 
 }
 
-func TestResolveStaticBlacklist(t *testing.T) {
+func TestResolveStaticSkiplist(t *testing.T) {
 	path, err := exec.LookPath("hashdeep")
 	if err != nil {
 		t.Skip("Skipping full Puppet environment resolve test, because package hashdeep is missing")
 	}
 
 	quiet = true
-	purgeDir("./cache", "TestResolvStaticBlacklist()")
-	purgeDir("./example", "TestResolvStaticBlacklist()")
-	config = readConfigfile("tests/TestConfigStaticBlacklist.yaml")
+	purgeDir("./cache", "TestResolvStaticSkiplist()")
+	purgeDir("./example", "TestResolvStaticSkiplist()")
+	config = readConfigfile("tests/TestConfigStaticSkiplist.yaml")
 	// increase maxworker to finish the test quicker
 	config.Maxworker = 500
-	branchParam = "blacklist"
+	branchParam = "skiplist"
 	resolvePuppetEnvironment(false, "")
 
 	// remove timestamps from .g10k-deploy.json otherwise hash sum would always differ
-	removeTimestampsFromDeployfile("example/example_blacklist/.g10k-deploy.json")
+	removeTimestampsFromDeployfile("example/example_skiplist/.g10k-deploy.json")
 
-	cmd := exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep", "./example")
+	cmd := exec.Command(path, "-vv", "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_skiplist.hashdeep", "./example")
 	out, err := cmd.CombinedOutput()
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -349,19 +349,19 @@ func TestResolveStaticBlacklist(t *testing.T) {
 	Debugf("hashdeep output:" + string(out))
 
 	expectedMissingFiles := []string{
-		"example/example_blacklist/external_modules/stdlib/spec",
-		"example/example_blacklist/external_modules/stdlib/readmes",
-		"example/example_blacklist/external_modules/stdlib/examples",
+		"example/example_skiplist/external_modules/stdlib/spec",
+		"example/example_skiplist/external_modules/stdlib/readmes",
+		"example/example_skiplist/external_modules/stdlib/examples",
 	}
 	for _, expectedMissingFile := range expectedMissingFiles {
 		if fileExists(expectedMissingFile) {
-			t.Errorf("blacklisted directory still exists that should have been purged! " + expectedMissingFile)
+			t.Errorf("skiplisted directory still exists that should have been purged! " + expectedMissingFile)
 		}
 	}
 
-	purgeDir("example/example_blacklist/Puppetfile", "TestResolveStaticBlacklist()")
+	purgeDir("example/example_skiplist/Puppetfile", "TestResolveStaticSkiplist()")
 
-	cmd = exec.Command(path, "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_blacklist.hashdeep", "./example")
+	cmd = exec.Command(path, "-l", "-r", "-a", "-k", "tests/hashdeep_example_static_skiplist.hashdeep", "./example")
 	out, err = cmd.CombinedOutput()
 	exitCode = 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -1274,7 +1274,7 @@ func TestConfigRetryGitCommands(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git remote update --prune deleting local cached repository and retrying...") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
@@ -2027,7 +2027,7 @@ func TestCheckDirPermissions(t *testing.T) {
 	purgeDir("/tmp/example", funcName)
 }
 
-func TestPurgeWhitelist(t *testing.T) {
+func TestPurgeAllowList(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
@@ -2094,7 +2094,7 @@ func TestPurgeWhitelist(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("purge_whitelist item was purged: " + expectedFile)
+			t.Errorf("purge_allowlist item was purged: " + expectedFile)
 		}
 	}
 
@@ -2116,7 +2116,7 @@ func TestPurgeWhitelist(t *testing.T) {
 	purgeDir("/tmp/example", funcName)
 }
 
-func TestPurgeWhitelistRecursive(t *testing.T) {
+func TestPurgeAllowListRecursive(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
@@ -2180,7 +2180,7 @@ func TestPurgeWhitelistRecursive(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("purge_whitelist item was purged: " + expectedFile)
+			t.Errorf("purge_allowlist item was purged: " + expectedFile)
 		}
 	}
 
@@ -2544,12 +2544,12 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 	purgeDir("/tmp/full", funcName)
 }
 
-func TestPurgeStaleDeploymentOnlyWithWhitelist(t *testing.T) {
+func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigFullworkingPurgeDeploymentWithWhitelist.yaml")
+		config = readConfigfile("tests/TestConfigFullworkingPurgeDeploymentWithAllowList.yaml")
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
 		return

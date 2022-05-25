@@ -1,7 +1,7 @@
 ---
 cachedir: './cache'
 deploy:
-  purge_blacklist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
+  purge_skiplist: [ 'spec', 'readmes', 'examples', '*.markdown', '*.md', 'junit', 'docs' ]
 
 sources:
   example:

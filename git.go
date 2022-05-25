@@ -115,7 +115,11 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
-		gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		if detectGitRemoteURLChange(workDir, gitModule.git) && isControlRepo {
+			purgeDir(workDir, "git remote url changed")
+		} else {
+			gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		}
 	}
 
 	if explicitlyLoadSSHKey {
@@ -316,4 +320,22 @@ func detectDefaultBranch(gitDir string) string {
 	defaultBranch := strings.TrimPrefix(string(headBranchParts[0]), "ref: refs/heads/")
 	//fmt.Println(defaultBranch)
 	return defaultBranch
+}
+
+func detectGitRemoteURLChange(d string, url string) bool {
+	gitRemoteCmd := "git --git-dir " + d + " remote -v"
+
+	er := executeCommand(gitRemoteCmd, config.Timeout, false)
+	if er.returnCode != 0 {
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		return true
+	}
+
+	f := strings.Fields(er.output)
+	if len(f) < 3 {
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		return true
+	}
+	configuredRemote := f[1]
+	return configuredRemote != url
 }

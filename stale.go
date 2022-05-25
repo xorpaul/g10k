@@ -33,13 +33,13 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 				Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
 
-				whitelistEnvironments := []string{}
-				if len(config.DeploymentPurgeWhitelist) > 0 {
-					for _, wlpattern := range config.DeploymentPurgeWhitelist {
-						whitelistGlobPath := filepath.Join(basedir, wlpattern)
-						Debugf("deployment_purge_whitelist Glob'ing with path " + whitelistGlobPath)
-						we, _ := filepath.Glob(whitelistGlobPath)
-						whitelistEnvironments = append(whitelistEnvironments, we...)
+				allowlistEnvironments := []string{}
+				if len(config.DeploymentPurgeAllowList) > 0 {
+					for _, wlpattern := range config.DeploymentPurgeAllowList {
+						allowlistGlobPath := filepath.Join(basedir, wlpattern)
+						Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
+						we, _ := filepath.Glob(allowlistGlobPath)
+						allowlistEnvironments = append(allowlistEnvironments, we...)
 					}
 				}
 
@@ -61,8 +61,8 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 						Debugf("Checking if environment should exist: " + envName)
 						if allEnvironments[envName] {
 							Debugf("Not purging environment " + envName)
-						} else if stringSliceContains(whitelistEnvironments, filepath.Join(basedir, envName)) {
-							Debugf("Not purging environment " + envName + " due to deployment_purge_whitelist match")
+						} else if stringSliceContains(allowlistEnvironments, filepath.Join(basedir, envName)) {
+							Debugf("Not purging environment " + envName + " due to deployment_purge_allowlist match")
 						} else {
 							Infof("Removing unmanaged environment " + envName)
 							if !dryRun {
@@ -82,36 +82,40 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 }
 
 func checkForStaleContent(workDir string) {
-	// add purge whitelist
-	if len(config.PurgeWhitelist) > 0 {
-		Debugf("interpreting purge whitelist globs: " + strings.Join(config.PurgeWhitelist, " "))
-		for _, wlItem := range config.PurgeWhitelist {
+	// add purge allowlist
+	if len(config.PurgeAllowList) > 0 {
+		for _, wlItem := range config.PurgeAllowList {
+			Debugf("interpreting purge allowlist globs: " + strings.Join(config.PurgeAllowList, " "))
 			globPath := filepath.Join(workDir, wlItem)
-			Debugf("Glob'ing with purge whitelist glob " + globPath)
+			Debugf("Glob'ing with purge allowlist glob " + globPath)
 			wlPaths, _ := filepathx.Glob(globPath)
-			Debugf("additional purge whitelist items: " + strings.Join(wlPaths, " "))
-				desiredContent = append(desiredContent, wlPaths...)
+			Debugf("additional purge allowlist items: " + strings.Join(wlPaths, " "))
+			desiredContent = append(desiredContent, wlPaths...)
 		}
 	}
 
 	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
 		//Debugf("filepath.Walk'ing found path: " + path)
 		stale := true
-		for _, desiredFile := range desiredContent {
-			for _, unchangedModuleDir := range unchangedModuleDirs {
-				if strings.HasPrefix(path, unchangedModuleDir) {
+		if strings.HasSuffix(path, ".resource_types") && isDir(path) {
+			stale = false
+		} else {
+			for _, desiredFile := range desiredContent {
+				for _, unchangedModuleDir := range unchangedModuleDirs {
+					if strings.HasPrefix(path, unchangedModuleDir) {
+						stale = false
+						break
+					}
+				}
+				if path == desiredFile || path == workDir {
 					stale = false
 					break
 				}
 			}
-			if path == desiredFile || path == workDir {
-				stale = false
-				break
-			}
 		}
 
 		if stale {
-			Infof("Removing unmanaged path " + path)
+			Debugf("Removing unmanaged path " + path)
 			purgeDir(path, "checkForStaleContent()")
 		}
 		return nil

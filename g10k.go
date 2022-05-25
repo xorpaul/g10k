@@ -88,12 +88,12 @@ type ConfigSettings struct {
 	PostRunCommand              []string       `yaml:"postrun"`
 	Deploy                      DeploySettings `yaml:"deploy"`
 	PurgeLevels                 []string       `yaml:"purge_levels"`
-	PurgeWhitelist              []string       `yaml:"purge_whitelist"`
-	DeploymentPurgeWhitelist    []string       `yaml:"deployment_purge_whitelist"`
+	PurgeAllowList              []string       `yaml:"purge_allowlist"`
+	DeploymentPurgeAllowList    []string       `yaml:"deployment_purge_allowlist"`
 	WriteLock                   string         `yaml:"write_lock"`
 	GenerateTypes               bool           `yaml:"generate_types"`
 	PuppetPath                  string         `yaml:"puppet_path"`
-	PurgeBlacklist              []string       `yaml:"purge_blacklist"`
+	PurgeSkiplist              []string       `yaml:"purge_skiplist"`
 	CloneGitModules             bool           `yaml:"clone_git_modules"`
 }
 
@@ -101,12 +101,12 @@ type ConfigSettings struct {
 // Trying to emulate r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
 type DeploySettings struct {
 	PurgeLevels              []string `yaml:"purge_levels"`
-	PurgeWhitelist           []string `yaml:"purge_whitelist"`
-	DeploymentPurgeWhitelist []string `yaml:"deployment_purge_whitelist"`
+	PurgeAllowList           []string `yaml:"purge_allowlist"`
+	DeploymentPurgeAllowList []string `yaml:"deployment_purge_allowlist"`
 	WriteLock                string   `yaml:"write_lock"`
 	GenerateTypes            bool     `yaml:"generate_types"`
 	PuppetPath               string   `yaml:"puppet_path"`
-	PurgeBlacklist           []string `yaml:"purge_blacklist"`
+	PurgeSkiplist           []string `yaml:"purge_skiplist"`
 }
 
 // Forge is a simple struct that contains the base URL of

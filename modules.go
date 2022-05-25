@@ -24,17 +24,17 @@ func unTar(r io.Reader, targetBaseDir string) {
 		// get the individual filename and extract to the current directory
 		filename := header.Name
 		// check if currently extracting archive is a forge or a git module
-		// we need to remove the module name from the filename otherwise the blacklist pattern would not match
+		// we need to remove the module name from the filename otherwise the skiplist pattern would not match
 		// e.g puppetlabs-stdlib-6.0.0/MAINTAINERS.md for a forge module
 		// and MAINTAINERS.md for a git module
-		blacklistFilename := filename
+		skiplistFilename := filename
 		if targetBaseDir == config.ForgeCacheDir {
-			blacklistFilenameComponents := strings.SplitAfterN(filename, "/", 2)
-			if len(blacklistFilenameComponents) > 1 {
-				blacklistFilename = blacklistFilenameComponents[1]
+			skiplistFilenameComponents := strings.SplitAfterN(filename, "/", 2)
+			if len(skiplistFilenameComponents) > 1 {
+				skiplistFilename = skiplistFilenameComponents[1]
 			}
 		}
-		if matchBlacklistContent(blacklistFilename) {
+		if matchSkiplistContent(skiplistFilename) {
 			continue
 		}
 		targetFilename := filepath.Join(targetBaseDir, filename)
@@ -122,14 +122,14 @@ func unTar(r io.Reader, targetBaseDir string) {
 	}
 }
 
-func matchBlacklistContent(filePath string) bool {
-	for _, blPattern := range config.PurgeBlacklist {
+func matchSkiplistContent(filePath string) bool {
+	for _, blPattern := range config.PurgeSkiplist {
 		filepathResult, _ := filepath.Match(blPattern, filePath)
 		if strings.HasPrefix(filePath, blPattern) || filepathResult {
-			Debugf("skipping file " + filePath + " because purge_blacklist pattern '" + blPattern + "' matches")
+			Debugf("skipping file " + filePath + " because purge_skiplist pattern '" + blPattern + "' matches")
 			return true
 		}
 	}
-	//Debugf("not skipping file " + filePath + " because no purge_blacklist pattern matches")
+	//Debugf("not skipping file " + filePath + " because no purge_skiplist pattern matches")
 	return false
 }
