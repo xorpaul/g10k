@@ -182,31 +182,18 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	if len(er.output) > 0 {
 		commitHash := strings.TrimSuffix(er.output, "\n")
 		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
-			mutex.Lock()
-			desiredContent = append(desiredContent, deployFile)
-			mutex.Unlock()
 			if fileExists(deployFile) {
 				dr := readDeployResultFile(deployFile)
-				if dr.Signature == strings.TrimSuffix(er.output, "\n") {
+				if dr.Signature == strings.TrimSuffix(er.output, "\n") && dr.DeploySuccess {
 					needToSync = false
-					// need to get the content of the git repository to detect and purge unmanaged files
-					addDesiredContent(srcDir, gitModule.tree, targetDir)
 				}
 			}
 		} else {
-			Debugf("adding path to managed content: " + targetDir)
-			mutex.Lock()
-			desiredContent = append(desiredContent, hashFile)
-			desiredContent = append(desiredContent, targetDir)
-			mutex.Unlock()
 			targetHashByte, _ := ioutil.ReadFile(hashFile)
 			targetHash := string(targetHashByte)
 			Debugf("string content of " + hashFile + " is: " + targetHash)
 			if targetHash == commitHash {
 				needToSync = false
-				mutex.Lock()
-				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
-				mutex.Unlock()
 				Debugf("Skipping, because no diff found between " + srcDir + "(" + commitHash + ") and " + targetDir + "(" + targetHash + ")")
 			} else {
 				Debugf("Need to sync, because existing Git module: " + targetDir + " has commit " + targetHash + " and the to be synced commit is: " + commitHash)
@@ -223,6 +210,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		}
 		needSyncGitCount++
 		mutex.Unlock()
+		purgeDir(targetDir, "need to sync")
 
 		if !dryRun && !config.CloneGitModules || isControlRepo {
 			if pfMode {
@@ -281,30 +269,6 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		}
 	}
 	return true
-}
-
-// addDesiredContent takes the given git repository directory and the
-// relevant reference (branch, commit hash, tag) and adds its content to
-// the global desiredContent slice so that it doesn't get purged by g10k
-func addDesiredContent(gitDir string, tree string, targetDir string) {
-	treeCmd := "git --git-dir " + gitDir + " ls-tree --full-tree -r -t --name-only " + tree
-	er := executeCommand(treeCmd, config.Timeout, false)
-	foundGitFiles := strings.Split(er.output, "\n")
-	mutex.Lock()
-	for _, desiredFile := range foundGitFiles[:len(foundGitFiles)-1] {
-		desiredContent = append(desiredContent, filepath.Join(targetDir, desiredFile))
-
-		// because we're using -r which prints git managed files in subfolders like this: foo/test3
-		// we have to split up the given string and add the possible parent directories (foo in this case)
-		parentDirs := strings.Split(desiredFile, "/")
-		if len(parentDirs) > 1 {
-			for _, dir := range parentDirs[:len(parentDirs)-1] {
-				desiredContent = append(desiredContent, filepath.Join(targetDir, dir))
-			}
-		}
-	}
-	mutex.Unlock()
-
 }
 
 func detectDefaultBranch(gitDir string) string {
