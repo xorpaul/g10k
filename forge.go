@@ -165,7 +165,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 }
 
 func queryForgeAPI(fm ForgeModule) ForgeResult {
-	baseURL := config.Forge.Baseurl
+	baseURL := config.ForgeBaseURL
 	if len(fm.baseURL) > 0 {
 		baseURL = fm.baseURL
 	}
@@ -276,7 +276,7 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 
 // getMetadataForgeModule queries the configured Puppet Forge and return
 func getMetadataForgeModule(fm ForgeModule) ForgeModule {
-	baseURL := config.Forge.Baseurl
+	baseURL := config.ForgeBaseURL
 	if len(fm.baseURL) > 0 {
 		baseURL = fm.baseURL
 	}
@@ -361,7 +361,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	fileName := name + "-" + version + ".tar.gz"
 
 	if !isDir(filepath.Join(config.ForgeCacheDir, name+"-"+version)) {
-		baseURL := config.Forge.Baseurl
+		baseURL := config.ForgeBaseURL
 		if len(fm.baseURL) > 0 {
 			baseURL = fm.baseURL
 		}
@@ -685,9 +685,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 				check4ForgeUpdate(m.name, me.version, latestForgeModules.m[moduleName])
 				latestForgeModules.RUnlock()
 			}
-			mutex.Lock()
-			unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
-			mutex.Unlock()
 			return
 		}
 		// safe to do, because we ensured in doModuleInstallOrNothing() that -latest exists
@@ -714,9 +711,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 			}
 			if me.version == m.version {
 				Debugf("Nothing to do, existing Forge module: " + targetDir + " has the same version " + me.version + " as the to be synced version: " + m.version)
-				mutex.Lock()
-				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
-				mutex.Unlock()
 				return
 			}
 			Infof("Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
@@ -747,9 +741,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	Infof("Need to sync " + targetDir)
 	if !dryRun {
 		targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
-		mutex.Lock()
-		desiredContent = append(desiredContent, targetDir)
-		mutex.Unlock()
 		var targetDirDevice, workDirDevice uint64
 		if fileInfo, err := os.Stat(targetDir); err == nil {
 			if fileInfo.Sys() != nil {
@@ -785,10 +776,6 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 			if err != nil {
 				Fatalf(funcName + "(): Can't make " + path + " relative to " + resolvedWorkDir + " Error: " + err.Error())
 			}
-			mutex.Lock()
-			desiredContent = append(desiredContent, filepath.Join(targetDir, target))
-			//Debugf("adding path to managed content: " + filepath.Join(targetDir, target))
-			mutex.Unlock()
 
 			if info.IsDir() {
 				if target != "." { // skip the root dir
