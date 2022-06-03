@@ -1,5 +1,6 @@
 ---
 :cachedir: '/tmp/g10k'
+forge_cache_ttl: 24h
 
 sources:
   example:
