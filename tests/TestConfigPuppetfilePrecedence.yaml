@@ -1,0 +1,9 @@
+---
+:cachedir: '/tmp/g10k'
+forge_base_url: 'https://fake-forge.domain.tld'
+forge_cache_ttl: 100h
+
+sources:
+  example:
+    remote: 'git@github.com:xorpaul/g10k-environment.git'
+    basedir: '/tmp/example/'
