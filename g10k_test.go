@@ -2944,7 +2944,7 @@ func TestPrecedenceConfig(t *testing.T) {
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
 	out, _ := cmd.CombinedOutput()
 
-	// fmt.Println(string(out))
+	fmt.Println(string(out))
 	expectedLines := []string{
 		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge.domain.tld and CacheTtl set to 100h0m0s",
 	}
@@ -2970,7 +2970,7 @@ func TestPrecedencePuppetfile(t *testing.T) {
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
 	out, _ := cmd.CombinedOutput()
 
-	// fmt.Println(string(out))
+	fmt.Println(string(out))
 	expectedLines := []string{
 		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge-puppetfile.domain.tld and CacheTtl set to 24h1m1s",
 	}
