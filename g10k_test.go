@@ -2942,17 +2942,8 @@ func TestPrecedenceConfig(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
+	out, _ := cmd.CombinedOutput()
 
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 1
-	if exitCode != expectedExitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
 	// fmt.Println(string(out))
 	expectedLines := []string{
 		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge.domain.tld and CacheTtl set to 100h0m0s",
@@ -2977,17 +2968,8 @@ func TestPrecedencePuppetfile(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
+	out, _ := cmd.CombinedOutput()
 
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 1
-	if exitCode != expectedExitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
 	// fmt.Println(string(out))
 	expectedLines := []string{
 		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge-puppetfile.domain.tld and CacheTtl set to 24h1m1s",
