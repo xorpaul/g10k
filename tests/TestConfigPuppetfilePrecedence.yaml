@@ -5,5 +5,5 @@ forge_cache_ttl: 100h
 
 sources:
   example:
-    remote: 'git@github.com:xorpaul/g10k-environment.git'
+    remote: 'https://github.com/xorpaul/g10k-environment.git'
     basedir: '/tmp/example/'
