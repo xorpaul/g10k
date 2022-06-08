@@ -101,7 +101,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 
 	explicitlyLoadSSHKey := true
 	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent {
-		if gitModule.useSSHAgent {
+		if gitModule.useSSHAgent || len(gitModule.privateKey) == 0 {
 			explicitlyLoadSSHKey = false
 		} else if isControlRepo {
 			explicitlyLoadSSHKey = true
@@ -202,15 +202,32 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 	}
 	if needToSync && er.returnCode == 0 {
-		Infof("Need to sync " + targetDir)
 		mutex.Lock()
+		Infof("Need to sync " + targetDir)
 		needSyncDirs = append(needSyncDirs, targetDir)
 		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
 			needSyncEnvs[correspondingPuppetEnvironment] = empty
 		}
 		needSyncGitCount++
 		mutex.Unlock()
-		purgeDir(targetDir, "need to sync")
+		purgeWholeEnvDir := true
+		// check if it is a control repo and already exists
+		if isControlRepo && isDir(targetDir) {
+			// then check if it contains a Puppetfile
+			gitShowCmd := "--git-dir" + srcDir + "show" + gitModule.tree + ":Puppetfile"
+			executeResult := executeCommand(gitShowCmd, config.Timeout, true)
+			Debugf("Executing " + gitShowCmd)
+			if executeResult.returnCode != 0 {
+				purgeWholeEnvDir = true
+			} else {
+
+			}
+		}
+		// if so delete everything except the moduledir where the Puppet modules reside
+		// else simply delete the whole dir and check it out again
+		if purgeWholeEnvDir {
+			purgeDir(targetDir, "need to sync")
+		}
 
 		if !dryRun && !config.CloneGitModules || isControlRepo {
 			if pfMode {
