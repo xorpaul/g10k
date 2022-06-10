@@ -14,6 +14,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var (
+	reModuledir = regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
+)
+
 // readConfigfile creates the ConfigSettings struct from the g10k config file
 func readConfigfile(configFile string) ConfigSettings {
 	Debugf("Trying to read g10k config file: " + configFile)
@@ -198,7 +202,6 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	}
 
 	reEmptyLine := regexp.MustCompile(`^\s*$`)
-	reModuledir := regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeCacheTTL := regexp.MustCompile(`^\s*(?:forge.cache(?:TTL|Ttl))\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeBaseURL := regexp.MustCompile(`^\s*(?:forge.base(?:URL|Url))\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\s*)[,]?(.*)`)
