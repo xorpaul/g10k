@@ -67,3 +67,20 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 		}
 	}
 }
+
+func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
+	moduleDir = filepath.Join(dir, moduleDir)
+
+	globPath := filepath.Join(dir, "*")
+	Debugf("Glob'ing with path " + globPath)
+	folders, _ := filepath.Glob(globPath)
+	for _, folder := range folders {
+		if folder == moduleDir {
+			continue
+		} else {
+			purgeDir(folder, "purgeControlRepoExceptModuledir")
+		}
+
+	}
+
+}
