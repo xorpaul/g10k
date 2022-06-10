@@ -210,23 +210,38 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		}
 		needSyncGitCount++
 		mutex.Unlock()
+		moduleDir := "modules"
 		purgeWholeEnvDir := true
 		// check if it is a control repo and already exists
 		if isControlRepo && isDir(targetDir) {
 			// then check if it contains a Puppetfile
-			gitShowCmd := "--git-dir" + srcDir + "show" + gitModule.tree + ":Puppetfile"
+			gitShowCmd := "git --git-dir " + srcDir + " show " + gitModule.tree + ":Puppetfile"
 			executeResult := executeCommand(gitShowCmd, config.Timeout, true)
 			Debugf("Executing " + gitShowCmd)
 			if executeResult.returnCode != 0 {
 				purgeWholeEnvDir = true
 			} else {
-
+				purgeWholeEnvDir = false
+				lines := strings.Split(executeResult.output, "\n")
+				for _, line := range lines {
+					if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
+						// moduledir CLI parameter override
+						if len(moduleDirParam) != 0 {
+							moduleDir = moduleDirParam
+						} else {
+							moduleDir = normalizeDir(m[1])
+						}
+					}
+				}
 			}
 		}
 		// if so delete everything except the moduledir where the Puppet modules reside
 		// else simply delete the whole dir and check it out again
 		if purgeWholeEnvDir {
 			purgeDir(targetDir, "need to sync")
+		} else {
+			Infof("detected control repo change, but trying to preserve module dir " + moduleDir)
+			purgeControlRepoExceptModuledir(targetDir, moduleDir)
 		}
 
 		if !dryRun && !config.CloneGitModules || isControlRepo {
