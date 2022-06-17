@@ -2999,3 +2999,79 @@ func TestPrecedencePuppetfile(t *testing.T) {
 		}
 	}
 }
+
+func TestPurgeControlRepoExceptModuledir(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigUseCacheFallback.yaml"))
+	branchParam = "single_forge"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		// debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"Need to sync /tmp/example/" + branchParam,
+		"Need to sync /tmp/example/" + branchParam + "/external_modules/inifile",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	// force a resync of the Puppet env
+	purgeDir("/tmp/example/"+branchParam+"/.g10k-deploy.json", funcName)
+
+	// and do the sync again to check if the modules dir was unncecessarily removed and repopulated
+	cmdAgain := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmdAgain.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	outAgain, err := cmdAgain.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	expectedExitCode = 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+
+	// fmt.Println("outAgain: ", string(outAgain))
+	expectedLines = []string{
+		"Need to sync /tmp/example/" + branchParam,
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(outAgain), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	forbiddenLines := []string{
+		"Need to sync /tmp/example/" + branchParam + "/external_modules/inifile",
+	}
+	for _, forbiddenLine := range forbiddenLines {
+		if strings.Contains(string(outAgain), forbiddenLine) {
+			t.Errorf("Found forbidden line '" + forbiddenLine + "' in output")
+		}
+	}
+
+	if !fileExists("/tmp/example/" + branchParam + "/external_modules/inifile/metadata.json") {
+		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
+	}
+}
