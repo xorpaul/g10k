@@ -240,7 +240,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		if purgeWholeEnvDir {
 			purgeDir(targetDir, "need to sync")
 		} else {
-			Infof("detected control repo change, but trying to preserve module dir " + moduleDir)
+			Infof("Detected control repo change, but trying to preserve module dir " + filepath.Join(targetDir, moduleDir))
 			purgeControlRepoExceptModuledir(targetDir, moduleDir)
 		}
 
