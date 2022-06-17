@@ -75,7 +75,7 @@ func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
 	Debugf("Glob'ing with path " + globPath)
 	folders, _ := filepath.Glob(globPath)
 	for _, folder := range folders {
-		if folder == moduleDir {
+		if folder == moduleDir || strings.HasPrefix(folder, moduleDir) {
 			continue
 		} else {
 			purgeDir(folder, "purgeControlRepoExceptModuledir")
