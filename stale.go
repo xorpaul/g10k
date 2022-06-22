@@ -78,6 +78,7 @@ func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
 		if folder == moduleDir || strings.HasPrefix(folder, moduleDir) {
 			continue
 		} else {
+			Debugf("deleting " + folder)
 			purgeDir(folder, "purgeControlRepoExceptModuledir")
 		}
 
