@@ -3003,9 +3003,9 @@ func TestPrecedencePuppetfile(t *testing.T) {
 func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile(filepath.Join("tests", "TestConfigUseCacheFallback.yaml"))
-	branchParam = "single_forge"
+	branchParam = "purge_control_repo_except_moduledir"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		// debug = true
+		debug = true
 		info = true
 		resolvePuppetEnvironment(false, "")
 		return
@@ -3055,6 +3055,10 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 	// fmt.Println("outAgain: ", string(outAgain))
 	expectedLines = []string{
 		"Need to sync /tmp/example/" + branchParam,
+		"Detected control repo change, but trying to preserve module dir /tmp/example/purge_control_repo_except_moduledir/external_modules",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/Puppetfile",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/bar",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/foo",
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(outAgain), expectedLine) {
@@ -3064,6 +3068,7 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 
 	forbiddenLines := []string{
 		"Need to sync /tmp/example/" + branchParam + "/external_modules/inifile",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/foo/file001.bin",
 	}
 	for _, forbiddenLine := range forbiddenLines {
 		if strings.Contains(string(outAgain), forbiddenLine) {
