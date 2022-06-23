@@ -1,11 +1,8 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/yargevad/filepathx"
 )
 
 func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[string]bool) {
@@ -15,8 +12,8 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 			return
 		}
 	}
-
 	for source, sa := range config.Sources {
+		// fmt.Printf("source: %+v\n", sa)
 		prefix := resolveSourcePrefix(source, sa)
 
 		if len(environmentParam) > 0 {
@@ -52,11 +49,6 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 							continue
 						}
 					}
-					if stringSliceContains(config.PurgeLevels, "environment") {
-						if allEnvironments[envName] {
-							checkForStaleContent(env)
-						}
-					}
 					if stringSliceContains(config.PurgeLevels, "deployment") {
 						Debugf("Checking if environment should exist: " + envName)
 						if allEnvironments[envName] {
@@ -72,57 +64,24 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 					}
 				}
 			}
-		} else {
-			if stringSliceContains(config.PurgeLevels, "environment") {
-				// check for purgeable content inside -branch folder
-				checkForStaleContent(filepath.Join(sa.Basedir, prefix+branchParam))
-			}
 		}
 	}
 }
 
-func checkForStaleContent(workDir string) {
-	// add purge allowlist
-	if len(config.PurgeAllowList) > 0 {
-		for _, wlItem := range config.PurgeAllowList {
-			Debugf("interpreting purge allowlist globs: " + strings.Join(config.PurgeAllowList, " "))
-			globPath := filepath.Join(workDir, wlItem)
-			Debugf("Glob'ing with purge allowlist glob " + globPath)
-			wlPaths, _ := filepathx.Glob(globPath)
-			Debugf("additional purge allowlist items: " + strings.Join(wlPaths, " "))
-			desiredContent = append(desiredContent, wlPaths...)
-		}
-	}
+func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
+	moduleDir = filepath.Join(dir, moduleDir)
 
-	checkForStaleContent := func(path string, info os.FileInfo, err error) error {
-		stale := true
-		// never purge .resource_types dir and its content
-		if strings.HasSuffix(path, ".resource_types") || strings.HasSuffix(filepath.Dir(path), ".resource_types") {
-			stale = false
+	globPath := filepath.Join(dir, "*")
+	Debugf("Glob'ing with path " + globPath)
+	folders, _ := filepath.Glob(globPath)
+	for _, folder := range folders {
+		if folder == moduleDir || strings.HasPrefix(folder, moduleDir) {
+			continue
 		} else {
-			for _, desiredFile := range desiredContent {
-				for _, unchangedModuleDir := range unchangedModuleDirs {
-					if strings.HasPrefix(path, unchangedModuleDir) {
-						stale = false
-						break
-					}
-				}
-				if path == desiredFile || path == workDir {
-					stale = false
-					break
-				}
-			}
+			Debugf("deleting " + folder)
+			purgeDir(folder, "purgeControlRepoExceptModuledir")
 		}
 
-		if stale {
-			Debugf("Removing unmanaged path " + path)
-			purgeDir(path, "checkForStaleContent()")
-		}
-		return nil
 	}
 
-	c := make(chan error)
-	Debugf("filepath.Walk'ing directory " + workDir)
-	go func() { c <- filepath.Walk(workDir, checkForStaleContent) }()
-	<-c // Walk done
 }

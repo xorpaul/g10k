@@ -35,7 +35,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
 	allBasedirs := make(map[string]bool)
-	desiredContent = make([]string, 0)
 	foundMatch := false
 	for source, sa := range config.Sources {
 		wg.Add()
@@ -156,6 +155,16 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							pf := filepath.Join(targetDir, "Puppetfile")
 							if !fileExists(pf) {
 								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
+								deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
+								if fileExists(deployFile) {
+									Debugf("Finishing writing to deploy file " + deployFile)
+									dr := readDeployResultFile(deployFile)
+									dr.DeploySuccess = true
+									dr.FinishedAt = time.Now()
+									dr.GitDir = sa.Basedir
+									dr.GitURL = sa.Remote
+									writeStructJSONFile(deployFile, dr)
+								}
 							} else {
 								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
@@ -164,7 +173,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								puppetfile.gitURL = sa.Remote
 								mutex.Lock()
 								for _, moduleDir := range puppetfile.moduleDirs {
-									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
 									checkDirAndCreate(filepath.Join(puppetfile.workDir, moduleDir), "moduledir for env")
 								}
 								allPuppetfiles[env] = puppetfile
@@ -250,9 +258,13 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					continue
 				}
 			}
-			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
 			fm.baseURL = pf.forgeBaseURL
-			fm.cacheTTL = pf.forgeCacheTTL
+			if pf.forgeCacheTTL != 0 {
+				fm.cacheTTL = pf.forgeCacheTTL
+			} else {
+				fm.cacheTTL = config.ForgeCacheTTL
+			}
+			// fmt.Println("Found Forge module", fm.author, "/", forgeModuleName, "with version", fm.version, "and cacheTTL", fm.cacheTTL)
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			uniqueForgeModuleName := fm.author + "/" + forgeModuleName + "-" + fm.version
 			if _, ok := uniqueForgeModules[uniqueForgeModuleName]; !ok {
@@ -450,9 +462,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			dr.GitDir = pf.gitDir
 			dr.GitURL = pf.gitURL
 			writeStructJSONFile(deployFile, dr)
-			mutex.Lock()
-			desiredContent = append(desiredContent, deployFile)
-			mutex.Unlock()
 		}
 	}
 

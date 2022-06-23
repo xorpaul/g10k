@@ -14,6 +14,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var (
+	reModuledir = regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
+)
+
 // readConfigfile creates the ConfigSettings struct from the g10k config file
 func readConfigfile(configFile string) ConfigSettings {
 	Debugf("Trying to read g10k config file: " + configFile)
@@ -51,11 +55,11 @@ func readConfigfile(configFile string) ConfigSettings {
 	config.ModulesCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
 	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
 
-	if len(config.Forge.Baseurl) == 0 {
-		config.Forge.Baseurl = "https://forgeapi.puppet.com"
+	if len(config.ForgeBaseURL) == 0 {
+		config.ForgeBaseURL = "https://forgeapi.puppet.com"
 	}
 
-	//fmt.Println("Forge Baseurl: ", config.Forge.Baseurl)
+	// fmt.Println("Forge Baseurl: ", config.ForgeBaseURL)
 
 	// set default timeout to 5 seconds if no timeout setting found
 	if config.Timeout == 0 {
@@ -98,6 +102,14 @@ func readConfigfile(configFile string) ConfigSettings {
 		config.MaxExtractworker = 20
 	}
 
+	if len(config.ForgeCacheTTLString) != 0 {
+		ttl, err := time.ParseDuration(config.ForgeCacheTTLString)
+		if err != nil {
+			Fatalf("Error: Can not convert value " + config.ForgeCacheTTLString + " of config setting forge_cache_ttl to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In " + configFile)
+		}
+		config.ForgeCacheTTL = ttl
+	}
+
 	// check for non-empty config.Deploy which takes precedence over the non-deploy scoped settings
 	// See https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
 	emptyDeploy := DeploySettings{}
@@ -132,7 +144,7 @@ func readConfigfile(configFile string) ConfigSettings {
 		Validatef()
 	}
 
-	//fmt.Printf("%+v\n", config)
+	// fmt.Printf("%+v\n", config)
 	return config
 }
 
@@ -190,7 +202,6 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	}
 
 	reEmptyLine := regexp.MustCompile(`^\s*$`)
-	reModuledir := regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeCacheTTL := regexp.MustCompile(`^\s*(?:forge.cache(?:TTL|Ttl))\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeBaseURL := regexp.MustCompile(`^\s*(?:forge.base(?:URL|Url))\s+['\"]?([^'\"]+)['\"]?`)
 	reForgeModule := regexp.MustCompile(`^\s*(?:mod)\s+['\"]?([^'\"]+[-/][^'\"]+)['\"](?:\s*)[,]?(.*)`)
@@ -301,6 +312,10 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			}
 			if _, ok := puppetFile.gitModules[comp[1]]; ok {
 				Fatalf("Error: Forge Puppet module with same name found in " + pf + " for module " + comp[1] + " line: " + line)
+			}
+			// the base url in the Puppetfile takes precedence over an base url specified in the g10k config yaml
+			if len(puppetFile.forgeBaseURL) == 0 {
+				puppetFile.forgeBaseURL = config.ForgeBaseURL
 			}
 			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir, sourceBranch: source + "_" + branch}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
@@ -431,6 +446,6 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 
 	puppetFile.moduleDirs = moduleDirs
 	puppetFile.sourceBranch = branch
-	//fmt.Printf("%+v\n", puppetFile)
+	// fmt.Printf("%+v\n", puppetFile)
 	return puppetFile
 }

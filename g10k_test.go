@@ -61,9 +61,11 @@ func TestConfigPrefix(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:                 Git{privateKey: ""},
+		ForgeCacheTTLString: "24h",
+		ForgeCacheTTL:       24 * time.Hour,
+		ForgeBaseURL:        "https://forgeapi.puppet.com",
+		Sources:             s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
@@ -87,9 +89,9 @@ func TestConfigForceForgeVersions(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:          Git{privateKey: ""},
+		ForgeBaseURL: "https://forgeapi.puppet.com",
+		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
@@ -113,9 +115,9 @@ func TestConfigAddWarning(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:          Git{privateKey: ""},
+		ForgeBaseURL: "https://forgeapi.puppet.com",
+		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
 	if !reflect.DeepEqual(got, expected) {
@@ -140,9 +142,9 @@ func TestConfigSimplePostrunCommand(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:          Git{privateKey: ""},
+		ForgeBaseURL: "https://forgeapi.puppet.com",
+		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
 	if !reflect.DeepEqual(got, expected) {
@@ -167,9 +169,9 @@ func TestConfigPostrunCommand(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:          Git{privateKey: ""},
+		ForgeBaseURL: "https://forgeapi.puppet.com",
+		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
 	if !reflect.DeepEqual(got, expected) {
@@ -193,9 +195,9 @@ func TestConfigDeploy(t *testing.T) {
 	expected := ConfigSettings{
 		CacheDir: "/tmp/g10k", ForgeCacheDir: "/tmp/g10k/forge",
 		ModulesCacheDir: "/tmp/g10k/modules", EnvCacheDir: "/tmp/g10k/environments",
-		Git:     Git{privateKey: ""},
-		Forge:   Forge{Baseurl: "https://forgeapi.puppet.com"},
-		Sources: s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
+		Git:          Git{privateKey: ""},
+		ForgeBaseURL: "https://forgeapi.puppet.com",
+		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels:              []string{"deployment"},
 		PurgeAllowList:           []string{"custom.json", "**/*.xpp"},
 		DeploymentPurgeAllowList: []string{"full_hiera_*"}}
@@ -695,7 +697,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	if exitCode != 0 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
@@ -704,6 +706,90 @@ func TestConfigUseCacheFallback(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if !fileExists("/tmp/example/single_fail/modules/firewall/metadata.json") {
+		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
+	}
+}
+
+func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", funcName+".yaml"))
+	branchParam = "single_git"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	// be sure to delete files from previous test runs
+	gitDir := "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git"
+	purgeDir(gitDir, funcName)
+	purgeDir("/tmp/example/"+branchParam, funcName)
+
+	// get the module to cache it
+	gm := GitModule{}
+	gm.git = "https://github.com/puppetlabs/puppetlabs-firewall.git"
+	doMirrorOrUpdate(gm, "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", 0)
+
+	// change the git remote url to something that does not resolve https://.com/...
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	if er.returnCode != 0 {
+		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"WARN: git repository https://github.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!",
+		"Fatal: Failed to clone or pull https://github.com/puppetlabs/puppetlabs-firewall.git to /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+	// fix module again
+	er = executeCommand("git --git-dir "+gitDir+" remote set-url origin https://github.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	if er.returnCode != 0 {
+		t.Error("Rewriting the git remote url of " + gitDir + " to https://github.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
+	}
+
+	// and do the sync again to check the output
+	cmdAgain := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmdAgain.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	outAgain, err := cmdAgain.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	expectedExitCode = 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+
+	// fmt.Println("outAgain: ", string(outAgain))
+	expectedLines = []string{
+		"Need to sync /tmp/example/" + branchParam,
+		"Need to sync /tmp/example/" + branchParam + "/modules/firewall",
+		"Removing unmanaged path /tmp/example/" + branchParam + "/modules/foo",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(outAgain), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	if !fileExists("/tmp/example/" + branchParam + "/modules/firewall/metadata.json") {
 		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
 	}
 }
@@ -750,7 +836,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 1)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 	if !strings.Contains(string(out), "WARN: git repository https://.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!") || !strings.Contains(string(out), "Fatal: Failed to clone or pull https://.com/puppetlabs/puppetlabs-firewall.git") {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
@@ -771,7 +857,7 @@ func TestReadPuppetfileUseCacheFallback(t *testing.T) {
 	}
 	purgeDir("/tmp/example", funcName)
 	fm := ForgeModule{version: "1.9.0", author: "puppetlabs", name: "firewall"}
-	config.Forge.Baseurl = "https://forgeapi.puppet.com"
+	config.ForgeBaseURL = "https://forgeapi.puppet.com"
 	downloadForgeModule("puppetlabs-firewall", "1.9.0", fm, 1)
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
@@ -1076,10 +1162,6 @@ func TestResolvePuppetfileFallback(t *testing.T) {
 	if !fileExists(metadataFile) {
 		t.Errorf("error missing file %s", metadataFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestResolvePuppetfileDefaultBranch(t *testing.T) {
@@ -1130,10 +1212,6 @@ func TestResolvePuppetfileDefaultBranch(t *testing.T) {
 	if !fileExists(metadataFile) {
 		t.Errorf("error missing file %s", metadataFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestResolvePuppetfileControlBranch(t *testing.T) {
@@ -1181,10 +1259,6 @@ func TestResolvePuppetfileControlBranch(t *testing.T) {
 	if !fileExists(branchFile) {
 		t.Errorf("error missing file %s, which means that not the correct module branch was used by :control_branch", branchFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
@@ -1235,10 +1309,6 @@ func TestResolvePuppetfileControlBranchDefault(t *testing.T) {
 	if !fileExists(metadataFile) {
 		t.Errorf("error missing file %s", metadataFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestConfigRetryGitCommands(t *testing.T) {
@@ -1363,10 +1433,6 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 	if !fileExists(file2) {
 		t.Errorf("error missing file %s", file2)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
@@ -1398,10 +1464,6 @@ func TestResolvePuppetfileInvalidGitObject(t *testing.T) {
 	if !strings.Contains(string(out), expectingString) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s\nExpecting string: %s", string(out), expectingString)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestUnTarPreserveTimestamp(t *testing.T) {
@@ -1501,10 +1563,6 @@ func TestSupportOldGitWithoutObjectSyntax(t *testing.T) {
 	if !fileExists(metadataFile) {
 		t.Errorf("error missing file %s", metadataFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
@@ -1556,10 +1614,6 @@ func TestSupportOldGitWithoutObjectSyntaxParameter(t *testing.T) {
 	if !fileExists(metadataFile) {
 		t.Errorf("error missing file %s", metadataFile)
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
@@ -1596,9 +1650,6 @@ func TestAutoCorrectEnvironmentNamesDefault(t *testing.T) {
 	}
 
 	purgeDir("/tmp/example", funcName)
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
@@ -1635,9 +1686,6 @@ func TestAutoCorrectEnvironmentNamesWarn(t *testing.T) {
 	}
 
 	purgeDir("/tmp/example", funcName)
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
@@ -1674,8 +1722,6 @@ func TestAutoCorrectEnvironmentNamesError(t *testing.T) {
 	}
 
 	purgeDir("/tmp/example", funcName)
-	moduleParam = ""
-	debug = false
 }
 
 func TestLastCheckedFile(t *testing.T) {
@@ -1743,8 +1789,6 @@ func TestLastCheckedFile(t *testing.T) {
 
 	purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
-	moduleParam = ""
-	debug = false
 }
 
 func TestSimplePostrunCommand(t *testing.T) {
@@ -1782,8 +1826,6 @@ func TestSimplePostrunCommand(t *testing.T) {
 
 	purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
-	moduleParam = ""
-	debug = false
 }
 
 func TestPostrunCommand(t *testing.T) {
@@ -1833,8 +1875,6 @@ func TestPostrunCommand(t *testing.T) {
 
 	purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
-	moduleParam = ""
-	debug = false
 }
 
 func TestPostrunCommandDirs(t *testing.T) {
@@ -1886,8 +1926,6 @@ func TestPostrunCommandDirs(t *testing.T) {
 
 	purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
-	moduleParam = ""
-	debug = false
 }
 
 func TestMultipleModuledirs(t *testing.T) {
@@ -1939,11 +1977,9 @@ func TestMultipleModuledirs(t *testing.T) {
 		t.Errorf("Unmanaged Module directory 2 is still there and should not be: %s", unmanagedModule2)
 	}
 
-	//purgeDir("/tmp/example", funcName)
+	purgeDir("/tmp/example", funcName)
 	purgeDir("/tmp/g10k", funcName)
-	moduleParam = ""
 	branchParam = ""
-	debug = false
 }
 
 func TestFailedGit(t *testing.T) {
@@ -2027,201 +2063,18 @@ func TestCheckDirPermissions(t *testing.T) {
 	purgeDir("/tmp/example", funcName)
 }
 
-func TestPurgeAllowList(t *testing.T) {
+func TestPurgeStalePuppetfileOnly(t *testing.T) {
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	cacheDir := "/tmp/g10k"
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
-		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
-		branchParam = "single_git"
+		config = readConfigfile("tests/TestConfigFullworkingPurgePuppetfile.yaml")
+		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
 		resolvePuppetEnvironment(false, "")
 		return
 	}
-	purgeDir("/tmp/example", funcName)
-	createOrPurgeDir("/tmp/example/single_git/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/example/single_git/.resource_types", funcName)
-	f, _ := os.Create("/tmp/example/single_git/.latest_revision")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-	frt, err := os.Create("/tmp/example/single_git/.resource_types/foobar.pp")
-	if err != nil {
-		t.Errorf("Error while creating test file")
-	}
-	defer frt.Close()
-	frt.WriteString("fake resource type")
-	frt.Sync()
-	createOrPurgeDir("/tmp/example/single_git/modules/", funcName)
-	createOrPurgeDir("/tmp/example/single_git/modules/firewall/", funcName)
-	createOrPurgeDir("/tmp/example/single_git/modules/firewall/manifests/", funcName)
-	fpf, _ := os.Create("/tmp/example/single_git/modules/firewall/manifests/stale.pp")
-	defer fpf.Close()
-	fpf.WriteString("fake stale module file")
-	fpf.Sync()
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"Removing unmanaged path /tmp/example/single_git/stale_directory_that_should_be_purged",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/modules/firewall/manifests/stale.pp called from checkForStaleContent()",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/stale_directory_that_should_be_purged called from checkForStaleContent()",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	expectedFiles := []string{
-		"/tmp/example/single_git/.resource_types",
-		"/tmp/example/single_git/.resource_types/foobar.pp",
-		"/tmp/example/single_git/.latest_revision",
-	}
-
-	for _, expectedFile := range expectedFiles {
-		if !fileExists(expectedFile) {
-			t.Errorf("purge_allowlist item was purged: " + expectedFile)
-		}
-	}
-
-	missingFiles := []string{
-		"/tmp/example/single_git/stale_directory_that_should_be_purged",
-		"/tmp/example/single_git/modules/firewall/manifests/stale.pp",
-	}
-	for _, missingFile := range missingFiles {
-		if fileExists(missingFile) {
-			t.Errorf("stale file and/or directory still exists! " + missingFile)
-		}
-	}
-
-	if !fileExists("/tmp/example/single_git/modules/firewall/README.markdown") {
-		t.Errorf("Missing module file that should be there")
-	}
-
-	purgeDir(cacheDir, funcName)
-	purgeDir("/tmp/example", funcName)
-}
-
-func TestPurgeAllowListRecursive(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	cacheDir := "/tmp/g10k"
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = true
-		config = readConfigfile("tests/TestConfigExamplePurgeEnvironmentRecursive.yaml")
-		branchParam = "single_git"
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-	purgeDir("/tmp/example", funcName)
-	createOrPurgeDir("/tmp/example/single_git/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/example/single_git/.resource_types", funcName)
-	f, _ := os.Create("/tmp/example/single_git/.latest_revision")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-	frt, _ := os.Create("/tmp/example/single_git/.resource_types/foobar.pp")
-	defer frt.Close()
-	frt.WriteString("fake resource type")
-	frt.Sync()
-	createOrPurgeDir("/tmp/example/single_git/modules/", funcName)
-	createOrPurgeDir("/tmp/example/single_git/modules/firewall/", funcName)
-	createOrPurgeDir("/tmp/example/single_git/modules/firewall/manifests/", funcName)
-	fpf, _ := os.Create("/tmp/example/single_git/modules/firewall/manifests/stale.pp")
-	defer fpf.Close()
-	fpf.WriteString("fake stale module file")
-	fpf.Sync()
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"Removing unmanaged path /tmp/example/single_git/stale_directory_that_should_be_purged",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single_git/stale_directory_that_should_be_purged called from checkForStaleContent()",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	expectedFiles := []string{
-		"/tmp/example/single_git/.resource_types",
-		"/tmp/example/single_git/.resource_types/foobar.pp",
-		"/tmp/example/single_git/.latest_revision",
-		"/tmp/example/single_git/modules/firewall/manifests/stale.pp",
-	}
-
-	for _, expectedFile := range expectedFiles {
-		if !fileExists(expectedFile) {
-			t.Errorf("purge_allowlist item was purged: " + expectedFile)
-		}
-	}
-
-	missingFiles := []string{
-		"/tmp/example/single_git/stale_directory_that_should_be_purged",
-	}
-	for _, missingFile := range missingFiles {
-		if fileExists(missingFile) {
-			t.Errorf("stale file and/or directory still exists! " + missingFile)
-		}
-	}
-
-	if !fileExists("/tmp/example/single_git/modules/firewall/README.markdown") {
-		t.Errorf("Missing module file that should be there")
-	}
-
-	purgeDir(cacheDir, funcName)
-	purgeDir("/tmp/example", funcName)
-}
-
-func TestPurgeStaleContent(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	cacheDir := "/tmp/g10k"
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = true
-		config = readConfigfile("tests/TestConfigExamplePurgeEnvironment.yaml")
-		branchParam = "single"
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/example/single/stale_directory_that_should_be_purged2", funcName)
-	f, _ := os.Create("/tmp/example/single/stale_directory_that_should_be_purged/stale_file")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-	createOrPurgeDir("/tmp/example/single/.resource_types", funcName)
-	r, _ := os.Create("/tmp/example/single/.resource_types/test.pp")
-	defer r.Close()
-	r.WriteString("foobar")
-	r.Sync()
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
@@ -2239,213 +2092,8 @@ func TestPurgeStaleContent(t *testing.T) {
 	// fmt.Println(string(out))
 
 	expectedLines := []string{
-		"DEBUG checkForStaleContent(): filepath.Walk'ing directory /tmp/example/single",
-		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single/stale_directory_that_should_be_purged called from checkForStaleContent()",
-		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged/stale_file",
-		"DEBUG purgeDir(): Unnecessary to remove dir: /tmp/example/single/stale_directory_that_should_be_purged/stale_file it does not exist. Called from checkForStaleContent()",
-		"Removing unmanaged path /tmp/example/single/stale_directory_that_should_be_purged2",
-		"DEBUG purgeDir(): Trying to remove: /tmp/example/single/stale_directory_that_should_be_purged2 called from checkForStaleContent()",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	if fileExists("/tmp/example/single/stale_directory_that_should_be_purged/stale_file") ||
-		fileExists("/tmp/example/single/stale_directory_that_should_be_purged") ||
-		fileExists("/tmp/example/single/stale_directory_that_should_be_purged2") {
-		t.Errorf("stale file and/or directory still exists!")
-	}
-
-	if !fileExists("/tmp/example/single/external_modules/inifile/README.md") {
-		t.Errorf("Missing module file that should be there")
-	}
-
-	if !fileExists("/tmp/example/single/.resource_types/test.pp") {
-		t.Errorf("Missing resource_types file /tmp/example/single/.resource_types/test.pp that should be there")
-	}
-
-	purgeDir(cacheDir, funcName)
-	purgeDir("/tmp/example", funcName)
-}
-
-func TestPurgeStaleEnvironments(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	cacheDir := "/tmp/g10k"
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = true
-		config = readConfigfile("tests/TestConfigFullworking.yaml")
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"Removing unmanaged environment full_stale",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	if fileExists("/tmp/full/full_stale/stale_directory_that_should_be_purged") ||
-		fileExists("/tmp/full/full_stale/stale_dir") ||
-		fileExists("/tmp/full/full_stale/stale_dir/stale_file") {
-		t.Errorf("stale file and/or directory still exists!")
-	}
-
-	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
-		t.Errorf("Missing module file that should be there")
-	}
-
-	purgeDir(cacheDir, funcName)
-	purgeDir("/tmp/full", funcName)
-}
-
-func TestPurgeStaleEnvironmentOnly(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	cacheDir := "/tmp/g10k"
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = true
-		config = readConfigfile("tests/TestConfigFullworkingPurgeEnvironment.yaml")
-		fmt.Printf("%+v\n", config)
-		branchParam = ""
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"Removing unmanaged path /tmp/full/full_master/stale_directory_that_should_not_be_purged",
-		"DEBUG purgeDir(): Trying to remove: /tmp/full/full_master/stale_directory_that_should_not_be_purged called from checkForStaleContent()",
-	}
-
-	for _, expectedLine := range expectedLines {
-		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
-		}
-	}
-
-	missingFiles := []string{
-		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
-	}
-	for _, missingFile := range missingFiles {
-		if fileExists(missingFile) {
-			t.Errorf("stale file and/or directory still exists! " + missingFile)
-		}
-	}
-
-	expectedFiles := []string{
-		"/tmp/full/full_stale/stale_directory_that_should_be_purged",
-		"/tmp/full/full_stale/stale_dir",
-		"/tmp/full/full_stale/stale_dir/stale_file",
-	}
-	for _, expectedFile := range expectedFiles {
-		if !fileExists(expectedFile) {
-			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
-		}
-	}
-
-	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
-		t.Errorf("Missing module file that should be there")
-	}
-
-	purgeDir(cacheDir, funcName)
-	purgeDir("/tmp/full", funcName)
-}
-
-func TestPurgeStalePuppetfileOnly(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
-	cacheDir := "/tmp/g10k"
-	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
-		debug = true
-		config = readConfigfile("tests/TestConfigFullworkingPurgePuppetfile.yaml")
-		branchParam = ""
-		resolvePuppetEnvironment(false, "")
-		return
-	}
-	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_not_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
-	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
-	defer f.Close()
-	f.WriteString("foobar")
-	f.Sync()
-
-	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
-	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	out, err := cmd.CombinedOutput()
-
-	exitCode := 0
-	if msg, ok := err.(*exec.ExitError); ok { // there is error code
-		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
-	}
-
-	expectedExitCode := 0
-	if expectedExitCode != exitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
-	}
-	//fmt.Println(string(out))
-
-	expectedLines := []string{
-		"Removing unmanaged path /tmp/full/full_master/modules/stale_module_directory_that_should_be_purged",
 		"DEBUG purgeDir(): Trying to remove: /tmp/full/full_master/modules/stale_module_directory_that_should_be_purged called from purge_level puppetfile",
+		"Removing unmanaged path /tmp/full/full_master/modules/stale_module_directory_that_should_be_purged",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2460,18 +2108,6 @@ func TestPurgeStalePuppetfileOnly(t *testing.T) {
 	for _, missingFile := range missingFiles {
 		if fileExists(missingFile) {
 			t.Errorf("stale file and/or directory still exists! " + missingFile)
-		}
-	}
-
-	expectedFiles := []string{
-		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
-		"/tmp/full/full_stale/stale_directory_that_should_not_be_purged",
-		"/tmp/full/full_stale/stale_dir",
-		"/tmp/full/full_stale/stale_dir/stale_file",
-	}
-	for _, expectedFile := range expectedFiles {
-		if !fileExists(expectedFile) {
-			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
 		}
 	}
 
@@ -2493,8 +2129,6 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 		resolvePuppetEnvironment(false, "")
 		return
 	}
-	createOrPurgeDir("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged", funcName)
-	createOrPurgeDir("/tmp/full/full_master/stale_directory_that_should_not_be_purged", funcName)
 	createOrPurgeDir("/tmp/full/full_stale/stale_directory_that_should_be_purged", funcName)
 	createOrPurgeDir("/tmp/full/full_stale/stale_dir", funcName)
 	f, _ := os.Create("/tmp/full/full_stale/stale_dir/stale_file")
@@ -2515,7 +2149,7 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
@@ -2539,10 +2173,6 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 		fileExists("/tmp/full/full_stale/stale_dir") ||
 		fileExists("/tmp/full/full_stale/stale_dir/stale_file") {
 		t.Errorf("stale file and/or directory still exists!")
-	}
-	if !fileExists("/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged") ||
-		!fileExists("/tmp/full/full_master/stale_directory_that_should_not_be_purged") {
-		t.Errorf("stale files and/or directory missing that should not have been purged!")
 	}
 
 	if !fileExists("/tmp/full/full_master/modules/stdlib/metadata.json") {
@@ -2614,14 +2244,12 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 	}
 
 	expectedFiles := []string{
-		"/tmp/full/full_master/modules/stale_module_directory_that_should_not_be_purged",
-		"/tmp/full/full_master/stale_directory_that_should_not_be_purged",
 		"/tmp/full/full_hiera_qa/hiera_dir_qa",
 		"/tmp/full/full_hiera_master/hiera_dir"}
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("stale files and/or directory missing that should not have been purged! " + expectedFile)
+			t.Errorf("files and/or directory missing that should not have been purged! " + expectedFile)
 		}
 	}
 
@@ -2709,11 +2337,8 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 		f, _ := os.Create("/tmp/out/example_single_git/mymodule2/dir1/file3")
 		f.WriteString("slddkasjld")
 		f.Close()
-		// do not manipulate a module locally, because r10k and g10k doesn't scan
-		// the module's directory content, if its version/commit hash didn't change
-		//f, _ = os.Create("/tmp/out/example_single_git/modules/firewall/unmanaged_file")
-		//f.WriteString("slddkasjld33")
-		//f.Close()
+		// and force another environment sync
+		purgeDir("/tmp/out/example_single_git/.g10k-deploy.json", funcName)
 		f.Sync()
 		branchParam = ""
 		resolvePuppetEnvironment(false, "")
@@ -2736,7 +2361,7 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	expectedLines := []string{
 		"Need to sync /tmp/out/example_single",
@@ -3274,10 +2899,6 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
-
-	moduleParam = ""
-	debug = false
-
 }
 
 func TestResolvePuppetfileAutoDetectDefaultBranch(t *testing.T) {
@@ -3307,4 +2928,155 @@ func TestResolvePuppetfileAutoDetectDefaultBranch(t *testing.T) {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 0, string(out))
 	}
 	//fmt.Println(string(out))
+}
+
+func TestPrecedenceConfig(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPuppetfilePrecedence.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		branchParam = "single_forge"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge.domain.tld and CacheTtl set to 100h0m0s",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+}
+
+func TestPrecedencePuppetfile(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile("tests/TestConfigPuppetfilePrecedence.yaml")
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		branchParam = "single_forge_precedence"
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"DEBUG resolveForgeModules(): Trying to get forge module puppetlabs/inifile-3.1.0 with Forge base url https://fake-forge-puppetfile.domain.tld and CacheTtl set to 24h1m1s",
+	}
+
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+		}
+	}
+}
+
+func TestPurgeControlRepoExceptModuledir(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigUseCacheFallback.yaml"))
+	branchParam = "purge_control_repo_except_moduledir"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"Need to sync /tmp/example/" + branchParam,
+		"Need to sync /tmp/example/" + branchParam + "/external_modules/inifile",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	// force a resync of the Puppet env
+	purgeDir("/tmp/example/"+branchParam+"/.g10k-deploy.json", funcName)
+
+	// and do the sync again to check if the modules dir was unncecessarily removed and repopulated
+	cmdAgain := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmdAgain.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	outAgain, err := cmdAgain.CombinedOutput()
+	exitCode = 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+	expectedExitCode = 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+
+	// fmt.Println("outAgain: ", string(outAgain))
+	expectedLines = []string{
+		"Need to sync /tmp/example/" + branchParam,
+		"Detected control repo change, but trying to preserve module dir /tmp/example/purge_control_repo_except_moduledir/external_modules",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/Puppetfile",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/bar",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/foo",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(outAgain), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	forbiddenLines := []string{
+		"Need to sync /tmp/example/" + branchParam + "/external_modules/inifile",
+		"deleting /tmp/example/purge_control_repo_except_moduledir/foo/file001.bin",
+	}
+	for _, forbiddenLine := range forbiddenLines {
+		if strings.Contains(string(outAgain), forbiddenLine) {
+			t.Errorf("Found forbidden line '" + forbiddenLine + "' in output")
+		}
+	}
+
+	if !fileExists("/tmp/example/" + branchParam + "/external_modules/inifile/metadata.json") {
+		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
+	}
 }

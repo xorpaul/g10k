@@ -58,8 +58,6 @@ var (
 	maxworker                    int
 	maxExtractworker             int
 	forgeModuleDeprecationNotice string
-	desiredContent               []string
-	unchangedModuleDirs          []string
 )
 
 // LatestForgeModules contains a map of unique Forge modules
@@ -76,7 +74,6 @@ type ConfigSettings struct {
 	ModulesCacheDir             string
 	EnvCacheDir                 string
 	Git                         Git
-	Forge                       Forge
 	Sources                     map[string]Source
 	Timeout                     int            `yaml:"timeout"`
 	IgnoreUnreachableModules    bool           `yaml:"ignore_unreachable_modules"`
@@ -93,8 +90,11 @@ type ConfigSettings struct {
 	WriteLock                   string         `yaml:"write_lock"`
 	GenerateTypes               bool           `yaml:"generate_types"`
 	PuppetPath                  string         `yaml:"puppet_path"`
-	PurgeSkiplist              []string       `yaml:"purge_skiplist"`
+	PurgeSkiplist               []string       `yaml:"purge_skiplist"`
 	CloneGitModules             bool           `yaml:"clone_git_modules"`
+	ForgeBaseURL                string         `yaml:"forge_base_url"`
+	ForgeCacheTTLString         string         `yaml:"forge_cache_ttl"`
+	ForgeCacheTTL               time.Duration
 }
 
 // DeploySettings is a struct for settings for controlling how g10k deploys behave.
@@ -106,7 +106,7 @@ type DeploySettings struct {
 	WriteLock                string   `yaml:"write_lock"`
 	GenerateTypes            bool     `yaml:"generate_types"`
 	PuppetPath               string   `yaml:"puppet_path"`
-	PurgeSkiplist           []string `yaml:"purge_skiplist"`
+	PurgeSkiplist            []string `yaml:"purge_skiplist"`
 }
 
 // Forge is a simple struct that contains the base URL of
@@ -308,10 +308,9 @@ func main() {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
 			// default purge_levels
-			forgeDefaultSettings := Forge{Baseurl: "https://forgeapi.puppet.com"}
 			modulesCacheDir := filepath.Join(cachedir, "modules")
 			envsCacheDir := filepath.Join(cachedir, "environments")
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, Forge: forgeDefaultSettings, Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
