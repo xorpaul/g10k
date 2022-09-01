@@ -50,6 +50,21 @@ zip ${projectname}-darwin-amd64.zip ${projectname}
 github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-darwin-amd64.zip" --file ${projectname}-darwin-amd64.zip
 
 
+if [ ${#upx} -gt 0 ]; then
+  echo "building and uploading ${projectname}-darwin-arm64-debug"
+  BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+  zip ${projectname}-darwin-arm64-debug.zip ${projectname}
+  github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-darwin-arm64-debug.zip" --file ${projectname}-darwin-arm64-debug.zip
+fi
+
+echo "building and uploading ${projectname}-darwin-arm64"
+BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+if [ ${#upx} -gt 0 ]; then
+  $upx --brute ${projectname}
+fi
+zip ${projectname}-darwin-arm64.zip ${projectname}
+github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-darwin-arm64.zip" --file ${projectname}-darwin-arm64.zip
+
 
 
 
