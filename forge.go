@@ -54,7 +54,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 	}
 	if moduleVersion == "latest" {
 		if !isDir(workDir) {
-			Debugf("" + workDir + " does not exist, fetching module")
+			Debugf(workDir + " does not exist, fetching Forge module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(fm)
 			if fr.needToGet {
@@ -714,16 +714,16 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 				return
 			}
 			Infof("Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
-			createOrPurgeDir(targetDir, " targetDir for module "+me.name)
+			createOrPurgeDir(targetDir, "targetDir for module "+me.name)
 		} else {
 			Debugf("Need to purge " + targetDir + ", because it exists without a metadata.json. This shouldn't happen!")
-			createOrPurgeDir(targetDir, " targetDir for module "+m.name+" with missing metadata.json")
+			createOrPurgeDir(targetDir, "targetDir for module "+m.name+" with missing metadata.json")
 		}
 	}
 	workDir := normalizeDir(filepath.Join(config.ForgeCacheDir, moduleName+"-"+m.version))
 	resolvedWorkDir, err := filepath.EvalSymlinks(workDir)
 	if err != nil {
-		Fatalf(funcName + "(): Failed to resolve possivle symlink " + workDir + " Error: " + err.Error())
+		Fatalf(funcName + "(): Failed to resolve possible symlink " + workDir + " Error: " + err.Error())
 	}
 	if !isDir(resolvedWorkDir) {
 		if config.UseCacheFallback {
