@@ -336,7 +336,7 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	before := time.Now()
 	fileReader, err := pgzip.NewReader(file)
 
-	unTar(fileReader, config.ForgeCacheDir)
+	unTar(fileReader, config.ForgeCacheDir, "")
 
 	if err != nil {
 		Fatalf(funcName + "(): pgzip reader error for module " + fileName + " error:" + err.Error())

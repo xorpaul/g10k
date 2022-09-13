@@ -134,6 +134,7 @@ type Source struct {
 	AutoCorrectEnvironmentNames string `yaml:"invalid_branches"`
 	FilterCommand               string `yaml:"filter_command"`
 	FilterRegex                 string `yaml:"filter_regex"`
+	StripComponent              string `yaml:"strip_component"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile
@@ -182,6 +183,7 @@ type GitModule struct {
 	local             bool
 	moduleDir         string
 	useSSHAgent       bool
+	stripComponent    string
 }
 
 // ForgeResult is returned by queryForgeAPI and contains if and which version of the Puppetlabs Forge module needs to be downloaded

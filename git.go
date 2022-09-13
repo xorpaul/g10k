@@ -264,7 +264,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 			cmd.Start()
 
 			before := time.Now()
-			unTar(cmdOut, targetDir)
+			unTar(cmdOut, targetDir, gitModule.stripComponent)
 			duration := time.Since(before).Seconds()
 			mutex.Lock()
 			ioGitTime += duration

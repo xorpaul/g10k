@@ -150,6 +150,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							if len(moduleParam) == 0 {
 								gitModule := GitModule{}
 								gitModule.tree = branch
+								gitModule.stripComponent = sa.StripComponent
 								syncToModuleDir(gitModule, workDir, targetDir, env)
 							}
 							pf := filepath.Join(targetDir, "Puppetfile")

@@ -6,10 +6,19 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
-func unTar(r io.Reader, targetBaseDir string) {
+func strip(component string, value string) string {
+	if regexp.MustCompile(`^/.*/$`).MatchString(component) {
+		return regexp.MustCompile(component[1:len(component)-1]).ReplaceAllString(value, "")
+	} else {
+		return strings.TrimPrefix(value, component)
+	}
+}
+
+func unTar(r io.Reader, targetBaseDir string, stripComponent string) {
 	funcName := funcName()
 	tarBallReader := tar.NewReader(r)
 	for {
@@ -37,7 +46,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 		if matchSkiplistContent(skiplistFilename) {
 			continue
 		}
-		targetFilename := filepath.Join(targetBaseDir, filename)
+		targetFilename := filepath.Join(targetBaseDir, strip(stripComponent, filename))
 
 		switch header.Typeflag {
 		case tar.TypeDir:
