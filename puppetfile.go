@@ -128,6 +128,16 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								Debugf("Renaming branch " + branch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 							}
 
+							// https://github.com/puppetlabs/r10k/blob/main/doc/dynamic-environments/configuration.mkd#strip_component
+							if len(sa.StripComponent) != 0 {
+								stripRenamedBranch := stripComponent(sa.StripComponent, renamedBranch)
+								if stripRenamedBranch != renamedBranch {
+									// only print this if the branch was definately renamed, because of the strip component
+									Debugf("Renaming branch " + renamedBranch + " to " + stripRenamedBranch + ", because of strip_component in source " + source + " " + sa.Remote)
+									renamedBranch = stripRenamedBranch
+								}
+							}
+
 							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
 								oldBranch := renamedBranch
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
@@ -141,7 +151,11 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							}
 
 							mutex.Lock()
-							allEnvironments[prefix+renamedBranch] = true
+							if _, ok := allEnvironments[prefix+renamedBranch]; !ok {
+								allEnvironments[prefix+renamedBranch] = true
+							} else {
+								Fatalf("Renamed environment naming conflict detected with renamed environment " + prefix + renamedBranch)
+							}
 							mutex.Unlock()
 							targetDir := filepath.Join(sa.Basedir, prefix+strings.Replace(renamedBranch, "/", "_", -1))
 							targetDir = normalizeDir(targetDir)

@@ -1,0 +1,9 @@
+---
+:cachedir: '/tmp/g10k'
+use_cache_fallback: true
+
+sources:
+  strip:
+    remote: 'https://github.com/xorpaul/g10k-environment-strip-component-naming-conflict.git'
+    basedir: '/tmp/strip/'
+    strip_component: 'prefix/'
