@@ -3080,3 +3080,144 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 		t.Errorf("terminated with the correct exit code and the correct output, but the resulting module was missing")
 	}
 }
+
+func TestStripComponentString(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigStripComponentString.yaml"))
+	branchParam = ""
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/strip/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"Resolving environment env/test of source strip",
+		"Renaming branch env/test to test, because of strip_component in source strip https://github.com/xorpaul/g10k-environment-strip-component.git",
+		"Need to sync /tmp/strip/test",
+		"Need to sync /tmp/strip/test/external_modules/apt",
+		// also check that the non-prefix part has not been renamed
+		"Need to sync /tmp/strip/prefix_env_foobar/external_modules/apt",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/strip/test/external_modules/apt/metadata.json",
+		"/tmp/strip/prefix_env_foobar/external_modules/apt/metadata.json"}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+		}
+	}
+
+}
+
+func TestStripComponentRegex(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigStripComponentRegex.yaml"))
+	branchParam = ""
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/strip/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+	expectedLines := []string{
+		"Resolving environment env/test of source strip",
+		"Resolving environment prefix/env2/foo of source strip",
+		"Renaming branch prefix/env2/foo to prefixfoo, because of strip_component in source strip",
+		"Need to sync /tmp/strip/prefixfoobar/external_modules/apt",
+		// also check that the non-regex part has not been renamed
+		"Need to sync /tmp/strip/env_test",
+		"Need to sync /tmp/strip/env_test/external_modules/apt",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+
+	expectedFiles := []string{
+		"/tmp/strip/env_test/external_modules/apt/metadata.json",
+		"/tmp/strip/prefixfoobar/external_modules/apt/metadata.json"}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+		}
+	}
+}
+
+func TestStripComponentConflict(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigStripComponentStringConflict.yaml"))
+	branchParam = ""
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/strip/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+
+	expectedLines := []string{
+		"Renamed environment naming conflict detected with renamed environment main",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+}
