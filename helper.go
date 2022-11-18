@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -322,4 +323,12 @@ func readDeployResultFile(file string) DeployResult {
 
 	return dr
 
+}
+
+func stripComponent(component string, env string) string {
+	if regexp.MustCompile(`^/.*/$`).MatchString(component) {
+		return regexp.MustCompile(component[1:len(component)-1]).ReplaceAllString(env, "")
+	} else {
+		return strings.TrimPrefix(env, component)
+	}
 }
