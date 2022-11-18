@@ -2,7 +2,7 @@
 :cachedir: '/tmp/g10k'
 deploy:
   purge_levels: ['deployment', 'puppetfile', 'environment']
-  purge_whitelist: [ '.latest_revision', '.resource_types' ]
+  purge_allowlist: [ '.latest_revision', '.resource_types' ]
 
 sources:
   example:

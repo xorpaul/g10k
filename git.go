@@ -101,7 +101,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 
 	explicitlyLoadSSHKey := true
 	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent {
-		if gitModule.useSSHAgent {
+		if gitModule.useSSHAgent || len(gitModule.privateKey) == 0 {
 			explicitlyLoadSSHKey = false
 		} else if isControlRepo {
 			explicitlyLoadSSHKey = true
@@ -115,7 +115,11 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
-		gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		if detectGitRemoteURLChange(workDir, gitModule.git) && isControlRepo {
+			purgeDir(workDir, "git remote url changed")
+		} else {
+			gitCmd = "git --git-dir " + workDir + " remote update --prune"
+		}
 	}
 
 	if explicitlyLoadSSHKey {
@@ -178,31 +182,18 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	if len(er.output) > 0 {
 		commitHash := strings.TrimSuffix(er.output, "\n")
 		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
-			mutex.Lock()
-			desiredContent = append(desiredContent, deployFile)
-			mutex.Unlock()
 			if fileExists(deployFile) {
 				dr := readDeployResultFile(deployFile)
-				if dr.Signature == strings.TrimSuffix(er.output, "\n") {
+				if dr.Signature == strings.TrimSuffix(er.output, "\n") && dr.DeploySuccess {
 					needToSync = false
-					// need to get the content of the git repository to detect and purge unmanaged files
-					addDesiredContent(srcDir, gitModule.tree, targetDir)
 				}
 			}
 		} else {
-			Debugf("adding path to managed content: " + targetDir)
-			mutex.Lock()
-			desiredContent = append(desiredContent, hashFile)
-			desiredContent = append(desiredContent, targetDir)
-			mutex.Unlock()
 			targetHashByte, _ := ioutil.ReadFile(hashFile)
 			targetHash := string(targetHashByte)
 			Debugf("string content of " + hashFile + " is: " + targetHash)
 			if targetHash == commitHash {
 				needToSync = false
-				mutex.Lock()
-				unchangedModuleDirs = append(unchangedModuleDirs, targetDir)
-				mutex.Unlock()
 				Debugf("Skipping, because no diff found between " + srcDir + "(" + commitHash + ") and " + targetDir + "(" + targetHash + ")")
 			} else {
 				Debugf("Need to sync, because existing Git module: " + targetDir + " has commit " + targetHash + " and the to be synced commit is: " + commitHash)
@@ -211,14 +202,47 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 	}
 	if needToSync && er.returnCode == 0 {
-		Infof("Need to sync " + targetDir)
 		mutex.Lock()
+		Infof("Need to sync " + targetDir)
 		needSyncDirs = append(needSyncDirs, targetDir)
 		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
 			needSyncEnvs[correspondingPuppetEnvironment] = empty
 		}
 		needSyncGitCount++
 		mutex.Unlock()
+		moduleDir := "modules"
+		purgeWholeEnvDir := true
+		// check if it is a control repo and already exists
+		if isControlRepo && isDir(targetDir) {
+			// then check if it contains a Puppetfile
+			gitShowCmd := "git --git-dir " + srcDir + " show " + gitModule.tree + ":Puppetfile"
+			executeResult := executeCommand(gitShowCmd, config.Timeout, true)
+			Debugf("Executing " + gitShowCmd)
+			if executeResult.returnCode != 0 {
+				purgeWholeEnvDir = true
+			} else {
+				purgeWholeEnvDir = false
+				lines := strings.Split(executeResult.output, "\n")
+				for _, line := range lines {
+					if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
+						// moduledir CLI parameter override
+						if len(moduleDirParam) != 0 {
+							moduleDir = moduleDirParam
+						} else {
+							moduleDir = normalizeDir(m[1])
+						}
+					}
+				}
+			}
+		}
+		// if so delete everything except the moduledir where the Puppet modules reside
+		// else simply delete the whole dir and check it out again
+		if purgeWholeEnvDir {
+			purgeDir(targetDir, "need to sync")
+		} else {
+			Infof("Detected control repo change, but trying to preserve module dir " + filepath.Join(targetDir, moduleDir))
+			purgeControlRepoExceptModuledir(targetDir, moduleDir)
+		}
 
 		if !dryRun && !config.CloneGitModules || isControlRepo {
 			if pfMode {
@@ -279,30 +303,6 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	return true
 }
 
-// addDesiredContent takes the given git repository directory and the
-// relevant reference (branch, commit hash, tag) and adds its content to
-// the global desiredContent slice so that it doesn't get purged by g10k
-func addDesiredContent(gitDir string, tree string, targetDir string) {
-	treeCmd := "git --git-dir " + gitDir + " ls-tree --full-tree -r -t --name-only " + tree
-	er := executeCommand(treeCmd, config.Timeout, false)
-	foundGitFiles := strings.Split(er.output, "\n")
-	mutex.Lock()
-	for _, desiredFile := range foundGitFiles[:len(foundGitFiles)-1] {
-		desiredContent = append(desiredContent, filepath.Join(targetDir, desiredFile))
-
-		// because we're using -r which prints git managed files in subfolders like this: foo/test3
-		// we have to split up the given string and add the possible parent directories (foo in this case)
-		parentDirs := strings.Split(desiredFile, "/")
-		if len(parentDirs) > 1 {
-			for _, dir := range parentDirs[:len(parentDirs)-1] {
-				desiredContent = append(desiredContent, filepath.Join(targetDir, dir))
-			}
-		}
-	}
-	mutex.Unlock()
-
-}
-
 func detectDefaultBranch(gitDir string) string {
 	remoteShowOriginCmd := "git ls-remote --symref " + gitDir
 	er := executeCommand(remoteShowOriginCmd, config.Timeout, false)
@@ -316,4 +316,22 @@ func detectDefaultBranch(gitDir string) string {
 	defaultBranch := strings.TrimPrefix(string(headBranchParts[0]), "ref: refs/heads/")
 	//fmt.Println(defaultBranch)
 	return defaultBranch
+}
+
+func detectGitRemoteURLChange(d string, url string) bool {
+	gitRemoteCmd := "git --git-dir " + d + " remote -v"
+
+	er := executeCommand(gitRemoteCmd, config.Timeout, false)
+	if er.returnCode != 0 {
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		return true
+	}
+
+	f := strings.Fields(er.output)
+	if len(f) < 3 {
+		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		return true
+	}
+	configuredRemote := f[1]
+	return configuredRemote != url
 }

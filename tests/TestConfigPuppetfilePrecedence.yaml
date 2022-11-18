@@ -1,10 +1,9 @@
 ---
 :cachedir: '/tmp/g10k'
-purge_levels: ['environment']
-purge_allowlist: [ '.latest_revision', '.resource_types', '**/*.pp' ]
+forge_base_url: 'https://fake-forge.domain.tld'
+forge_cache_ttl: 100h
 
 sources:
   example:
     remote: 'https://github.com/xorpaul/g10k-environment.git'
     basedir: '/tmp/example/'
-    prefix: false

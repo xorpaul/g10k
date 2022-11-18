@@ -35,7 +35,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	allPuppetfiles := make(map[string]Puppetfile)
 	allEnvironments := make(map[string]bool)
 	allBasedirs := make(map[string]bool)
-	desiredContent = make([]string, 0)
 	foundMatch := false
 	for source, sa := range config.Sources {
 		wg.Add()
@@ -126,18 +125,18 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							renamedBranch := branch
 							if (len(outputNameTag) > 0) && (len(branchParam) > 0) {
 								renamedBranch = outputNameTag
-								Debugf("Renaming branch " + branch + " to " + renamedBranch)
+								Debugf("Renaming branch " + branch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 							}
 
 							if sa.AutoCorrectEnvironmentNames == "correct" || sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
 								oldBranch := renamedBranch
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
-								if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
-									if oldBranch != renamedBranch {
-										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch)
+								if oldBranch != renamedBranch {
+									if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
+										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+									} else {
+										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 									}
-								} else {
-									Debugf("Renaming branch " + oldBranch + " to " + renamedBranch)
 								}
 							}
 
@@ -148,12 +147,24 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							targetDir = normalizeDir(targetDir)
 
 							env := strings.Replace(strings.Replace(targetDir, sa.Basedir, "", 1), "/", "", -1)
-							gitModule := GitModule{}
-							gitModule.tree = branch
-							syncToModuleDir(gitModule, workDir, targetDir, env)
+							if len(moduleParam) == 0 {
+								gitModule := GitModule{}
+								gitModule.tree = branch
+								syncToModuleDir(gitModule, workDir, targetDir, env)
+							}
 							pf := filepath.Join(targetDir, "Puppetfile")
 							if !fileExists(pf) {
 								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
+								deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
+								if fileExists(deployFile) {
+									Debugf("Finishing writing to deploy file " + deployFile)
+									dr := readDeployResultFile(deployFile)
+									dr.DeploySuccess = true
+									dr.FinishedAt = time.Now()
+									dr.GitDir = sa.Basedir
+									dr.GitURL = sa.Remote
+									writeStructJSONFile(deployFile, dr)
+								}
 							} else {
 								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions, false)
 								puppetfile.workDir = normalizeDir(targetDir)
@@ -162,7 +173,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								puppetfile.gitURL = sa.Remote
 								mutex.Lock()
 								for _, moduleDir := range puppetfile.moduleDirs {
-									desiredContent = append(desiredContent, filepath.Join(puppetfile.workDir, moduleDir))
 									checkDirAndCreate(filepath.Join(puppetfile.workDir, moduleDir), "moduledir for env")
 								}
 								allPuppetfiles[env] = puppetfile
@@ -198,7 +208,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
 	//fmt.Printf("%+v\n", allEnvironments)
-	purgeUnmanagedContent(allBasedirs, allEnvironments)
+	if len(moduleParam) == 0 {
+		purgeUnmanagedContent(allBasedirs, allEnvironments)
+	}
 }
 
 // resolveSourcePrefix implements the prefix read out from each source given in the config file, like r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#prefix
@@ -246,9 +258,13 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					continue
 				}
 			}
-			//fmt.Println("Found Forge module ", fm.author, "/", forgeModuleName, " with version", fm.version)
 			fm.baseURL = pf.forgeBaseURL
-			fm.cacheTTL = pf.forgeCacheTTL
+			if pf.forgeCacheTTL != 0 {
+				fm.cacheTTL = pf.forgeCacheTTL
+			} else {
+				fm.cacheTTL = config.ForgeCacheTTL
+			}
+			// fmt.Println("Found Forge module", fm.author, "/", forgeModuleName, "with version", fm.version, "and cacheTTL", fm.cacheTTL)
 			forgeModuleName = strings.Replace(forgeModuleName, "/", "-", -1)
 			uniqueForgeModuleName := fm.author + "/" + forgeModuleName + "-" + fm.version
 			if _, ok := uniqueForgeModules[uniqueForgeModuleName]; !ok {
@@ -424,9 +440,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	if stringSliceContains(config.PurgeLevels, "puppetfile") {
 		if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 			for d := range exisitingModuleDirs {
-				if strings.HasSuffix(d, ".resource_types") && isDir(d) {
-					continue
-				}
 				Infof("Removing unmanaged path " + d)
 				if !dryRun {
 					purgeDir(d, "purge_level puppetfile")
@@ -449,9 +462,6 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			dr.GitDir = pf.gitDir
 			dr.GitURL = pf.gitURL
 			writeStructJSONFile(deployFile, dr)
-			mutex.Lock()
-			desiredContent = append(desiredContent, deployFile)
-			mutex.Unlock()
 		}
 	}
 

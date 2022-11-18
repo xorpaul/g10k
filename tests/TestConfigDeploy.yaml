@@ -3,8 +3,8 @@
 
 deploy:
   purge_levels: ['deployment']
-  purge_whitelist: [ 'custom.json', '**/*.xpp' ]
-  deployment_purge_whitelist: ['full_hiera_*']
+  purge_allowlist: [ 'custom.json', '**/*.xpp' ]
+  deployment_purge_allowlist: ['full_hiera_*']
 
 sources:
   full:

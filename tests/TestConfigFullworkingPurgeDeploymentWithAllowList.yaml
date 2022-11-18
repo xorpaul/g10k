@@ -1,7 +1,7 @@
 ---
 :cachedir: '/tmp/g10k'
 purge_levels: ['deployment']
-deployment_purge_whitelist: ['full_hiera_*']
+deployment_purge_allowlist: ['full_hiera_*']
 
 sources:
   full:
