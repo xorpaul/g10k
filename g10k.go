@@ -309,9 +309,10 @@ func main() {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
 			// default purge_levels
-			modulesCacheDir := filepath.Join(cachedir, "modules")
-			envsCacheDir := filepath.Join(cachedir, "environments")
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: cachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			forgeCachedir := checkDirAndCreate(filepath.Join(cachedir, "forge"), "/tmp/g10k/forge")
+			modulesCacheDir := checkDirAndCreate(filepath.Join(cachedir, "modules"), "/tmp/g10k/modules")
+			envsCacheDir := checkDirAndCreate(filepath.Join(cachedir, "environments"), "/tmp/g10k/environments")
+			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: forgeCachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			config.PurgeLevels = []string{"puppetfile"}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
