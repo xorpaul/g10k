@@ -211,6 +211,10 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 	reUniqueGitAttribute := regexp.MustCompile(`\s*:(?:commit|tag|branch|ref|link)\s*=>`)
 	reDanglingAttribute := regexp.MustCompile(`^\s*:[^ ]+\s*=>`)
 	moduleDir := "modules"
+	// moduledir CLI parameter override
+	if len(moduleDirParam) != 0 {
+		moduleDir = moduleDirParam
+	}
 	var moduleDirs []string
 	//nextLineAttr := false
 
@@ -230,13 +234,8 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			}
 			Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
 		}
-		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
-			// moduledir CLI parameter override
-			if len(moduleDirParam) != 0 {
-				moduleDir = moduleDirParam
-			} else {
-				moduleDir = normalizeDir(m[1])
-			}
+		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 && len(moduleDirParam) == 0 {
+			moduleDir = normalizeDir(m[1])
 			moduleDirs = append(moduleDirs, moduleDir)
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
