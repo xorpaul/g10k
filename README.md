@@ -3,7 +3,7 @@
 My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
 ### Why fork?
-  - Lack of caching/version-pre-checking in current r10k implementation hurt perfomance beyond a certain # of modules per Puppetfile
+  - Lack of caching/version-pre-checking in current r10k implementation hurt performance beyond a certain # of modules per Puppetfile
   - We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice (fixed in r10k [2.2.0](https://github.com/puppetlabs/r10k/blob/master/CHANGELOG.mkd#220 ))
   - Good excuse to try Go ;)
 
