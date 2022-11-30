@@ -78,19 +78,23 @@ User @Conzar was so nice and shared his g10k Puppet module that you can check ou
 ```
 Usage of ./g10k:
   -branch string
-        which git branch of the Puppet environment to update, e.g. core_foobar
+        which git branch of the Puppet environment to update. Just the branch name, e.g. master, qa, dev
   -cachedir string
         allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules
   -check4update
         only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true
   -checksum
         get the md5 check sum for each Puppetlabs Forge module and verify the integrity of the downloaded archive. Increases g10k run time!
+  -clonegit
+        populate the Puppet environment with a git clone of each git Puppet module. Helpful when developing locally with -puppetfile
   -config string
         which config file to use
   -debug
         log debug output, defaults to false
   -dryrun
         do not modify anything, just print what would be changed
+  -environment string
+        which Puppet environment to update. Source name inside the config + '_' + branch name, e.g. foo_master, foo_qa, foo_dev
   -force
         purge the Puppet environment directory and do a full sync
   -gitobjectsyntaxnotsupported
@@ -121,6 +125,8 @@ Usage of ./g10k:
         if g10k should try to use its cache for sources and modules instead of failing
   -usemove
         do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)
+  -validate
+        only validate given configuration and exit
   -verbose
         log verbose output, defaults to false
   -version
