@@ -23,6 +23,7 @@ var (
 	retryGitCommands             bool
 	pfMode                       bool
 	pfLocation                   string
+	clonegit                     bool
 	dryRun                       bool
 	validate                     bool
 	check4update                 bool
@@ -234,6 +235,7 @@ func main() {
 	flag.IntVar(&maxExtractworker, "maxextractworker", 20, "how many Goroutines are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip)")
 	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
 	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
+	flag.BoolVar(&clonegit, "clonegit", false, "populate the Puppet environment with a git clone of each git Puppet module. Helpful when developing locally with -puppetfile")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
 	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
 	flag.BoolVar(&validate, "validate", false, "only validate given configuration and exit")
@@ -308,12 +310,15 @@ func main() {
 			} else {
 				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
 			}
-			// default purge_levels
-			forgeCachedir := checkDirAndCreate(filepath.Join(cachedir, "forge"), "/tmp/g10k/forge")
-			modulesCacheDir := checkDirAndCreate(filepath.Join(cachedir, "modules"), "/tmp/g10k/modules")
-			envsCacheDir := checkDirAndCreate(filepath.Join(cachedir, "environments"), "/tmp/g10k/environments")
+			forgeCachedir := checkDirAndCreate(filepath.Join(cachedir, "forge"), "default in pfMode")
+			modulesCacheDir := checkDirAndCreate(filepath.Join(cachedir, "modules"), "default in pfMode")
+			envsCacheDir := checkDirAndCreate(filepath.Join(cachedir, "environments"), "default in pfMode")
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: forgeCachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			// default purge_levels
 			config.PurgeLevels = []string{"puppetfile"}
+			if clonegit {
+				config.CloneGitModules = true
+			}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
 			puppetfile.workDir = ""

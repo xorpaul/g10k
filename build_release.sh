@@ -36,13 +36,13 @@ upx=`which upx`
 
 if [ ${#upx} -gt 0 ]; then
   echo "building and uploading ${projectname}-darwin-amd64-debug"
-  BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+  CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
   zip ${projectname}-darwin-amd64-debug.zip ${projectname}
   github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-darwin-amd64-debug.zip" --file ${projectname}-darwin-amd64-debug.zip
 fi
 
 echo "building and uploading ${projectname}-darwin-amd64"
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
 if [ ${#upx} -gt 0 ]; then
   $upx --brute ${projectname}
 fi
@@ -52,13 +52,13 @@ github-release upload     --user xorpaul     --repo ${projectname}     --tag v${
 
 if [ ${#upx} -gt 0 ]; then
   echo "building and uploading ${projectname}-darwin-arm64-debug"
-  BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+  CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
   zip ${projectname}-darwin-arm64-debug.zip ${projectname}
   github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-darwin-arm64-debug.zip" --file ${projectname}-darwin-arm64-debug.zip
 fi
 
 echo "building and uploading ${projectname}-darwin-arm64"
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
+CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && env GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date
 if [ ${#upx} -gt 0 ]; then
   $upx --brute ${projectname}
 fi
@@ -70,13 +70,13 @@ github-release upload     --user xorpaul     --repo ${projectname}     --tag v${
 
 if [ ${#upx} -gt 0 ]; then
   echo "building and uploading ${projectname}-linux-amd64-debug"
-  BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && go build -race -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date && env ${projectname}_cachedir=/tmp/${projectname} ./${projectname} -config test.yaml -branch benchmark 2>&1
+  CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && go build -race -ldflags "-X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date && env ${projectname}_cachedir=/tmp/${projectname} ./${projectname} -config test.yaml -branch benchmark 2>&1
   zip ${projectname}-linux-amd64-debug.zip ${projectname}
   github-release upload     --user xorpaul     --repo ${projectname}     --tag v${1}     --name "${projectname}-linux-amd64-debug.zip" --file ${projectname}-linux-amd64-debug.zip
 fi
 
 echo "building and uploading ${projectname}-linux-amd64"
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && go build -race -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date && env ${projectname}_cachedir=/tmp/${projectname} ./${projectname} -config test.yaml -branch benchmark 2>&1
+CGO_ENABLED=0 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') BUILDVERSION=$(git describe --tags) && go build -race -ldflags "-s -w -X main.buildtime=${BUILDTIME} -X main.buildversion=${BUILDVERSION}" && date && env ${projectname}_cachedir=/tmp/${projectname} ./${projectname} -config test.yaml -branch benchmark 2>&1
 if [ ${#upx} -gt 0 ]; then
   $upx --brute ${projectname}
 fi
