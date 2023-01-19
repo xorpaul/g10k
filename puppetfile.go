@@ -490,7 +490,9 @@ func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workD
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$GIT_DIR", workDir)
 	Debugf("executing filter_command: " + branchFilterCommand)
 	er := executeCommand(branchFilterCommand, 30, true)
-	fmt.Printf("%+v", er)
+	if debug {
+		fmt.Printf("filter_command %s result: %+v", branchFilterCommand, er)
+	}
 	return er.returnCode != 0
 }
 
