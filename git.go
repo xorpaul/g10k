@@ -112,7 +112,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	er := ExecResult{}
 	gitCmd := "git clone --mirror " + gitModule.git + " " + workDir
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
-		gitCmd = "git clone --single-branch --branch " + gitModule.tree + " " + gitModule.git + " " + workDir
+		// only clone here, because we can't be sure if a branch is used or a commit hash or tag
+		// we switch to the defined reference later
+		gitCmd = "git clone " + gitModule.git + " " + workDir
 	}
 	if isDir(workDir) {
 		if detectGitRemoteURLChange(workDir, gitModule.git) && isControlRepo {
@@ -127,9 +129,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		if runtime.GOOS == "darwin" {
 			sshAddCmd = "ssh-add -K "
 		}
-		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", config.Timeout, gitModule.ignoreUnreachable)
+		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", "", config.Timeout, gitModule.ignoreUnreachable)
 	} else {
-		er = executeCommand(gitCmd, config.Timeout, gitModule.ignoreUnreachable)
+		er = executeCommand(gitCmd, "", config.Timeout, gitModule.ignoreUnreachable)
 	}
 
 	if er.returnCode != 0 {
@@ -145,6 +147,17 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
 		return false
 	}
+
+	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
+		// if clone of git modules was specified, switch to the module and try to switch to the reference commit hash/tag/branch
+		gitCmd = "git checkout " + gitModule.tree
+		er = executeCommand(gitCmd, workDir, config.Timeout, gitModule.ignoreUnreachable)
+		if er.returnCode != 0 {
+			Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -167,7 +180,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 	isControlRepo := strings.HasPrefix(srcDir, config.EnvCacheDir)
 
-	er := executeCommand(revParseCmd, config.Timeout, gitModule.ignoreUnreachable)
+	er := executeCommand(revParseCmd, "", config.Timeout, gitModule.ignoreUnreachable)
 	hashFile := filepath.Join(targetDir, ".latest_commit")
 	deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 	needToSync := true
@@ -216,7 +229,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		if isControlRepo && isDir(targetDir) {
 			// then check if it contains a Puppetfile
 			gitShowCmd := "git --git-dir " + srcDir + " show " + gitModule.tree + ":Puppetfile"
-			executeResult := executeCommand(gitShowCmd, config.Timeout, true)
+			executeResult := executeCommand(gitShowCmd, "", config.Timeout, true)
 			Debugf("Executing " + gitShowCmd)
 			if executeResult.returnCode != 0 {
 				purgeWholeEnvDir = true
@@ -305,7 +318,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 func detectDefaultBranch(gitDir string) string {
 	remoteShowOriginCmd := "git ls-remote --symref " + gitDir
-	er := executeCommand(remoteShowOriginCmd, config.Timeout, false)
+	er := executeCommand(remoteShowOriginCmd, "", config.Timeout, false)
 	foundRefs := strings.Split(er.output, "\n")
 	if len(foundRefs) < 1 {
 		Fatalf("Unable to detect default branch for git repository with command git ls-remote --symref " + gitDir)
@@ -321,7 +334,7 @@ func detectDefaultBranch(gitDir string) string {
 func detectGitRemoteURLChange(d string, url string) bool {
 	gitRemoteCmd := "git --git-dir " + d + " remote -v"
 
-	er := executeCommand(gitRemoteCmd, config.Timeout, false)
+	er := executeCommand(gitRemoteCmd, "", config.Timeout, false)
 	if er.returnCode != 0 {
 		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
 		return true
