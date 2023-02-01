@@ -684,7 +684,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	}
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -730,7 +730,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 	doMirrorOrUpdate(gm, "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", 0)
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -759,7 +759,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 		}
 	}
 	// fix module again
-	er = executeCommand("git --git-dir "+gitDir+" remote set-url origin https://github.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	er = executeCommand("git --git-dir "+gitDir+" remote set-url origin https://github.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://github.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -819,7 +819,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	}
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -2000,7 +2000,7 @@ func TestFailedGit(t *testing.T) {
 	doMirrorOrUpdate(gm, gitDir, 0)
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", 5, false)
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -2647,13 +2647,17 @@ func TestCloneGitModules(t *testing.T) {
 	if expectedExitCode != exitCode {
 		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	expectedLines := []string{
-		"DEBUG executeCommand(): Executing git clone --single-branch --branch 11.0.0 https://github.com/theforeman/puppet-puppet.git /tmp/full/full_master/modules/puppet",
-		"DEBUG executeCommand(): Executing git clone --single-branch --branch release https://github.com/puppetlabs/puppetlabs-stdlib.git /tmp/full/full_another/modules/stdlib",
-		"DEBUG executeCommand(): Executing git clone --single-branch --branch symlinks https://github.com/xorpaul/g10k-test-module.git /tmp/full/full_symlinks/modules/testmodule",
-		"DEBUG executeCommand(): Executing git clone --single-branch --branch master https://github.com/elastic/puppet-kibana.git /tmp/full/full_qa/modules/kibana",
+		"DEBUG executeCommand(): Executing git clone https://github.com/theforeman/puppet-puppet.git /tmp/full/full_master/modules/puppet",
+		"DEBUG executeCommand(): Executing git clone https://github.com/puppetlabs/puppetlabs-stdlib.git /tmp/full/full_another/modules/stdlib",
+		"DEBUG executeCommand(): Executing git clone https://github.com/xorpaul/g10k-test-module.git /tmp/full/full_symlinks/modules/testmodule",
+		"DEBUG executeCommand(): Executing git clone https://github.com/elastic/puppet-kibana.git /tmp/full/full_qa/modules/kibana",
+		"DEBUG executeCommand(): Executing git checkout 11.0.0 in cwd",
+		"DEBUG executeCommand(): Executing git checkout release in cwd",
+		"DEBUG executeCommand(): Executing git checkout symlinks in cwd",
+		"DEBUG executeCommand(): Executing git checkout master in cwd",
 	}
 
 	for _, expectedLine := range expectedLines {

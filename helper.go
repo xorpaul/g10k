@@ -170,8 +170,12 @@ func purgeDir(dir string, callingFunction string) {
 	}
 }
 
-func executeCommand(command string, timeout int, allowFail bool) ExecResult {
-	Debugf("Executing " + command)
+func executeCommand(command string, commandDir string, timeout int, allowFail bool) ExecResult {
+	if len(commandDir) > 0 {
+		Debugf("Executing " + command + " in cwd " + commandDir)
+	} else {
+		Debugf("Executing " + command)
+	}
 	parts := strings.SplitN(command, " ", 2)
 	cmd := parts[0]
 	cmdArgs := []string{}
@@ -185,7 +189,11 @@ func executeCommand(command string, timeout int, allowFail bool) ExecResult {
 	}
 
 	before := time.Now()
-	out, err := exec.Command(cmd, cmdArgs...).CombinedOutput()
+	execCommand := exec.Command(cmd, cmdArgs...)
+	if len(commandDir) > 0 {
+		execCommand.Dir = commandDir
+	}
+	out, err := execCommand.CombinedOutput()
 	duration := time.Since(before).Seconds()
 	er := ExecResult{0, string(out)}
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -233,7 +241,7 @@ func checkForAndExecutePostrunCommand() {
 		postrunCommandString = strings.Replace(postrunCommandString, "$modifiedenvs", needSyncEnvText, -1)
 		postrunCommandString = strings.Replace(postrunCommandString, "$branchparam", branchParam, -1)
 
-		er := executeCommand(postrunCommandString, config.Timeout, false)
+		er := executeCommand(postrunCommandString, "", config.Timeout, false)
 		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
 	}
 }
