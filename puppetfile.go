@@ -60,12 +60,12 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 			if success := doMirrorOrUpdate(controlRepoGit, workDir, 0); success {
 
 				// get all branches
-				er := executeCommand("git --git-dir "+workDir+" branch", "", config.Timeout, false)
+				er := executeCommand("git --git-dir "+workDir+" branch", "", config.Timeout, false, false)
 				outputBranches := er.output
 				outputTags := ""
 
 				if tags {
-					er := executeCommand("git --git-dir "+workDir+" tag", "", config.Timeout, false)
+					er := executeCommand("git --git-dir "+workDir+" tag", "", config.Timeout, false, false)
 					outputTags = er.output
 				}
 
@@ -489,7 +489,7 @@ func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workD
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$G10K_NAME", sourceName)
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$GIT_DIR", workDir)
 	Debugf("executing filter_command: " + branchFilterCommand)
-	er := executeCommand(branchFilterCommand, "", 30, true)
+	er := executeCommand(branchFilterCommand, "", 30, true, false)
 	if debug {
 		fmt.Printf("filter_command %s result: %+v", branchFilterCommand, er)
 	}

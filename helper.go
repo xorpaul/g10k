@@ -170,7 +170,7 @@ func purgeDir(dir string, callingFunction string) {
 	}
 }
 
-func executeCommand(command string, commandDir string, timeout int, allowFail bool) ExecResult {
+func executeCommand(command string, commandDir string, timeout int, allowFail bool, disableHttpProxy bool) ExecResult {
 	if len(commandDir) > 0 {
 		Debugf("Executing " + command + " in cwd " + commandDir)
 	} else {
@@ -192,6 +192,11 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 	execCommand := exec.Command(cmd, cmdArgs...)
 	if len(commandDir) > 0 {
 		execCommand.Dir = commandDir
+	}
+	if disableHttpProxy {
+		Debugf("found matching NO_PROXY URL, trying to disable http_proxy for " + command)
+		execCommand.Env = append(os.Environ(), "http_proxy=")
+		execCommand.Env = append(os.Environ(), "https_proxy=")
 	}
 	out, err := execCommand.CombinedOutput()
 	duration := time.Since(before).Seconds()
@@ -241,7 +246,7 @@ func checkForAndExecutePostrunCommand() {
 		postrunCommandString = strings.Replace(postrunCommandString, "$modifiedenvs", needSyncEnvText, -1)
 		postrunCommandString = strings.Replace(postrunCommandString, "$branchparam", branchParam, -1)
 
-		er := executeCommand(postrunCommandString, "", config.Timeout, false)
+		er := executeCommand(postrunCommandString, "", config.Timeout, false, false)
 		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
 	}
 }
@@ -339,4 +344,27 @@ func stripComponent(component string, env string) string {
 	} else {
 		return strings.TrimPrefix(env, component)
 	}
+}
+
+func matchGitRemoteURLNoProxy(url string) bool {
+	noProxy := os.Getenv("NO_PROXY")
+	for _, np := range strings.Split(noProxy, ",") {
+		if len(np) > 0 {
+			if strings.Contains(url, np) {
+				// fmt.Println("found matching", np, "for", url)
+				return true
+			}
+		}
+	}
+	// do the same for lower case environment variable name
+	noProxyL := os.Getenv("no_proxy")
+	for _, np := range strings.Split(noProxyL, ",") {
+		if len(np) > 0 {
+			if strings.Contains(url, np) {
+				// fmt.Println("found matching", np, "for", url)
+				return true
+			}
+		}
+	}
+	return false
 }
