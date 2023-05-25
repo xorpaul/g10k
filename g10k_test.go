@@ -684,7 +684,7 @@ func TestConfigUseCacheFallback(t *testing.T) {
 	}
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
+	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -730,7 +730,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 	doMirrorOrUpdate(gm, "/tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git", 0)
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -759,7 +759,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 		}
 	}
 	// fix module again
-	er = executeCommand("git --git-dir "+gitDir+" remote set-url origin https://github.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
+	er = executeCommand("git --git-dir "+gitDir+" remote set-url origin https://github.com/puppetlabs/puppetlabs-firewall.git", "", 5, false, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://github.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -819,7 +819,7 @@ func TestConfigUseCacheFallbackFalse(t *testing.T) {
 	}
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
+	er := executeCommand("git --git-dir "+unresolvableGitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + unresolvableGitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -2000,7 +2000,7 @@ func TestFailedGit(t *testing.T) {
 	doMirrorOrUpdate(gm, gitDir, 0)
 
 	// change the git remote url to something that does not resolve https://.com/...
-	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false)
+	er := executeCommand("git --git-dir "+gitDir+" remote set-url origin https://.com/puppetlabs/puppetlabs-firewall.git", "", 5, false, false)
 	if er.returnCode != 0 {
 		t.Error("Rewriting the git remote url of " + gitDir + " to https://.com/puppetlabs/puppetlabs-firewall.git failed! Errorcode: " + strconv.Itoa(er.returnCode) + "Error: " + er.output)
 	}
@@ -3218,6 +3218,43 @@ func TestStripComponentConflict(t *testing.T) {
 
 	expectedLines := []string{
 		"Renamed environment naming conflict detected with renamed environment main",
+	}
+	for _, expectedLine := range expectedLines {
+		if !strings.Contains(string(out), expectedLine) {
+			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+		}
+	}
+}
+
+func TestNoProxy(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigPrefix.yaml"))
+	branchParam = "no_proxy"
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1", "NO_PROXY=https://localgit.domain.tld")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 1
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+
+	expectedLines := []string{
+		"found matching NO_PROXY URL, trying to disable http_proxy for git clone --mirror https://localgit.domain.tld/foo/bar.git /tmp/g10k/modules/https-__localgit.domain.tld_foo_bar.git",
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
