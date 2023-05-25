@@ -225,7 +225,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 		Fatalf("Received 404 from Forge for module " + fm.author + "-" + fm.name + " using URL " + url + " Does the module really exist and is it correctly named?")
 		return ForgeResult{false, "", "", 0}
 	}
-	Fatalf("Unexpected response code " + resp.Status)
+	Fatalf("Unexpected response code for Forge URL " + url + " " + resp.Status + " If this is an Puppet Forge outage consider increasing forge.cacheTtl in your Puppetfile to 200h to skip :latest checks")
 	return ForgeResult{false, "", "", 0}
 }
 
