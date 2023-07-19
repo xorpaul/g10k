@@ -194,9 +194,18 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 		execCommand.Dir = commandDir
 	}
 	if disableHttpProxy {
-		Debugf("found matching NO_PROXY URL, trying to disable http_proxy for " + command)
-		execCommand.Env = append(os.Environ(), "http_proxy=")
-		execCommand.Env = append(os.Environ(), "https_proxy=")
+		Debugf("found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for " + command)
+		// execCommand.Env = append(os.Environ(), "http_proxy=")
+		// execCommand.Env = append(os.Environ(), "https_proxy=")
+		os.Unsetenv("http_proxy")
+		os.Unsetenv("https_proxy")
+		os.Unsetenv("HTTP_PROXY")
+		os.Unsetenv("HTTPS_PROXY")
+		execCommand.Env = os.Environ()
+		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
+	} else {
+		execCommand.Env = os.Environ()
+		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
 	}
 	out, err := execCommand.CombinedOutput()
 	duration := time.Since(before).Seconds()
