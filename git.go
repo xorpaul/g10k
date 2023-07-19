@@ -100,7 +100,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	isInModulesCacheDir := strings.HasPrefix(workDir, config.ModulesCacheDir)
 
 	explicitlyLoadSSHKey := true
-	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent {
+	if len(gitModule.privateKey) == 0 || strings.Contains(gitModule.git, "github.com") || gitModule.useSSHAgent || strings.HasPrefix(gitModule.git, "https://") {
 		if gitModule.useSSHAgent || len(gitModule.privateKey) == 0 {
 			explicitlyLoadSSHKey = false
 		} else if isControlRepo {
