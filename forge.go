@@ -200,7 +200,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 	mutex.Unlock()
 	defer resp.Body.Close()
 
-	if strings.TrimSpace(resp.Status) == "200 OK" {
+	if resp.StatusCode == http.StatusOK {
 		// need to get latest version
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
@@ -218,10 +218,10 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 
 		return ForgeResult{true, fr.versionNumber, fr.md5sum, fr.fileSize}
 
-	} else if strings.TrimSpace(resp.Status) == "304 Not Modified" {
+	} else if resp.StatusCode == http.StatusNotModified {
 		Debugf("Got 304 nothing to do for module " + fm.author + "-" + fm.name)
 		return ForgeResult{false, "", "", 0}
-	} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
+	} else if resp.StatusCode == http.StatusNotFound {
 		Fatalf("Received 404 from Forge for module " + fm.author + "-" + fm.name + " using URL " + url + " Does the module really exist and is it correctly named?")
 		return ForgeResult{false, "", "", 0}
 	}
@@ -305,7 +305,7 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 	}
 	defer resp.Body.Close()
 
-	if strings.TrimSpace(resp.Status) == "200 OK" {
+	if resp.StatusCode == http.StatusOK {
 		body, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
@@ -390,7 +390,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 		}
 		defer resp.Body.Close()
 
-		if strings.TrimSpace(resp.Status) == "200 OK" {
+		if resp.StatusCode == http.StatusOK {
 			wgForgeModule.Add(1)
 			go func() {
 				defer wgForgeModule.Done()
@@ -424,7 +424,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 					Fatalf("Error while writing to MultiWriter " + err.Error())
 				}
 			}()
-		} else if strings.TrimSpace(resp.Status) == "404 Not Found" {
+		} else if resp.StatusCode == http.StatusNotFound {
 			Fatalf("Received 404 from Forge using URL " + url +
 				"\nCheck if the module name '" + fm.author + "-" + fm.name + "' and version '" + version + "' really exist" +
 				"\nUsed in Puppet environment '" + fm.sourceBranch + "'")

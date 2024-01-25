@@ -194,9 +194,18 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 		execCommand.Dir = commandDir
 	}
 	if disableHttpProxy {
-		Debugf("found matching NO_PROXY URL, trying to disable http_proxy for " + command)
-		execCommand.Env = append(os.Environ(), "http_proxy=")
-		execCommand.Env = append(os.Environ(), "https_proxy=")
+		Debugf("found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for " + command)
+		// execCommand.Env = append(os.Environ(), "http_proxy=")
+		// execCommand.Env = append(os.Environ(), "https_proxy=")
+		os.Unsetenv("http_proxy")
+		os.Unsetenv("https_proxy")
+		os.Unsetenv("HTTP_PROXY")
+		os.Unsetenv("HTTPS_PROXY")
+		execCommand.Env = os.Environ()
+		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
+	} else {
+		execCommand.Env = os.Environ()
+		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
 	}
 	out, err := execCommand.CombinedOutput()
 	duration := time.Since(before).Seconds()
@@ -350,9 +359,8 @@ func matchGitRemoteURLNoProxy(url string) bool {
 	noProxy := os.Getenv("NO_PROXY")
 	for _, np := range strings.Split(noProxy, ",") {
 		if len(np) > 0 {
-			Debugf("found NO_PROXY setting: " + np)
 			if strings.Contains(url, np) {
-				// fmt.Println("found matching", np, "for", url)
+				Debugf("found NO_PROXY setting: " + np + " matching  " + url)
 				return true
 			}
 		}
@@ -362,7 +370,7 @@ func matchGitRemoteURLNoProxy(url string) bool {
 	for _, np := range strings.Split(noProxyL, ",") {
 		if len(np) > 0 {
 			if strings.Contains(url, np) {
-				// fmt.Println("found matching", np, "for", url)
+				Debugf("found no_proxy setting: " + np + " matching  " + url)
 				return true
 			}
 		}
