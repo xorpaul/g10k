@@ -3254,7 +3254,7 @@ func TestNoProxy(t *testing.T) {
 	// fmt.Println(string(out))
 
 	expectedLines := []string{
-		"found matching NO_PROXY URL, trying to disable http_proxy for git clone --mirror https://localgit.domain.tld/foo/bar.git /tmp/g10k/modules/https-__localgit.domain.tld_foo_bar.git",
+		"found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for git clone --mirror https://localgit.domain.tld/foo/bar.git /tmp/g10k/modules/https-__localgit.domain.tld_foo_bar.git",
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
