@@ -50,15 +50,15 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 						}
 					}
 					if stringSliceContains(config.PurgeLevels, "deployment") {
-						Debugf("Checking if environment should exist: " + envName)
-						if allEnvironments[envName] {
-							Debugf("Not purging environment " + envName)
-						} else if stringSliceContains(allowlistEnvironments, filepath.Join(basedir, envName)) {
-							Debugf("Not purging environment " + envName + " due to deployment_purge_allowlist match")
+						Debugf("Checking if environment should exist: " + env)
+						if allEnvironments[env] {
+							Debugf("Not purging environment " + env)
+						} else if stringSliceContains(allowlistEnvironments, env) {
+							Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
-							Infof("Removing unmanaged environment " + envName)
+							Infof("Removing unmanaged environment " + env)
 							if !dryRun {
-								purgeDir(filepath.Join(basedir, envName), "purgeStaleContent()")
+								purgeDir(env, "purgeStaleContent()")
 							}
 						}
 					}
