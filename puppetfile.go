@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -317,10 +316,10 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 
 		for _, moduleDir := range pf.moduleDirs {
 			moduleDir = normalizeDir(filepath.Join(pf.workDir, moduleDir))
-			exisitingModuleDirsFI, _ := ioutil.ReadDir(moduleDir)
+			exisitingModuleDirsFI, _ := os.ReadDir(moduleDir)
 			mutex.Lock()
 			for _, exisitingModuleDir := range exisitingModuleDirsFI {
-				//fmt.Println("adding dir: ", moduleDir+exisitingModuleDir.Name())
+				// fmt.Println("adding dir: ", filepath.Join(moduleDir, exisitingModuleDir.Name()))
 				exisitingModuleDirs[filepath.Join(moduleDir, exisitingModuleDir.Name())] = empty
 			}
 			mutex.Unlock()

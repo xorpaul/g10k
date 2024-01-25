@@ -359,9 +359,8 @@ func matchGitRemoteURLNoProxy(url string) bool {
 	noProxy := os.Getenv("NO_PROXY")
 	for _, np := range strings.Split(noProxy, ",") {
 		if len(np) > 0 {
-			Debugf("found NO_PROXY setting: " + np)
 			if strings.Contains(url, np) {
-				// fmt.Println("found matching", np, "for", url)
+				Debugf("found NO_PROXY setting: " + np + " matching  " + url)
 				return true
 			}
 		}
@@ -371,7 +370,7 @@ func matchGitRemoteURLNoProxy(url string) bool {
 	for _, np := range strings.Split(noProxyL, ",") {
 		if len(np) > 0 {
 			if strings.Contains(url, np) {
-				// fmt.Println("found matching", np, "for", url)
+				Debugf("found no_proxy setting: " + np + " matching  " + url)
 				return true
 			}
 		}
