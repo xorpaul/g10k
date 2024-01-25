@@ -2153,14 +2153,14 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"Removing unmanaged environment full_stale",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_stale",
+		"Removing unmanaged environment /tmp/full/full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2221,14 +2221,14 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"Removing unmanaged environment full_stale",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_stale",
+		"Removing unmanaged environment /tmp/full/full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -3261,4 +3261,47 @@ func TestNoProxy(t *testing.T) {
 			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
+}
+
+func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfig2SourcesSameBranchNameDiffBaseDir.yaml"))
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example/", funcName)
+	purgeDir("/tmp/out/", funcName)
+	purgeDir("/tmp/out-clone/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	_, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+
+	expectedFiles := []string{
+		"/tmp/out-clone/another/Puppetfile",
+		"/tmp/out-clone/master/.g10k-deploy.json",
+		"/tmp/out/master/Puppetfile",
+		"/tmp/out/ref/uuui/d0",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+		}
+	}
+
 }

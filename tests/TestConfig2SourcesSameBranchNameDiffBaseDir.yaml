@@ -1,0 +1,10 @@
+---
+cachedir: '/tmp/g10k'
+
+sources:
+  example:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env-clone.git'
+    basedir: '/tmp/out/'
+  full:
+    remote: 'https://github.com/xorpaul/g10k-fullworking-env.git'
+    basedir: '/tmp/out-clone/'
