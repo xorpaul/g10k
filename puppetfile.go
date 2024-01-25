@@ -150,8 +150,8 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							}
 
 							mutex.Lock()
-							if _, ok := allEnvironments[prefix+renamedBranch]; !ok {
-								allEnvironments[prefix+renamedBranch] = true
+							if _, ok := allEnvironments[filepath.Join(sa.Basedir, prefix+renamedBranch)]; !ok {
+								allEnvironments[filepath.Join(sa.Basedir, prefix+renamedBranch)] = true
 							} else {
 								Fatalf("Renamed environment naming conflict detected with renamed environment " + prefix + renamedBranch)
 							}
