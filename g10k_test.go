@@ -2882,7 +2882,7 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	sshAddCmd := "ssh-add"
 	if runtime.GOOS == "darwin" {
@@ -2891,11 +2891,11 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG git repo url git@local.git.server:foo/git_module_with_ssh_agent.git with loaded SSH keys from ssh-agent",
-		"DEBUG git repo url git@github.com:foobar/github_module_without_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
-		"DEBUG git repo url git@local.git.server:bar/git_module_with_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
+		"DEBUG git repo url git@github.com:foobar/github_module_without_ssh_add.git with SSH key tests/test-fake-key",
+		"DEBUG git repo url git@local.git.server:bar/git_module_with_ssh_add.git with SSH key tests/test-fake-key",
 		"DEBUG executeCommand(): Executing git clone --mirror git@local.git.server:foo/git_module_with_ssh_agent.git /tmp/g10k/modules/git@local.git.server-foo_git_module_with_ssh_agent.git",
 		"DEBUG executeCommand(): Executing git clone --mirror git@github.com:foobar/github_module_without_ssh_add.git /tmp/g10k/modules/git@github.com-foobar_github_module_without_ssh_add.git",
-		"DEBUG executeCommand(): Executing ssh-agent bash -c '" + sshAddCmd + " tests/TestConfigUseSSHAgent.yaml; git clone --mirror git@local.git.server:bar/git_module_with_ssh_add.git /tmp/g10k/modules/git@local.git.server-bar_git_module_with_ssh_add.git'",
+		"DEBUG executeCommand(): Executing ssh-agent bash -c '" + sshAddCmd + " tests/test-fake-key; git clone --mirror git@local.git.server:bar/git_module_with_ssh_add.git /tmp/g10k/modules/git@local.git.server-bar_git_module_with_ssh_add.git'",
 	}
 
 	for _, expectedLine := range expectedLines {
