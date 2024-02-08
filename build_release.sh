@@ -8,6 +8,8 @@ if [ $# -ne 2 ]; then
 	exit 1
 fi
 
+git pull
+
 time go test -v
 
 if [ $? -ne 0 ]; then 
