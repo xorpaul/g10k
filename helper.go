@@ -201,12 +201,8 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 		os.Unsetenv("https_proxy")
 		os.Unsetenv("HTTP_PROXY")
 		os.Unsetenv("HTTPS_PROXY")
-		execCommand.Env = os.Environ()
-		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
-	} else {
-		execCommand.Env = os.Environ()
-		Debugf("exec OS env:" + strings.Join(execCommand.Env, ",") + " for command " + command)
 	}
+	execCommand.Env = os.Environ()
 	out, err := execCommand.CombinedOutput()
 	duration := time.Since(before).Seconds()
 	er := ExecResult{0, string(out)}

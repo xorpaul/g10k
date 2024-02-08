@@ -2153,14 +2153,14 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"Removing unmanaged environment full_stale",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_stale",
+		"Removing unmanaged environment /tmp/full/full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2221,14 +2221,14 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_another",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_master",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_master",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_qa",
-		"DEBUG purgeUnmanagedContent(): Not purging environment full_qa",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: full_stale",
-		"Removing unmanaged environment full_stale",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_qa",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_stale",
+		"Removing unmanaged environment /tmp/full/full_stale",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -2882,7 +2882,7 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 	if exitCode != 1 {
 		t.Errorf("terminated with %v, but we expected exit status %v Output: %s", exitCode, 1, string(out))
 	}
-	//fmt.Println(string(out))
+	// fmt.Println(string(out))
 
 	sshAddCmd := "ssh-add"
 	if runtime.GOOS == "darwin" {
@@ -2891,11 +2891,11 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG git repo url git@local.git.server:foo/git_module_with_ssh_agent.git with loaded SSH keys from ssh-agent",
-		"DEBUG git repo url git@github.com:foobar/github_module_without_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
-		"DEBUG git repo url git@local.git.server:bar/git_module_with_ssh_add.git with SSH key tests/TestConfigUseSSHAgent.yaml",
+		"DEBUG git repo url git@github.com:foobar/github_module_without_ssh_add.git with SSH key tests/test-fake-key",
+		"DEBUG git repo url git@local.git.server:bar/git_module_with_ssh_add.git with SSH key tests/test-fake-key",
 		"DEBUG executeCommand(): Executing git clone --mirror git@local.git.server:foo/git_module_with_ssh_agent.git /tmp/g10k/modules/git@local.git.server-foo_git_module_with_ssh_agent.git",
 		"DEBUG executeCommand(): Executing git clone --mirror git@github.com:foobar/github_module_without_ssh_add.git /tmp/g10k/modules/git@github.com-foobar_github_module_without_ssh_add.git",
-		"DEBUG executeCommand(): Executing ssh-agent bash -c '" + sshAddCmd + " tests/TestConfigUseSSHAgent.yaml; git clone --mirror git@local.git.server:bar/git_module_with_ssh_add.git /tmp/g10k/modules/git@local.git.server-bar_git_module_with_ssh_add.git'",
+		"DEBUG executeCommand(): Executing ssh-agent bash -c '" + sshAddCmd + " tests/test-fake-key; git clone --mirror git@local.git.server:bar/git_module_with_ssh_add.git /tmp/g10k/modules/git@local.git.server-bar_git_module_with_ssh_add.git'",
 	}
 
 	for _, expectedLine := range expectedLines {
@@ -3261,4 +3261,47 @@ func TestNoProxy(t *testing.T) {
 			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
+}
+
+func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfig2SourcesSameBranchNameDiffBaseDir.yaml"))
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		info = true
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+	purgeDir("/tmp/example/", funcName)
+	purgeDir("/tmp/out/", funcName)
+	purgeDir("/tmp/out-clone/", funcName)
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	_, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	expectedExitCode := 0
+	if exitCode != expectedExitCode {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+	}
+	// fmt.Println(string(out))
+
+	expectedFiles := []string{
+		"/tmp/out-clone/another/Puppetfile",
+		"/tmp/out-clone/master/.g10k-deploy.json",
+		"/tmp/out/master/Puppetfile",
+		"/tmp/out/ref/uuui/d0",
+	}
+
+	for _, expectedFile := range expectedFiles {
+		if !fileExists(expectedFile) {
+			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+		}
+	}
+
 }
