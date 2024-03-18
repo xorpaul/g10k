@@ -241,6 +241,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wg := sizedwaitgroup.New(config.MaxExtractworker)
 	exisitingModuleDirs := make(map[string]struct{})
 	uniqueGitModules := make(map[string]GitModule)
+	uniqueSubGitModules := make(map[string]GitModule)
 	// if we made it this far initialize the global maps
 	latestForgeModules.m = make(map[string]string)
 	for env, pf := range allPuppetfiles {
@@ -415,6 +416,16 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					}
 				}
 
+				// check for git submodules
+				gmf := filepath.Join(targetDir, ".gitmodules")
+				if fileExists(gmf) {
+
+					readGitSubmodule(gmf)
+
+					if _, ok := uniqueSubGitModules[gitModule.git]; !ok {
+						uniqueSubGitModules[gitModule.git] = gitModule
+					}
+				}
 				// remove this module from the exisitingModuleDirs map
 				moduleDirectory := filepath.Join(moduleDir, gitName)
 				if len(gitModule.installPath) > 0 {
@@ -432,7 +443,8 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				}
 				mutex.Unlock()
 			}(gitName, gitModule, env, pf)
-		}
+		} // end loop range pf.gitModules
+
 		for forgeModuleName, fm := range pf.forgeModules {
 			wg.Add()
 			moduleDir := filepath.Join(pf.workDir, fm.moduleDir)
