@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -208,7 +207,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 				}
 			}
 		} else {
-			targetHashByte, _ := ioutil.ReadFile(hashFile)
+			targetHashByte, _ := os.ReadFile(hashFile)
 			targetHash := string(targetHashByte)
 			Debugf("string content of " + hashFile + " is: " + targetHash)
 			if targetHash == commitHash {

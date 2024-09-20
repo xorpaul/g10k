@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,7 +20,7 @@ var (
 // readConfigfile creates the ConfigSettings struct from the g10k config file
 func readConfigfile(configFile string) ConfigSettings {
 	Debugf("Trying to read g10k config file: " + configFile)
-	data, err := ioutil.ReadFile(configFile)
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		Fatalf("readConfigfile(): There was an error parsing the config file " + configFile + ": " + err.Error())
 	}

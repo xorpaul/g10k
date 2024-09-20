@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -560,19 +559,19 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 	// spin up HTTP test server to serve fake/invalid Forge module metadata
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v3/releases/puppetlabs-ntp-6.0.0" {
-			body, err := ioutil.ReadFile(metadataFile)
+			body, err := os.ReadFile(metadataFile)
 			if err != nil {
 				t.Error(err)
 			}
 			fmt.Fprint(w, string(body))
 		} else if r.URL.Path == "/v3/modules/puppetlabs-ntp" {
-			body, err := ioutil.ReadFile("tests/fake-forge/latest-puppetlabs-ntp-metadata.json")
+			body, err := os.ReadFile("tests/fake-forge/latest-puppetlabs-ntp-metadata.json")
 			if err != nil {
 				t.Error(err)
 			}
 			fmt.Fprint(w, string(body))
 		} else if r.URL.Path == "/v3/files/puppetlabs-ntp-6.0.0.tar.gz" {
-			body, err := ioutil.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
+			body, err := os.ReadFile("tests/fake-forge/fake-puppetlabs-ntp-6.0.0.tar.gz")
 			if err != nil {
 				t.Error(err)
 			}
@@ -1753,7 +1752,7 @@ func TestLastCheckedFile(t *testing.T) {
 	}
 
 	fm := ForgeModule{version: "latest", name: "inifile", author: "puppetlabs", fileSize: 0, cacheTTL: 0}
-	json, _ := ioutil.ReadFile(lastCheckedFile)
+	json, _ := os.ReadFile(lastCheckedFile)
 	latestForgeModules.m = make(map[string]string)
 
 	result := parseForgeAPIResult(string(json), fm)
@@ -1779,7 +1778,7 @@ func TestLastCheckedFile(t *testing.T) {
 
 	branchParam = "single_cache"
 	resolvePuppetEnvironment(false, "")
-	json, _ = ioutil.ReadFile(lastCheckedFile)
+	json, _ = os.ReadFile(lastCheckedFile)
 	result = parseForgeAPIResult(string(json), fm)
 	result2 = queryForgeAPI(fm)
 
@@ -1860,7 +1859,7 @@ func TestPostrunCommand(t *testing.T) {
 		t.Errorf("postrun logfile file missing: %s", postrunLogfile)
 	}
 
-	content, _ := ioutil.ReadFile(postrunLogfile)
+	content, _ := os.ReadFile(postrunLogfile)
 
 	expectedLines := []string{
 		"postrun command wrapper script received argument: example_master",
@@ -1909,7 +1908,7 @@ func TestPostrunCommandDirs(t *testing.T) {
 		t.Errorf("postrun logfile file missing: %s", postrunLogfile)
 	}
 
-	content, _ := ioutil.ReadFile(postrunLogfile)
+	content, _ := os.ReadFile(postrunLogfile)
 
 	expectedLines := []string{
 		"postrun command wrapper script received argument: /tmp/example/example_master",
@@ -2681,7 +2680,7 @@ func TestCloneGitModules(t *testing.T) {
 	// check
 	for _, expectedDir := range expectedDirs {
 		headFile := filepath.Join(expectedDir, "HEAD")
-		content, err := ioutil.ReadFile(headFile)
+		content, err := os.ReadFile(headFile)
 		if err != nil {
 			t.Errorf("Error while reading content of file " + headFile + " Error: " + err.Error())
 		}
