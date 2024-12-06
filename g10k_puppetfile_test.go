@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/xorpaul/g10k/internal/logging"
 )
 
 func equalPuppetfile(a, b Puppetfile) bool {
@@ -23,35 +24,35 @@ func equalPuppetfile(a, b Puppetfile) bool {
 		a.privateKey != b.privateKey ||
 		a.controlRepoBranch != b.controlRepoBranch ||
 		a.source != b.source {
-		Debugf("forgeBaseURL, forgeCacheTTL, privateKey, controlRepoBranch or source isn't equal!")
+		logging.Debugf("forgeBaseURL, forgeCacheTTL, privateKey, controlRepoBranch or source isn't equal!")
 		return false
 	}
 
 	if len(a.gitModules) != len(b.gitModules) ||
 		len(a.forgeModules) != len(b.forgeModules) {
-		Debugf("size of gitModules or forgeModules isn't equal!")
+		logging.Debugf("size of gitModules or forgeModules isn't equal!")
 		return false
 	}
 
 	for gitModuleName, gm := range a.gitModules {
 		if _, ok := b.gitModules[gitModuleName]; !ok {
-			Debugf("git module " + gitModuleName + " missing!")
+			logging.Debugf("git module " + gitModuleName + " missing!")
 			return false
 		}
 		if !equalGitModule(gm, b.gitModules[gitModuleName]) {
-			Debugf("git module " + gitModuleName + " isn't equal!")
+			logging.Debugf("git module " + gitModuleName + " isn't equal!")
 			return false
 		}
 	}
 
 	for forgeModuleName, fm := range a.forgeModules {
 		if _, ok := b.forgeModules[forgeModuleName]; !ok {
-			Debugf("forge module " + forgeModuleName + " missing!")
+			logging.Debugf("forge module " + forgeModuleName + " missing!")
 			return false
 		}
 		//fmt.Println("checking Forge module: ", forgeModuleName, fm)
 		if !equalForgeModule(fm, b.forgeModules[forgeModuleName]) {
-			Debugf("forge module " + forgeModuleName + " isn't equal!")
+			logging.Debugf("forge module " + forgeModuleName + " isn't equal!")
 			return false
 		}
 	}
@@ -125,7 +126,7 @@ func checkExitCodeAndOutputOfReadPuppetfileSubprocess(t *testing.T, forceForgeVe
 	cmd := exec.Command(os.Args[0], "-test.run="+testFunctionName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+testFunctionName+"=1")
 	out, err := cmd.CombinedOutput()
-	if debug {
+	if logging.Debug {
 		fmt.Print(string(out))
 	}
 
@@ -163,7 +164,7 @@ func TestCommentPuppetfile(t *testing.T) {
 }
 
 func TestReadPuppetfile(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fallbackMapExample := make([]string, 1)
@@ -314,7 +315,7 @@ func TestReadPuppetfileDuplicateForgeGitModule(t *testing.T) {
 }
 
 func TestReadPuppetfileChecksumAttribute(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
@@ -333,7 +334,7 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 }
 
 func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 	fm := make(map[string]ForgeModule)
@@ -348,7 +349,7 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 }
 
 func TestReadPuppetfileForgeDash(t *testing.T) {
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
@@ -364,8 +365,8 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 }
 
 func TestReadPuppetfileInstallPath(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	gm := make(map[string]GitModule)
@@ -382,8 +383,8 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 }
 
 func TestReadPuppetfileLocalModule(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	gm := make(map[string]GitModule)
@@ -411,8 +412,8 @@ func TestReadPuppetfileMissingTrailingComma2(t *testing.T) {
 }
 
 func TestReadPuppetfileForgeNotationGitModule(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	gm := make(map[string]GitModule)
@@ -429,8 +430,8 @@ func TestReadPuppetfileForgeNotationGitModule(t *testing.T) {
 }
 
 func TestReadPuppetfileGitSlashNotation(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
@@ -454,8 +455,8 @@ func TestReadPuppetfileGitSlashNotation(t *testing.T) {
 }
 
 func TestReadPuppetfileGitDashNotation(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
@@ -479,8 +480,8 @@ func TestReadPuppetfileGitDashNotation(t *testing.T) {
 }
 
 func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
@@ -504,8 +505,8 @@ func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
 }
 
 func TestReadPuppetfileSSHKeyAlreadyLoaded(t *testing.T) {
-	quiet = true
-	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	logging.Quiet = true
+	funcName := strings.Split(logging.FuncName(), ".")[len(strings.Split(logging.FuncName(), "."))-1]
 	got := readPuppetfile("tests/"+funcName, "", "test", "test", false, false)
 
 	fm := make(map[string]ForgeModule)
