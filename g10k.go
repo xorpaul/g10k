@@ -11,21 +11,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/config"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 )
 
 var (
 	force                        bool
 	usemove                      bool
-	usecacheFallback             bool
-	retryGitCommands             bool
 	pfMode                       bool
 	pfLocation                   string
 	clonegit                     bool
-	dryRun                       bool
 	check4update                 bool
 	checkSum                     bool
-	gitObjectSyntaxNotSupported  bool
 	moduleDirParam               string
 	cacheDirParam                string
 	branchParam                  string
@@ -34,7 +33,7 @@ var (
 	outputNameParam              string
 	moduleParam                  string
 	configFile                   string
-	config                       ConfigSettings
+	GlobalConfig                 config.ConfigSettings
 	mutex                        sync.Mutex
 	empty                        struct{}
 	syncGitCount                 int
@@ -53,8 +52,6 @@ var (
 	buildversion                 string
 	uniqueForgeModules           map[string]ForgeModule
 	latestForgeModules           LatestForgeModules
-	maxworker                    int
-	maxExtractworker             int
 	forgeModuleDeprecationNotice string
 )
 
@@ -63,76 +60,6 @@ var (
 type LatestForgeModules struct {
 	sync.RWMutex
 	m map[string]string
-}
-
-// ConfigSettings contains the key value pairs from the g10k config file
-type ConfigSettings struct {
-	CacheDir                    string `yaml:"cachedir"`
-	ForgeCacheDir               string
-	ModulesCacheDir             string
-	EnvCacheDir                 string
-	Git                         Git
-	Sources                     map[string]Source
-	Timeout                     int            `yaml:"timeout"`
-	IgnoreUnreachableModules    bool           `yaml:"ignore_unreachable_modules"`
-	Maxworker                   int            `yaml:"maxworker"`
-	MaxExtractworker            int            `yaml:"maxextractworker"`
-	UseCacheFallback            bool           `yaml:"use_cache_fallback"`
-	RetryGitCommands            bool           `yaml:"retry_git_commands"`
-	GitObjectSyntaxNotSupported bool           `yaml:"git_object_syntax_not_supported"`
-	PostRunCommand              []string       `yaml:"postrun"`
-	Deploy                      DeploySettings `yaml:"deploy"`
-	PurgeLevels                 []string       `yaml:"purge_levels"`
-	PurgeAllowList              []string       `yaml:"purge_allowlist"`
-	DeploymentPurgeAllowList    []string       `yaml:"deployment_purge_allowlist"`
-	WriteLock                   string         `yaml:"write_lock"`
-	GenerateTypes               bool           `yaml:"generate_types"`
-	PuppetPath                  string         `yaml:"puppet_path"`
-	PurgeSkiplist               []string       `yaml:"purge_skiplist"`
-	CloneGitModules             bool           `yaml:"clone_git_modules"`
-	ForgeBaseURL                string         `yaml:"forge_base_url"`
-	ForgeCacheTTLString         string         `yaml:"forge_cache_ttl"`
-	ForgeCacheTTL               time.Duration
-}
-
-// DeploySettings is a struct for settings for controlling how g10k deploys behave.
-// Trying to emulate r10k https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
-type DeploySettings struct {
-	PurgeLevels              []string `yaml:"purge_levels"`
-	PurgeAllowList           []string `yaml:"purge_allowlist"`
-	DeploymentPurgeAllowList []string `yaml:"deployment_purge_allowlist"`
-	WriteLock                string   `yaml:"write_lock"`
-	GenerateTypes            bool     `yaml:"generate_types"`
-	PuppetPath               string   `yaml:"puppet_path"`
-	PurgeSkiplist            []string `yaml:"purge_skiplist"`
-}
-
-// Forge is a simple struct that contains the base URL of
-// the Forge that g10k should use. Defaults to: https://forgeapi.puppet.com
-type Forge struct {
-	Baseurl string `yaml:"baseurl"`
-}
-
-// Git is a simple struct that contains the optional SSH private key to
-// use for authentication
-type Git struct {
-	privateKey string `yaml:"private_key"`
-}
-
-// Source contains basic information about a Puppet environment repository
-type Source struct {
-	Remote                      string
-	Basedir                     string
-	Prefix                      string
-	PrivateKey                  string `yaml:"private_key"`
-	ForceForgeVersions          bool   `yaml:"force_forge_versions"`
-	WarnMissingBranch           bool   `yaml:"warn_if_branch_is_missing"`
-	ErrorMissingBranch          bool   `yaml:"error_if_branch_is_missing"`
-	ExitIfUnreachable           bool   `yaml:"exit_if_unreachable"`
-	AutoCorrectEnvironmentNames string `yaml:"invalid_branches"`
-	FilterCommand               string `yaml:"filter_command"`
-	FilterRegex                 string `yaml:"filter_regex"`
-	StripComponent              string `yaml:"strip_component"`
 }
 
 // Puppetfile contains the key value pairs from the Puppetfile
@@ -228,13 +155,13 @@ func main() {
 	flag.StringVar(&moduleParam, "module", "", "which module of the Puppet environment to update, e.g. stdlib")
 	flag.StringVar(&moduleDirParam, "moduledir", "", "allows overriding of Puppetfile specific moduledir setting, the folder in which Puppet modules will be extracted")
 	flag.StringVar(&cacheDirParam, "cachedir", "", "allows overriding of the g10k config file cachedir setting, the folder in which g10k will download git repositories and Forge modules")
-	flag.IntVar(&maxworker, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
-	flag.IntVar(&maxExtractworker, "maxextractworker", 20, "how many Goroutines are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip)")
+	flag.IntVar(&config.Maxworker, "maxworker", 50, "how many Goroutines are allowed to run in parallel for Git and Forge module resolving")
+	flag.IntVar(&config.MaxExtractworker, "maxextractworker", 20, "how many Goroutines are allowed to run in parallel for local Git and Forge module extracting processes (git clone, untar and gunzip)")
 	flag.BoolVar(&pfMode, "puppetfile", false, "install all modules from Puppetfile in cwd")
 	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
 	flag.BoolVar(&clonegit, "clonegit", false, "populate the Puppet environment with a git clone of each git Puppet module. Helpful when developing locally with -puppetfile")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
-	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
+	flag.BoolVar(&internal.DryRun, "dryrun", false, "do not modify anything, just print what would be changed")
 	flag.BoolVar(&logging.Validate, "validate", false, "only validate given configuration and exit")
 	flag.BoolVar(&usemove, "usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
 	flag.BoolVar(&check4update, "check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
@@ -243,9 +170,9 @@ func main() {
 	flag.BoolVar(&logging.Verbose, "verbose", false, "log verbose output, defaults to false")
 	flag.BoolVar(&logging.Info, "info", false, "log info output, defaults to false")
 	flag.BoolVar(&logging.Quiet, "quiet", false, "no output, defaults to false")
-	flag.BoolVar(&usecacheFallback, "usecachefallback", false, "if g10k should try to use its cache for sources and modules instead of failing")
-	flag.BoolVar(&retryGitCommands, "retrygitcommands", false, "if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing")
-	flag.BoolVar(&gitObjectSyntaxNotSupported, "gitobjectsyntaxnotsupported", false, "if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax")
+	flag.BoolVar(&config.UseCacheFallback, "usecachefallback", false, "if g10k should try to use its cache for sources and modules instead of failing")
+	flag.BoolVar(&config.RetryGitCommands, "retrygitcommands", false, "if g10k should purge the local repository and retry a failed git command (clone or remote update) instead of failing")
+	flag.BoolVar(&config.GitObjectSyntaxNotSupported, "gitobjectsyntaxnotsupported", false, "if your git version is too old to support reference syntax like master^{object} use this setting to revert to the older syntax")
 	flag.Parse()
 
 	configFile = *configFileFlag
@@ -257,7 +184,7 @@ func main() {
 	}
 
 	if check4update {
-		dryRun = true
+		internal.DryRun = true
 	}
 
 	// check for git executable dependency
@@ -277,12 +204,12 @@ func main() {
 		if (len(outputNameParam) > 0) && (len(branchParam) == 0) {
 			logging.Fatalf("Error: -outputname specified without -branch!")
 		}
-		if usecacheFallback {
-			config.UseCacheFallback = true
+		if config.UseCacheFallback {
+			GlobalConfig.UseCacheFallback = true
 		}
 		logging.Debugf("Using as config file: " + configFile)
-		config = readConfigfile(configFile)
-		checkDirAndCreate(config.CacheDir, "cachedir configured value")
+		GlobalConfig = config.ReadConfigFile(configFile)
+		fsutils.CheckDirAndCreate(GlobalConfig.CacheDir, "cachedir configured value")
 		target = configFile
 		if len(branchParam) > 0 {
 			resolvePuppetEnvironment(tags, outputNameParam)
@@ -294,27 +221,39 @@ func main() {
 	} else {
 		if pfMode {
 			logging.Debugf("Trying to use as Puppetfile: " + pfLocation)
-			sm := make(map[string]Source)
-			sm["cmdlineparam"] = Source{Basedir: "./"}
+			sm := make(map[string]config.Source)
+			sm["cmdlineparam"] = config.Source{Basedir: "./"}
 			cachedir := "/tmp/g10k"
 			if len(os.Getenv("g10k_cachedir")) > 0 {
 				cachedir = os.Getenv("g10k_cachedir")
-				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
+				cachedir = fsutils.CheckDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
 				logging.Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
 			} else if len(cacheDirParam) > 0 {
 				logging.Debugf("Using -cachedir parameter set to : " + cacheDirParam)
-				cachedir = checkDirAndCreate(cacheDirParam, "cachedir CLI param")
+				cachedir = fsutils.CheckDirAndCreate(cacheDirParam, "cachedir CLI param")
 			} else {
-				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
+				cachedir = fsutils.CheckDirAndCreate(cachedir, "cachedir default value")
 			}
-			forgeCachedir := checkDirAndCreate(filepath.Join(cachedir, "forge"), "default in pfMode")
-			modulesCacheDir := checkDirAndCreate(filepath.Join(cachedir, "modules"), "default in pfMode")
-			envsCacheDir := checkDirAndCreate(filepath.Join(cachedir, "environments"), "default in pfMode")
-			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: forgeCachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
+			forgeCachedir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "forge"), "default in pfMode")
+			modulesCacheDir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "modules"), "default in pfMode")
+			envsCacheDir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "environments"), "default in pfMode")
+			GlobalConfig = config.ConfigSettings{
+				CacheDir:                    cachedir,
+				ForgeCacheDir:               forgeCachedir,
+				ModulesCacheDir:             modulesCacheDir,
+				EnvCacheDir:                 envsCacheDir,
+				Sources:                     sm,
+				ForgeBaseURL:                "https://forgeapi.puppet.com",
+				Maxworker:                   config.Maxworker,
+				UseCacheFallback:            config.UseCacheFallback,
+				MaxExtractworker:            config.MaxExtractworker,
+				RetryGitCommands:            config.RetryGitCommands,
+				GitObjectSyntaxNotSupported: config.GitObjectSyntaxNotSupported,
+			}
 			// default purge_levels
-			config.PurgeLevels = []string{"puppetfile"}
+			GlobalConfig.PurgeLevels = []string{"puppetfile"}
 			if clonegit {
-				config.CloneGitModules = true
+				GlobalConfig.CloneGitModules = true
 			}
 			target = pfLocation
 			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
@@ -329,7 +268,7 @@ func main() {
 
 	if usemove {
 		// we can not reuse the Forge cache at all when -usemove gets used, because we can not delete the -latest link for some reason
-		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
+		defer fsutils.PurgeDir(GlobalConfig.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
 	}
 
 	logging.Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJSONParseTime, 'f', 4, 64) + " seconds")
@@ -339,9 +278,9 @@ func main() {
 		if len(forgeModuleDeprecationNotice) > 0 {
 			logging.Warnf(strings.TrimSuffix(forgeModuleDeprecationNotice, "\n"))
 		}
-		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolve and", strconv.Itoa(config.MaxExtractworker), "extract workers")
+		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(GlobalConfig.Maxworker), "resolve and", strconv.Itoa(GlobalConfig.MaxExtractworker), "extract workers")
 	}
-	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
+	if internal.DryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)
 	}
 

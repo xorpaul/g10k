@@ -2,19 +2,22 @@ package main
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 )
 
 func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[string]bool) {
-	if !stringSliceContains(config.PurgeLevels, "deployment") {
-		if !stringSliceContains(config.PurgeLevels, "environment") {
+	if !slices.Contains(GlobalConfig.PurgeLevels, "deployment") {
+		if !slices.Contains(GlobalConfig.PurgeLevels, "environment") {
 			// nothing allowed to purge
 			return
 		}
 	}
-	for source, sa := range config.Sources {
+	for source, sa := range GlobalConfig.Sources {
 		// fmt.Printf("source: %+v\n", sa)
 		prefix := resolveSourcePrefix(source, sa)
 
@@ -33,8 +36,8 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 				environments, _ := filepath.Glob(globPath)
 
 				allowlistEnvironments := []string{}
-				if len(config.DeploymentPurgeAllowList) > 0 {
-					for _, wlpattern := range config.DeploymentPurgeAllowList {
+				if len(GlobalConfig.DeploymentPurgeAllowList) > 0 {
+					for _, wlpattern := range GlobalConfig.DeploymentPurgeAllowList {
 						allowlistGlobPath := filepath.Join(basedir, wlpattern)
 						logging.Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
 						we, _ := filepath.Glob(allowlistGlobPath)
@@ -51,16 +54,16 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 							continue
 						}
 					}
-					if stringSliceContains(config.PurgeLevels, "deployment") {
+					if slices.Contains(GlobalConfig.PurgeLevels, "deployment") {
 						logging.Debugf("Checking if environment should exist: " + env)
 						if allEnvironments[env] {
 							logging.Debugf("Not purging environment " + env)
-						} else if stringSliceContains(allowlistEnvironments, env) {
+						} else if slices.Contains(allowlistEnvironments, env) {
 							logging.Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
 							logging.Infof("Removing unmanaged environment " + env)
-							if !dryRun {
-								purgeDir(env, "purgeStaleContent()")
+							if !internal.DryRun {
+								fsutils.PurgeDir(env, "purgeStaleContent()")
 							}
 						}
 					}
@@ -81,7 +84,7 @@ func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
 			continue
 		} else {
 			logging.Debugf("deleting " + folder)
-			purgeDir(folder, "purgeControlRepoExceptModuledir")
+			fsutils.PurgeDir(folder, "purgeControlRepoExceptModuledir")
 		}
 
 	}

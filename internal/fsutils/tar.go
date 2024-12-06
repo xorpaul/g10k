@@ -1,4 +1,4 @@
-package main
+package fsutils
 
 import (
 	"archive/tar"
@@ -11,7 +11,8 @@ import (
 	"github.com/xorpaul/g10k/internal/logging"
 )
 
-func unTar(r io.Reader, targetBaseDir string) {
+// UnTar extracts a tarball from an io.Reader to a target directory stripping the leading path for forge modules
+func UnTar(r io.Reader, targetBaseDir string, forgeCacheDir string, purgeSkipList []string) {
 	funcName := logging.FuncName()
 	tarBallReader := tar.NewReader(r)
 	for {
@@ -30,13 +31,13 @@ func unTar(r io.Reader, targetBaseDir string) {
 		// e.g puppetlabs-stdlib-6.0.0/MAINTAINERS.md for a forge module
 		// and MAINTAINERS.md for a git module
 		skiplistFilename := filename
-		if targetBaseDir == config.ForgeCacheDir {
+		if targetBaseDir == forgeCacheDir {
 			skiplistFilenameComponents := strings.SplitAfterN(filename, "/", 2)
 			if len(skiplistFilenameComponents) > 1 {
 				skiplistFilename = skiplistFilenameComponents[1]
 			}
 		}
-		if matchSkiplistContent(skiplistFilename) {
+		if matchSkiplistContent(skiplistFilename, purgeSkipList) {
 			continue
 		}
 		targetFilename := filepath.Join(targetBaseDir, filename)
@@ -82,7 +83,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			writer.Close()
 
 		case tar.TypeSymlink:
-			if fileExists(targetFilename) {
+			if FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
@@ -92,12 +93,12 @@ func unTar(r io.Reader, targetBaseDir string) {
 			}
 
 		case tar.TypeLink:
-			if fileExists(targetFilename) {
+			if FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
 			}
-			if err = os.Link(header.Linkname, targetFilename); err != nil {
+			if err = os.Link(filepath.Join(targetBaseDir, header.Linkname), targetFilename); err != nil {
 				logging.Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
 			}
 
@@ -121,8 +122,8 @@ func unTar(r io.Reader, targetBaseDir string) {
 	}
 }
 
-func matchSkiplistContent(filePath string) bool {
-	for _, blPattern := range config.PurgeSkiplist {
+func matchSkiplistContent(filePath string, purgeSkipList []string) bool {
+	for _, blPattern := range purgeSkipList {
 		filepathResult, _ := filepath.Match(blPattern, filePath)
 		if strings.HasPrefix(filePath, blPattern) || filepathResult {
 			logging.Debugf("skipping file " + filePath + " because purge_skiplist pattern '" + blPattern + "' matches")

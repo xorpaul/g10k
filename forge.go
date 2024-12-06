@@ -19,6 +19,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/klauspost/pgzip"
 	"github.com/tidwall/gjson"
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 	"github.com/xorpaul/uiprogress"
 )
@@ -47,14 +49,14 @@ func checkDeprecation(fm ForgeModule, lastCheckedFile string) bool {
 func doModuleInstallOrNothing(fm ForgeModule) {
 	moduleName := fm.author + "-" + fm.name
 	moduleVersion := fm.version
-	workDir := filepath.Join(config.ForgeCacheDir, moduleName+"-"+fm.version)
-	lastCheckedFile := filepath.Join(config.ForgeCacheDir, moduleName+"-latest-last-checked")
+	workDir := filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-"+fm.version)
+	lastCheckedFile := filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-latest-last-checked")
 	fr := ForgeResult{false, fm.version, "", 0}
 	if check4update {
 		moduleVersion = "latest"
 	}
 	if moduleVersion == "latest" {
-		if !isDir(workDir) {
+		if !fsutils.IsDir(workDir) {
 			logging.Debugf(workDir + " does not exist, fetching Forge module")
 			// check forge API what the latest version is
 			fr = queryForgeAPI(fm)
@@ -62,7 +64,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 				if _, ok := uniqueForgeModules[moduleName+"-"+fr.versionNumber]; ok {
 					logging.Debugf("no need to fetch Forge module " + moduleName + " in latest, because latest is " + fr.versionNumber + " and that will already be fetched")
 					fr.needToGet = false
-					versionDir := filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
+					versionDir := filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
 					absolutePath, err := filepath.Abs(versionDir)
 					logging.Debugf("trying to create symlink " + workDir + " pointing to " + absolutePath)
 					if err != nil {
@@ -108,8 +110,8 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 
 	} else if moduleVersion == "present" {
 		// ensure that a latest version this module exists
-		latestDir := filepath.Join(config.ForgeCacheDir, moduleName+"-latest")
-		if !isDir(latestDir) {
+		latestDir := filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-latest")
+		if !fsutils.IsDir(latestDir) {
 			if _, ok := uniqueForgeModules[moduleName+"-latest"]; ok {
 				logging.Debugf("we got " + fm.author + "-" + fm.name + "-" + fm.version + ", but no " + latestDir + " to use, but -latest is already being fetched.")
 				return
@@ -121,7 +123,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		}
 		logging.Debugf("Nothing to do for module " + fm.author + "-" + fm.name + "-" + fm.version + ", because " + latestDir + " exists")
 	} else {
-		if !isDir(workDir) {
+		if !fsutils.IsDir(workDir) {
 			_ = queryForgeAPI(fm)
 			fr.needToGet = true
 		} else {
@@ -142,14 +144,14 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 		} else {
 			// os.Readlink error is okay
 			versionDir, _ := os.Readlink(workDir)
-			if versionDir == filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber) {
+			if versionDir == filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-"+fr.versionNumber) {
 				logging.Debugf("No reason to re-symlink again")
 			} else {
-				if isDir(workDir) {
+				if fsutils.IsDir(workDir) {
 					logging.Debugf("Trying to remove symlink: " + workDir)
 					_ = os.Remove(workDir)
 				}
-				versionDir = filepath.Join(config.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
+				versionDir = filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-"+fr.versionNumber)
 				absolutePath, err := filepath.Abs(versionDir)
 				if err != nil {
 					logging.Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
@@ -166,7 +168,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 }
 
 func queryForgeAPI(fm ForgeModule) ForgeResult {
-	baseURL := config.ForgeBaseURL
+	baseURL := GlobalConfig.ForgeBaseURL
 	if len(fm.baseURL) > 0 {
 		baseURL = fm.baseURL
 	}
@@ -186,7 +188,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 	before := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		if config.UseCacheFallback {
+		if GlobalConfig.UseCacheFallback {
 			logging.Warnf("Forge API error, trying to use cache for module " + fm.author + "/" + fm.author + "-" + fm.name)
 			_ = getLatestCachedModule(fm)
 			return ForgeResult{false, "", "", 0}
@@ -211,7 +213,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 		json := string(body)
 		fr := parseForgeAPIResult(json, fm)
 
-		lastCheckedFile := filepath.Join(config.ForgeCacheDir, fm.author+"-"+fm.name+"-latest-last-checked")
+		lastCheckedFile := filepath.Join(GlobalConfig.ForgeCacheDir, fm.author+"-"+fm.name+"-latest-last-checked")
 		logging.Debugf("writing last-checked file " + lastCheckedFile)
 		f, _ := os.Create(lastCheckedFile)
 		defer f.Close()
@@ -277,7 +279,7 @@ func parseForgeAPIResult(json string, fm ForgeModule) ForgeResult {
 
 // getMetadataForgeModule queries the configured Puppet Forge and return
 func getMetadataForgeModule(fm ForgeModule) ForgeModule {
-	baseURL := config.ForgeBaseURL
+	baseURL := GlobalConfig.ForgeBaseURL
 	if len(fm.baseURL) > 0 {
 		baseURL = fm.baseURL
 	}
@@ -336,7 +338,7 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	before := time.Now()
 	fileReader, err := pgzip.NewReader(file)
 
-	unTar(fileReader, config.ForgeCacheDir)
+	fsutils.UnTar(fileReader, GlobalConfig.ForgeCacheDir, GlobalConfig.ForgeCacheDir, GlobalConfig.PurgeSkiplist)
 
 	if err != nil {
 		logging.Fatalf(logging.FuncName() + "(): pgzip reader error for module " + fileName + " error:" + err.Error())
@@ -344,7 +346,7 @@ func extractForgeModule(wgForgeModule *sync.WaitGroup, file *io.PipeReader, file
 	defer fileReader.Close()
 
 	duration := time.Since(before).Seconds()
-	logging.Verbosef("Extracting " + filepath.Join(config.ForgeCacheDir, fileName) + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	logging.Verbosef("Extracting " + filepath.Join(GlobalConfig.ForgeCacheDir, fileName) + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	mutex.Lock()
 	ioForgeTime += duration
 	mutex.Unlock()
@@ -360,8 +362,8 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 	//url := "https://forgeapi.puppet.com/v3/files/puppetlabs-apt-2.1.1.tar.gz"
 	fileName := name + "-" + version + ".tar.gz"
 
-	if !isDir(filepath.Join(config.ForgeCacheDir, name+"-"+version)) {
-		baseURL := config.ForgeBaseURL
+	if !fsutils.IsDir(filepath.Join(GlobalConfig.ForgeCacheDir, name+"-"+version)) {
+		baseURL := GlobalConfig.ForgeBaseURL
 		if len(fm.baseURL) > 0 {
 			baseURL = fm.baseURL
 		}
@@ -394,7 +396,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 			wgForgeModule.Add(1)
 			go func() {
 				defer wgForgeModule.Done()
-				targetFileName := filepath.Join(config.ForgeCacheDir, fileName)
+				targetFileName := filepath.Join(GlobalConfig.ForgeCacheDir, fileName)
 				logging.Debugf(funcName + "(): Trying to create " + targetFileName)
 				out, err := os.Create(targetFileName)
 				if err != nil {
@@ -443,8 +445,8 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 				logging.Fatalf("downloadForgeModule(): giving up for Puppet module " + name + " version: " + version)
 			}
 			logging.Warnf("Retrying...")
-			purgeDir(filepath.Join(config.ForgeCacheDir, fileName), "downloadForgeModule()")
-			purgeDir(strings.Replace(filepath.Join(config.ForgeCacheDir, fileName), ".tar.gz", "/", -1), "downloadForgeModule()")
+			fsutils.PurgeDir(filepath.Join(GlobalConfig.ForgeCacheDir, fileName), "downloadForgeModule()")
+			fsutils.PurgeDir(strings.Replace(filepath.Join(GlobalConfig.ForgeCacheDir, fileName), ".tar.gz", "/", -1), "downloadForgeModule()")
 			// retry if hash sum mismatch found
 			downloadForgeModule(name, version, fm, retryCount-1)
 		}
@@ -491,10 +493,10 @@ func resolveForgeModules(modules map[string]ForgeModule) {
 	// This channel should be buffered otherwise we will be immediately blocked
 	// when trying to fill it.
 
-	logging.Debugf("Resolving " + strconv.Itoa(len(modules)) + " Forge modules with " + strconv.Itoa(config.Maxworker) + " workers")
-	concurrentGoroutines := make(chan struct{}, config.Maxworker)
+	logging.Debugf("Resolving " + strconv.Itoa(len(modules)) + " Forge modules with " + strconv.Itoa(GlobalConfig.Maxworker) + " workers")
+	concurrentGoroutines := make(chan struct{}, GlobalConfig.Maxworker)
 	// Fill the dummy channel with config.Maxworker empty struct.
-	for i := 0; i < config.Maxworker; i++ {
+	for i := 0; i < GlobalConfig.Maxworker; i++ {
 		concurrentGoroutines <- struct{}{}
 	}
 
@@ -568,7 +570,7 @@ func doForgeModuleIntegrityCheck(m ForgeModule) bool {
 	md5R, md5W := io.Pipe()
 	sha256R, sha256W := io.Pipe()
 	var calculatedArchiveSize int64
-	fileName := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-"+m.version+".tar.gz")
+	fileName := filepath.Join(GlobalConfig.ForgeCacheDir, m.author+"-"+m.name+"-"+m.version+".tar.gz")
 
 	// md5 sum
 	wgCheckSum.Add(1)
@@ -677,7 +679,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	targetDir := filepath.Join(moduleDir, m.name)
 	metadataFile := filepath.Join(targetDir, "metadata.json")
 	if m.version == "present" {
-		if fileExists(metadataFile) {
+		if fsutils.FileExists(metadataFile) {
 			logging.Debugf("Nothing to do, found existing Forge module: " + targetDir)
 			if check4update {
 				me := readModuleMetadata(metadataFile)
@@ -691,8 +693,8 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		m.version = "latest"
 
 	}
-	if isDir(targetDir) {
-		if fileExists(metadataFile) {
+	if fsutils.IsDir(targetDir) {
+		if fsutils.FileExists(metadataFile) {
 			me := readModuleMetadata(metadataFile)
 			if m.version == "latest" {
 				//fmt.Println(latestForgeModules)
@@ -714,19 +716,19 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 				return
 			}
 			logging.Infof("Need to sync, because existing Forge module: " + targetDir + " has version " + me.version + " and the to be synced version is: " + m.version)
-			createOrPurgeDir(targetDir, "targetDir for module "+me.name)
+			fsutils.CreateOrPurgeDir(targetDir, "targetDir for module "+me.name)
 		} else {
 			logging.Debugf("Need to purge " + targetDir + ", because it exists without a metadata.json. This shouldn't happen!")
-			createOrPurgeDir(targetDir, "targetDir for module "+m.name+" with missing metadata.json")
+			fsutils.CreateOrPurgeDir(targetDir, "targetDir for module "+m.name+" with missing metadata.json")
 		}
 	}
-	workDir := normalizeDir(filepath.Join(config.ForgeCacheDir, moduleName+"-"+m.version))
+	workDir := fsutils.NormalizeDir(filepath.Join(GlobalConfig.ForgeCacheDir, moduleName+"-"+m.version))
 	resolvedWorkDir, err := filepath.EvalSymlinks(workDir)
 	if err != nil {
 		logging.Fatalf(funcName + "(): Failed to resolve possible symlink " + workDir + " Error: " + err.Error())
 	}
-	if !isDir(resolvedWorkDir) {
-		if config.UseCacheFallback {
+	if !fsutils.IsDir(resolvedWorkDir) {
+		if GlobalConfig.UseCacheFallback {
 			logging.Warnf("Failed to use " + resolvedWorkDir + " Trying to use latest cached version of module " + moduleName)
 			resolvedWorkDir = getLatestCachedModule(m)
 		} else {
@@ -734,13 +736,13 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		}
 	}
 
-	if !isDir(resolvedWorkDir) {
+	if !fsutils.IsDir(resolvedWorkDir) {
 		logging.Fatalf(funcName + "(): Forge module not found in dir: " + resolvedWorkDir)
 	}
 
 	logging.Infof("Need to sync " + targetDir)
-	if !dryRun {
-		targetDir = checkDirAndCreate(targetDir, "as targetDir for module "+name)
+	if !internal.DryRun {
+		targetDir = fsutils.CheckDirAndCreate(targetDir, "as targetDir for module "+name)
 		var targetDirDevice, workDirDevice uint64
 		if fileInfo, err := os.Stat(targetDir); err == nil {
 			if fileInfo.Sys() != nil {
@@ -758,7 +760,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 		}
 
 		if targetDirDevice != workDirDevice && !usemove {
-			logging.Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachedir setting. ForgeCachedir: " + config.ForgeCacheDir + " target dir: " + targetDir)
+			logging.Fatalf("Error: Can't hardlink Forge module files over different devices. Please consider changing the cachedir setting. ForgeCachedir: " + GlobalConfig.ForgeCacheDir + " target dir: " + targetDir)
 		}
 
 		mutex.Lock()
@@ -789,7 +791,7 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 				if usemove {
 					//logging.Debugf(funcName + "() Trying to helper.moveFile " + path + " to " + targetDir + target)
 					// deleteSourceFileToggle is set to false as we delete the source file later in the main() anyway after the sync completes
-					err = moveFile(path, filepath.Join(targetDir, target), false)
+					err = fsutils.MoveFile(path, filepath.Join(targetDir, target), false)
 					if err != nil {
 						logging.Fatalf(funcName + "(): Failed to helper.moveFile " + path + " to " + targetDir + "/" + target + " Error: " + err.Error())
 					}
@@ -821,10 +823,10 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 func getLatestCachedModule(m ForgeModule) string {
 	latest := "//"
 	version := "latest"
-	latestDir := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-latest")
-	if !isDir(latestDir) {
+	latestDir := filepath.Join(GlobalConfig.ForgeCacheDir, m.author+"-"+m.name+"-latest")
+	if !fsutils.IsDir(latestDir) {
 
-		globPath := filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-*")
+		globPath := filepath.Join(GlobalConfig.ForgeCacheDir, m.author+"-"+m.name+"-*")
 		logging.Debugf("Glob'ing with path " + globPath)
 		matches, err := filepath.Glob(globPath)
 		if len(matches) == 0 {
@@ -836,7 +838,7 @@ func getLatestCachedModule(m ForgeModule) string {
 		}
 		//fmt.Println(matches)
 		for _, m := range matches {
-			if isDir(m) {
+			if fsutils.IsDir(m) {
 				logging.Debugf("Comparing " + latest + " < " + m)
 				if latest < m {
 					logging.Debugf("Setting latest to " + m)
@@ -861,7 +863,7 @@ func getLatestCachedModule(m ForgeModule) string {
 		}
 
 		version = strings.Split(versionDir, m.author+"-"+m.name+"-")[1]
-		latest = filepath.Join(config.ForgeCacheDir, m.author+"-"+m.name+"-"+version)
+		latest = filepath.Join(GlobalConfig.ForgeCacheDir, m.author+"-"+m.name+"-"+version)
 	}
 
 	if latest == "//" {

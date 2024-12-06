@@ -2,152 +2,20 @@ package main
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	reModuledir = regexp.MustCompile(`^\s*(?:moduledir)\s+['\"]?([^'\"]+)['\"]?`)
 )
-
-// readConfigfile creates the ConfigSettings struct from the g10k config file
-func readConfigfile(configFile string) ConfigSettings {
-	logging.Debugf("Trying to read g10k config file: " + configFile)
-	data, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		logging.Fatalf("readConfigfile(): There was an error parsing the config file " + configFile + ": " + err.Error())
-	}
-
-	rubySymbolsRemoved := ""
-	for _, line := range strings.Split(string(data), "\n") {
-		reWhitespaceColon := regexp.MustCompile(`^(\s*):`)
-		m := reWhitespaceColon.FindStringSubmatch(line)
-		if len(m) > 0 {
-			rubySymbolsRemoved += reWhitespaceColon.ReplaceAllString(line, m[1]) + "\n"
-		} else {
-			rubySymbolsRemoved += line + "\n"
-		}
-	}
-	var config ConfigSettings
-	err = yaml.Unmarshal([]byte(rubySymbolsRemoved), &config)
-	if err != nil {
-		logging.Fatalf("YAML unmarshal error: " + err.Error())
-	}
-
-	if len(os.Getenv("g10k_cachedir")) > 0 {
-		cachedir := os.Getenv("g10k_cachedir")
-		logging.Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
-		config.CacheDir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
-	} else {
-		config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir from g10k config "+configFile)
-	}
-
-	config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir")
-	config.ForgeCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "forge"), "cachedir/forge")
-	config.ModulesCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
-	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
-
-	if len(config.ForgeBaseURL) == 0 {
-		config.ForgeBaseURL = "https://forgeapi.puppet.com"
-	}
-
-	// fmt.Println("Forge Baseurl: ", config.ForgeBaseURL)
-
-	// set default timeout to 5 seconds if no timeout setting found
-	if config.Timeout == 0 {
-		config.Timeout = 5
-	}
-
-	if usecacheFallback {
-		config.UseCacheFallback = true
-	}
-
-	if retryGitCommands {
-		config.RetryGitCommands = true
-	}
-
-	if gitObjectSyntaxNotSupported {
-		config.GitObjectSyntaxNotSupported = true
-	}
-
-	// set default max Go routines for Forge and Git module resolution if none is given
-	if !(config.Maxworker > 0) {
-		config.Maxworker = maxworker
-	}
-	if maxworker != 50 {
-		config.Maxworker = maxworker
-	}
-
-	if maxworker == 0 && config.Maxworker == 0 {
-		config.Maxworker = 50
-	}
-
-	// set default max Go routines for Forge and Git module extracting
-	if !(config.MaxExtractworker > 0) {
-		config.MaxExtractworker = maxExtractworker
-	}
-	if maxExtractworker != 20 {
-		config.MaxExtractworker = maxExtractworker
-	}
-
-	if maxExtractworker == 0 && config.MaxExtractworker == 0 {
-		config.MaxExtractworker = 20
-	}
-
-	if len(config.ForgeCacheTTLString) != 0 {
-		ttl, err := time.ParseDuration(config.ForgeCacheTTLString)
-		if err != nil {
-			logging.Fatalf("Error: Can not convert value " + config.ForgeCacheTTLString + " of config setting forge_cache_ttl to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In " + configFile)
-		}
-		config.ForgeCacheTTL = ttl
-	}
-
-	// check for non-empty config.Deploy which takes precedence over the non-deploy scoped settings
-	// See https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deploy
-	emptyDeploy := DeploySettings{}
-	if !reflect.DeepEqual(config.Deploy, emptyDeploy) {
-		logging.Debugf("detected deploy configuration hash, which takes precedence over the non-deploy scoped settings")
-		config.PurgeLevels = config.Deploy.PurgeLevels
-		config.PurgeAllowList = config.Deploy.PurgeAllowList
-		config.DeploymentPurgeAllowList = config.Deploy.DeploymentPurgeAllowList
-		config.WriteLock = config.Deploy.WriteLock
-		config.GenerateTypes = config.Deploy.GenerateTypes
-		config.PuppetPath = config.Deploy.PuppetPath
-		config.PurgeSkiplist = config.Deploy.PurgeSkiplist
-		config.Deploy = emptyDeploy
-	}
-
-	if len(config.PurgeLevels) == 0 {
-		config.PurgeLevels = []string{"deployment", "puppetfile"}
-	}
-
-	for source, sa := range config.Sources {
-		sa.Basedir = normalizeDir(sa.Basedir)
-
-		// set default to "correct_and_warn" like r10k
-		// https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches
-		if len(sa.AutoCorrectEnvironmentNames) == 0 {
-			sa.AutoCorrectEnvironmentNames = "correct_and_warn"
-		}
-		config.Sources[source] = sa
-	}
-
-	if logging.Validate {
-		logging.Validatef()
-	}
-
-	// fmt.Printf("%+v\n", config)
-	return config
-}
 
 // preparePuppetfile remove whitespace and comment lines from the given Puppetfile and merges Puppetfile resources that are identified with having a , at the end
 func preparePuppetfile(pf string) string {
@@ -236,7 +104,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			logging.Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 && len(moduleDirParam) == 0 {
-			moduleDir = normalizeDir(m[1])
+			moduleDir = fsutils.NormalizeDir(m[1])
 			moduleDirs = append(moduleDirs, moduleDir)
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
@@ -315,7 +183,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			}
 			// the base url in the Puppetfile takes precedence over an base url specified in the g10k config yaml
 			if len(puppetFile.forgeBaseURL) == 0 {
-				puppetFile.forgeBaseURL = config.ForgeBaseURL
+				puppetFile.forgeBaseURL = GlobalConfig.ForgeBaseURL
 			}
 			puppetFile.forgeModules[comp[1]] = ForgeModule{version: forgeModuleVersion, name: comp[1], author: comp[0], sha256sum: forgeChecksum, moduleDir: moduleDir, sourceBranch: source + "_" + branch}
 		} else if m := reGitModule.FindStringSubmatch(line); len(m) > 1 {
@@ -419,7 +287,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 				if _, ok := puppetFile.forgeModules[gitModuleName]; ok {
 					logging.Fatalf("Error: Git Puppet module with same name found in " + pf + " for module " + gitModuleName + " line: " + line)
 				}
-				if config.IgnoreUnreachableModules {
+				if GlobalConfig.IgnoreUnreachableModules {
 					logging.Debugf("Setting :ignore_unreachable for Git module " + gitModuleName)
 					gm.ignoreUnreachable = true
 				}
@@ -427,7 +295,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			}
 		} else {
 			// for now only in dry run mode
-			if dryRun {
+			if internal.DryRun {
 				logging.Fatalf("Error: Could not interpret line: " + line + " In " + pf)
 			}
 
