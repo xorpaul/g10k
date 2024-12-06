@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/remeh/sizedwaitgroup"
+	"github.com/xorpaul/g10k/internal/logging"
 	"github.com/xorpaul/uiprogress"
 	"golang.org/x/term"
 )
@@ -18,14 +19,14 @@ import (
 func sourceSanityCheck(source string, sa Source) {
 	if len(sa.PrivateKey) > 0 {
 		if _, err := os.Stat(sa.PrivateKey); err != nil {
-			Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + " for source " + source + " in config file " + configFile + " Error: " + err.Error())
+			logging.Fatalf("resolvePuppetEnvironment(): could not find SSH private key " + sa.PrivateKey + " for source " + source + " in config file " + configFile + " Error: " + err.Error())
 		}
 	}
 	if len(sa.Basedir) <= 0 {
-		Fatalf("resolvePuppetEnvironment(): config setting basedir is not set for source " + source + " in config file " + configFile)
+		logging.Fatalf("resolvePuppetEnvironment(): config setting basedir is not set for source " + source + " in config file " + configFile)
 	}
 	if len(sa.Remote) <= 0 {
-		Fatalf("resolvePuppetEnvironment(): config setting remote is not set for source " + source + " in config file " + configFile)
+		logging.Fatalf("resolvePuppetEnvironment(): config setting remote is not set for source " + source + " in config file " + configFile)
 	}
 }
 
@@ -44,7 +45,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 			}
 
 			sa.Basedir = checkDirAndCreate(sa.Basedir, "basedir for source "+source)
-			Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
+			logging.Debugf("Puppet environment: " + source + " (" + fmt.Sprintf("%+v", sa) + ")")
 
 			// check for a valid source that has all necessary attributes (basedir, remote, SSH key exist if given)
 			sourceSanityCheck(source, sa)
@@ -76,24 +77,24 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 					branch = strings.TrimLeft(branch, "* ")
 					reInvalidCharacters := regexp.MustCompile(`\W`)
 					if sa.AutoCorrectEnvironmentNames == "error" && reInvalidCharacters.MatchString(branch) {
-						Warnf("Ignoring branch " + branch + ", because it contains invalid characters")
+						logging.Warnf("Ignoring branch " + branch + ", because it contains invalid characters")
 						continue
 					}
 					// XXX: maybe make this user configurable (either with dedicated file or as YAML array in g10k config)
 					if strings.Contains(branch, ";") || strings.Contains(branch, "&") || strings.Contains(branch, "|") || strings.HasPrefix(branch, "tmp/") && strings.HasSuffix(branch, "/head") {
-						Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
+						logging.Debugf("Skipping branch " + branch + " of source " + source + ", because of invalid character(s) inside the branch name")
 						continue
 					}
 
 					if len(sa.FilterCommand) > 0 {
 						if skipBasedOnFilterCommand(branch, source, sa, workDir) {
-							Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_command setting")
+							logging.Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_command setting")
 							continue
 						}
 					}
 					if len(sa.FilterRegex) > 0 {
 						if skipBasedOnFilterRegex(branch, source, sa, workDir) {
-							Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_regex setting")
+							logging.Debugf("Skipping branch " + branch + " of source " + source + ", because of filter_regex setting")
 							continue
 						}
 					}
@@ -102,14 +103,14 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 						if branch == branchParam {
 							foundBranch = true
 						} else {
-							Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + branchParam + "', skipping")
+							logging.Debugf("Environment " + prefix + branch + " of source " + source + " does not match branch name filter '" + branchParam + "', skipping")
 							continue
 						}
 					} else if len(environmentParam) > 0 {
 						if source+"_"+branch == environmentParam {
 							foundMatch = true
 						} else {
-							Debugf("Environment " + prefix + branch + " of source " + source + " does not match environment name filter '" + environmentParam + "', skipping")
+							logging.Debugf("Environment " + prefix + branch + " of source " + source + " does not match environment name filter '" + environmentParam + "', skipping")
 							continue
 						}
 					}
@@ -119,12 +120,12 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 					go func(branch string, sa Source, prefix string) {
 						defer wg.Done()
 						if len(branch) != 0 {
-							Debugf("Resolving environment " + prefix + branch + " of source " + source)
+							logging.Debugf("Resolving environment " + prefix + branch + " of source " + source)
 
 							renamedBranch := branch
 							if (len(outputNameTag) > 0) && (len(branchParam) > 0) {
 								renamedBranch = outputNameTag
-								Debugf("Renaming branch " + branch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+								logging.Debugf("Renaming branch " + branch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 							}
 
 							// https://github.com/puppetlabs/r10k/blob/main/doc/dynamic-environments/configuration.mkd#strip_component
@@ -132,7 +133,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								stripRenamedBranch := stripComponent(sa.StripComponent, renamedBranch)
 								if stripRenamedBranch != renamedBranch {
 									// only print this if the branch was definately renamed, because of the strip component
-									Debugf("Renaming branch " + renamedBranch + " to " + stripRenamedBranch + ", because of strip_component in source " + source + " " + sa.Remote)
+									logging.Debugf("Renaming branch " + renamedBranch + " to " + stripRenamedBranch + ", because of strip_component in source " + source + " " + sa.Remote)
 									renamedBranch = stripRenamedBranch
 								}
 							}
@@ -142,9 +143,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
 								if oldBranch != renamedBranch {
 									if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
-										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+										logging.Warnf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 									} else {
-										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+										logging.Debugf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
 									}
 								}
 							}
@@ -153,7 +154,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							if _, ok := allEnvironments[filepath.Join(sa.Basedir, prefix+renamedBranch)]; !ok {
 								allEnvironments[filepath.Join(sa.Basedir, prefix+renamedBranch)] = true
 							} else {
-								Fatalf("Renamed environment naming conflict detected with renamed environment " + prefix + renamedBranch)
+								logging.Fatalf("Renamed environment naming conflict detected with renamed environment " + prefix + renamedBranch)
 							}
 							mutex.Unlock()
 							targetDir := filepath.Join(sa.Basedir, prefix+strings.Replace(renamedBranch, "/", "_", -1))
@@ -167,10 +168,10 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							}
 							pf := filepath.Join(targetDir, "Puppetfile")
 							if !fileExists(pf) {
-								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
+								logging.Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
 								deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
 								if fileExists(deployFile) {
-									Debugf("Finishing writing to deploy file " + deployFile)
+									logging.Debugf("Finishing writing to deploy file " + deployFile)
 									dr := readDeployResultFile(deployFile)
 									dr.DeploySuccess = true
 									dr.FinishedAt = time.Now()
@@ -198,12 +199,12 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 				}
 
 				if sa.ErrorMissingBranch && !foundBranch {
-					Fatalf("Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+					logging.Fatalf("Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				} else if sa.WarnMissingBranch && !foundBranch {
-					Warnf("WARNING: Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
+					logging.Warnf("WARNING: Couldn't find specified branch '" + branchParam + "' anywhere in source '" + source + "' (" + sa.Remote + ")")
 				}
 			} else {
-				Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
+				logging.Warnf("WARNING: Could not resolve git repository in source '" + source + "' (" + sa.Remote + ")")
 				if sa.ExitIfUnreachable {
 					os.Exit(1)
 				}
@@ -214,7 +215,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	wg.Wait()
 	if len(environmentParam) > 0 {
 		if !foundMatch {
-			Warnf("WARNING: Environment '" + environmentParam + "' cannot be found in any source and will not be deployed.")
+			logging.Warnf("WARNING: Environment '" + environmentParam + "' cannot be found in any source and will not be deployed.")
 		}
 	}
 	//fmt.Println("allPuppetfiles: ", allPuppetfiles, len(allPuppetfiles))
@@ -244,12 +245,12 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	// if we made it this far initialize the global maps
 	latestForgeModules.m = make(map[string]string)
 	for env, pf := range allPuppetfiles {
-		Debugf("Resolving branch " + env + " of source " + pf.source)
+		logging.Debugf("Resolving branch " + env + " of source " + pf.source)
 		//fmt.Println(pf)
 		for gitName, gitModule := range pf.gitModules {
 			if len(moduleParam) > 0 {
 				if gitName != moduleParam {
-					Debugf("Skipping git module " + gitName + ", because parameter -module is set to " + moduleParam)
+					logging.Debugf("Skipping git module " + gitName + ", because parameter -module is set to " + moduleParam)
 					delete(pf.gitModules, gitName)
 					continue
 				}
@@ -266,7 +267,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 		for forgeModuleName, fm := range pf.forgeModules {
 			if len(moduleParam) > 0 {
 				if forgeModuleName != moduleParam {
-					Debugf("Skipping forge module " + forgeModuleName + ", because parameter -module is set to " + moduleParam)
+					logging.Debugf("Skipping forge module " + forgeModuleName + ", because parameter -module is set to " + moduleParam)
 					delete(pf.forgeModules, forgeModuleName)
 					continue
 				}
@@ -291,7 +292,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			}
 		}
 	}
-	if !debug && !verbose && !info && !quiet && term.IsTerminal(int(os.Stdout.Fd())) {
+	if !logging.Debug && !logging.Verbose && !logging.Info && !logging.Quiet && term.IsTerminal(int(os.Stdout.Fd())) {
 		uiprogress.Start()
 	}
 	var wgResolve sync.WaitGroup
@@ -307,7 +308,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	wgResolve.Wait()
 	//log.Println(config.Sources["cmdlineparam"])
 	for env, pf := range allPuppetfiles {
-		Debugf("Syncing " + env + " with workDir " + pf.workDir)
+		logging.Debugf("Syncing " + env + " with workDir " + pf.workDir)
 		// this prevents g10k from purging module directories on the subsequent run in -puppetfile mode
 		basedir := ""
 		if !pfMode {
@@ -330,7 +331,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 			moduleDir = normalizeDir(moduleDir)
 			if gitModule.local {
 				moduleDirectory := filepath.Join(moduleDir, gitName)
-				Debugf("Not deleting " + moduleDirectory + " as it is declared as a local module")
+				logging.Debugf("Not deleting " + moduleDirectory + " as it is declared as a local module")
 				// remove this module from the exisitingModuleDirs map
 				if len(gitModule.installPath) > 0 {
 					moduleDirectory = filepath.Join(normalizeDir(basedir), normalizeDir(gitModule.installPath), gitName)
@@ -341,7 +342,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
-						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
+						logging.Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
 						delete(exisitingModuleDirs, existingDir)
 					}
 				}
@@ -354,7 +355,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				targetDir := normalizeDir(filepath.Join(moduleDir, gitName))
 				moduleCacheDir := filepath.Join(config.ModulesCacheDir, strings.Replace(strings.Replace(gitModule.git, "/", "_", -1), ":", "-", -1))
 				tree := detectDefaultBranch(moduleCacheDir)
-				Debugf("Setting " + tree + " as default branch for " + gitModule.git)
+				logging.Debugf("Setting " + tree + " as default branch for " + gitModule.git)
 				if len(gitModule.branch) > 0 {
 					tree = gitModule.branch
 				} else if len(gitModule.commit) > 0 {
@@ -370,7 +371,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 						} else if len(branchParam) > 0 {
 							tree = branchParam
 						} else {
-							Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as g10k can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch' or using the -branch parameter")
+							logging.Fatalf("resolvePuppetfile(): found module " + gitName + " with module link mode enabled and g10k in Puppetfile mode which is not supported, as g10k can not detect the environment branch of the Puppetfile. You can explicitly set the module link branch you want to use in Puppetfile mode by setting the environment variable 'g10k_branch' or using the -branch parameter")
 						}
 					} else {
 						// we want only the branch name of the control repo and not the resulting
@@ -386,7 +387,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				success := false
 
 				if gitModule.link {
-					Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
+					logging.Debugf("Trying to resolve " + moduleCacheDir + " with branch " + tree)
 					gitModule.tree = tree
 					success = syncToModuleDir(gitModule, moduleCacheDir, targetDir, env)
 				}
@@ -398,7 +399,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 								// last try
 								gitModule.ignoreUnreachable = true
 							}
-							Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
+							logging.Debugf("Trying to resolve " + moduleCacheDir + " with branch " + fallbackBranch)
 							gitModule.tree = fallbackBranch
 							success = syncToModuleDir(gitModule, moduleCacheDir, targetDir, env)
 							if success {
@@ -411,7 +412,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 					gitModule.tree = tree
 					success = syncToModuleDir(gitModule, moduleCacheDir, targetDir, env)
 					if !success && !config.IgnoreUnreachableModules {
-						Fatalf("Failed to resolve git module '" + gitName + "' with repository " + gitModule.git + " and branch/reference '" + tree + "' used in control repository branch '" + pf.sourceBranch + "' or Puppet environment '" + env + "'")
+						logging.Fatalf("Failed to resolve git module '" + gitName + "' with repository " + gitModule.git + " and branch/reference '" + tree + "' used in control repository branch '" + pf.sourceBranch + "' or Puppet environment '" + env + "'")
 					}
 				}
 
@@ -426,7 +427,7 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 				for existingDir := range exisitingModuleDirs {
 					rel, _ := filepath.Rel(existingDir, moduleDirectory)
 					if len(rel) > 0 && !strings.Contains(rel, "..") {
-						Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
+						logging.Debugf("not removing moduleDirectory " + moduleDirectory + " because it's a subdirectory to existingDir " + existingDir)
 						delete(exisitingModuleDirs, existingDir)
 					}
 				}
@@ -453,21 +454,21 @@ func resolvePuppetfile(allPuppetfiles map[string]Puppetfile) {
 	if stringSliceContains(config.PurgeLevels, "puppetfile") {
 		if len(exisitingModuleDirs) > 0 && len(moduleParam) == 0 {
 			for d := range exisitingModuleDirs {
-				Infof("Removing unmanaged path " + d)
+				logging.Infof("Removing unmanaged path " + d)
 				if !dryRun {
 					purgeDir(d, "purge_level puppetfile")
 				}
 			}
 		}
 	}
-	if !debug && !verbose && !info && !quiet && term.IsTerminal(int(os.Stdout.Fd())) {
+	if !logging.Debug && !logging.Verbose && !logging.Info && !logging.Quiet && term.IsTerminal(int(os.Stdout.Fd())) {
 		uiprogress.Stop()
 	}
 
 	for _, pf := range allPuppetfiles {
 		deployFile := filepath.Join(pf.workDir, ".g10k-deploy.json")
 		if fileExists(deployFile) {
-			Debugf("Finishing writing to deploy file " + deployFile)
+			logging.Debugf("Finishing writing to deploy file " + deployFile)
 			dr := readDeployResultFile(deployFile)
 			dr.DeploySuccess = true
 			dr.FinishedAt = time.Now()
@@ -487,9 +488,9 @@ func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workD
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$R10K_NAME", sourceName)
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$G10K_NAME", sourceName)
 	branchFilterCommand = strings.ReplaceAll(branchFilterCommand, "$GIT_DIR", workDir)
-	Debugf("executing filter_command: " + branchFilterCommand)
+	logging.Debugf("executing filter_command: " + branchFilterCommand)
 	er := executeCommand(branchFilterCommand, "", 30, true, false)
-	if debug {
+	if logging.Debug {
 		fmt.Printf("filter_command %s result: %+v", branchFilterCommand, er)
 	}
 	return er.returnCode != 0
@@ -498,7 +499,7 @@ func skipBasedOnFilterCommand(branch string, sourceName string, sa Source, workD
 func skipBasedOnFilterRegex(branch string, sourceName string, sa Source, workDir string) bool {
 	reFilterRegex, err := regexp.Compile(sa.FilterRegex)
 	if err != nil {
-		Fatalf("Setting filter_branch of source " + sourceName + " could not be compiled to a valid Go regex please fix!")
+		logging.Fatalf("Setting filter_branch of source " + sourceName + " could not be compiled to a valid Go regex please fix!")
 	}
 
 	m := reFilterRegex.FindStringSubmatch(branch)

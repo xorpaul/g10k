@@ -3,6 +3,8 @@ package main
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/xorpaul/g10k/internal/logging"
 )
 
 func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[string]bool) {
@@ -18,7 +20,7 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 
 		if len(environmentParam) > 0 {
 			if !strings.HasPrefix(environmentParam, prefix) {
-				Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + environmentParam)
+				logging.Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + environmentParam)
 				continue
 			}
 		}
@@ -27,14 +29,14 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 		if len(branchParam) == 0 {
 			for basedir := range allBasedirs {
 				globPath := filepath.Join(basedir, prefix+"*")
-				Debugf("Glob'ing with path " + globPath)
+				logging.Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
 
 				allowlistEnvironments := []string{}
 				if len(config.DeploymentPurgeAllowList) > 0 {
 					for _, wlpattern := range config.DeploymentPurgeAllowList {
 						allowlistGlobPath := filepath.Join(basedir, wlpattern)
-						Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
+						logging.Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
 						we, _ := filepath.Glob(allowlistGlobPath)
 						allowlistEnvironments = append(allowlistEnvironments, we...)
 					}
@@ -45,18 +47,18 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 					envName := envPath[len(envPath)-1]
 					if len(environmentParam) > 0 {
 						if envName != environmentParam {
-							Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + environmentParam)
+							logging.Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + environmentParam)
 							continue
 						}
 					}
 					if stringSliceContains(config.PurgeLevels, "deployment") {
-						Debugf("Checking if environment should exist: " + env)
+						logging.Debugf("Checking if environment should exist: " + env)
 						if allEnvironments[env] {
-							Debugf("Not purging environment " + env)
+							logging.Debugf("Not purging environment " + env)
 						} else if stringSliceContains(allowlistEnvironments, env) {
-							Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
+							logging.Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
-							Infof("Removing unmanaged environment " + env)
+							logging.Infof("Removing unmanaged environment " + env)
 							if !dryRun {
 								purgeDir(env, "purgeStaleContent()")
 							}
@@ -72,13 +74,13 @@ func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
 	moduleDir = filepath.Join(dir, moduleDir)
 
 	globPath := filepath.Join(dir, "*")
-	Debugf("Glob'ing with path " + globPath)
+	logging.Debugf("Glob'ing with path " + globPath)
 	folders, _ := filepath.Glob(globPath)
 	for _, folder := range folders {
 		if folder == moduleDir || strings.HasPrefix(folder, moduleDir) {
 			continue
 		} else {
-			Debugf("deleting " + folder)
+			logging.Debugf("deleting " + folder)
 			purgeDir(folder, "purgeControlRepoExceptModuledir")
 		}
 

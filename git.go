@@ -12,13 +12,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xorpaul/g10k/internal/logging"
 	"github.com/xorpaul/uiprogress"
 )
 
 func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
-	defer timeTrack(time.Now(), funcName())
+	defer timeTrack(time.Now(), logging.FuncName())
 	if len(uniqueGitModules) <= 0 {
-		Debugf("uniqueGitModules[] is empty, skipping...")
+		logging.Debugf("uniqueGitModules[] is empty, skipping...")
 		return
 	}
 	bar := uiprogress.AddBar(len(uniqueGitModules)).AppendCompleted().PrependElapsed()
@@ -29,7 +30,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 	// This channel should be buffered otherwise we will be immediately blocked
 	// when trying to fill it.
 
-	Debugf("Resolving " + strconv.Itoa(len(uniqueGitModules)) + " Git modules with " + strconv.Itoa(config.Maxworker) + " workers")
+	logging.Debugf("Resolving " + strconv.Itoa(len(uniqueGitModules)) + " Git modules with " + strconv.Itoa(config.Maxworker) + " workers")
 	concurrentGoroutines := make(chan struct{}, config.Maxworker)
 	// Fill the dummy channel with config.Maxworker empty struct.
 	for i := 0; i < config.Maxworker; i++ {
@@ -69,11 +70,11 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 			defer wg.Done()
 
 			if gm.useSSHAgent {
-				Debugf("git repo url " + url + " with loaded SSH keys from ssh-agent")
+				logging.Debugf("git repo url " + url + " with loaded SSH keys from ssh-agent")
 			} else if len(gm.privateKey) > 0 {
-				Debugf("git repo url " + url + " with SSH key " + privateKey)
+				logging.Debugf("git repo url " + url + " with SSH key " + privateKey)
 			} else {
-				Debugf("git repo url " + url + " without ssh key")
+				logging.Debugf("git repo url " + url + " without ssh key")
 			}
 
 			//log.Println(config)
@@ -83,7 +84,7 @@ func resolveGitRepositories(uniqueGitModules map[string]GitModule) {
 
 			success := doMirrorOrUpdate(gm, workDir, 0)
 			if !success && !config.UseCacheFallback {
-				Fatalf("Fatal: Failed to clone or pull " + url + " to " + workDir)
+				logging.Fatalf("Fatal: Failed to clone or pull " + url + " to " + workDir)
 			}
 			done <- true
 		}(url, gm, bar)
@@ -125,9 +126,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	}
 
 	// check if git URL does match NO_PROXY
-	disableHttpProxy := false
+	disableHTTPProxy := false
 	if matchGitRemoteURLNoProxy(gitModule.git) {
-		disableHttpProxy = true
+		disableHTTPProxy = true
 	}
 
 	if explicitlyLoadSSHKey {
@@ -135,31 +136,31 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		if runtime.GOOS == "darwin" {
 			sshAddCmd = "ssh-add -K "
 		}
-		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", "", config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", "", config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 	} else {
-		er = executeCommand(gitCmd, "", config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand(gitCmd, "", config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 	}
 
 	if er.returnCode != 0 {
 		if config.UseCacheFallback {
-			Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment!")
-			Warnf("WARN: Trying to use cache for " + gitModule.git + " git repository")
+			logging.Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment!")
+			logging.Warnf("WARN: Trying to use cache for " + gitModule.git + " git repository")
 			return false
 		} else if config.RetryGitCommands && retryCount > -1 {
-			Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
+			logging.Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
 			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
 			return doMirrorOrUpdate(gitModule, workDir, retryCount-1)
 		}
-		Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
+		logging.Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
 		return false
 	}
 
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
 		// if clone of git modules was specified, switch to the module and try to switch to the reference commit hash/tag/branch
 		gitCmd = "git checkout " + gitModule.tree
-		er = executeCommand(gitCmd, workDir, config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand(gitCmd, workDir, config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 		if er.returnCode != 0 {
-			Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
+			logging.Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
 			return false
 		}
 	}
@@ -174,7 +175,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	mutex.Unlock()
 	if !isDir(srcDir) {
 		if config.UseCacheFallback {
-			Fatalf("Could not find cached git module " + srcDir)
+			logging.Fatalf("Could not find cached git module " + srcDir)
 		}
 	}
 	revParseCmd := "git --git-dir " + srcDir + " rev-parse --verify '" + gitModule.tree
@@ -192,7 +193,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	needToSync := true
 	if er.returnCode != 0 {
 		if gitModule.ignoreUnreachable {
-			Debugf("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+			logging.Debugf("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
 			purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
 		}
 		return false
@@ -210,19 +211,19 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		} else {
 			targetHashByte, _ := ioutil.ReadFile(hashFile)
 			targetHash := string(targetHashByte)
-			Debugf("string content of " + hashFile + " is: " + targetHash)
+			logging.Debugf("string content of " + hashFile + " is: " + targetHash)
 			if targetHash == commitHash {
 				needToSync = false
-				Debugf("Skipping, because no diff found between " + srcDir + "(" + commitHash + ") and " + targetDir + "(" + targetHash + ")")
+				logging.Debugf("Skipping, because no diff found between " + srcDir + "(" + commitHash + ") and " + targetDir + "(" + targetHash + ")")
 			} else {
-				Debugf("Need to sync, because existing Git module: " + targetDir + " has commit " + targetHash + " and the to be synced commit is: " + commitHash)
+				logging.Debugf("Need to sync, because existing Git module: " + targetDir + " has commit " + targetHash + " and the to be synced commit is: " + commitHash)
 			}
 		}
 
 	}
 	if needToSync && er.returnCode == 0 {
 		mutex.Lock()
-		Infof("Need to sync " + targetDir)
+		logging.Infof("Need to sync " + targetDir)
 		needSyncDirs = append(needSyncDirs, targetDir)
 		if _, ok := needSyncEnvs[correspondingPuppetEnvironment]; !ok {
 			needSyncEnvs[correspondingPuppetEnvironment] = empty
@@ -236,7 +237,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 			// then check if it contains a Puppetfile
 			gitShowCmd := "git --git-dir " + srcDir + " show " + gitModule.tree + ":Puppetfile"
 			executeResult := executeCommand(gitShowCmd, "", config.Timeout, true, false)
-			Debugf("Executing " + gitShowCmd)
+			logging.Debugf("Executing " + gitShowCmd)
 			if executeResult.returnCode != 0 {
 				purgeWholeEnvDir = true
 			} else {
@@ -259,7 +260,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		if purgeWholeEnvDir {
 			purgeDir(targetDir, "need to sync")
 		} else {
-			Infof("Detected control repo change, but trying to preserve module dir " + filepath.Join(targetDir, moduleDir))
+			logging.Infof("Detected control repo change, but trying to preserve module dir " + filepath.Join(targetDir, moduleDir))
 			purgeControlRepoExceptModuledir(targetDir, moduleDir)
 		}
 
@@ -270,15 +271,15 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 			checkDirAndCreate(targetDir, "git dir")
 			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", gitModule.tree}
 			cmd := exec.Command("git", gitArchiveArgs...)
-			Debugf("Executing git --git-dir " + srcDir + " archive " + gitModule.tree)
+			logging.Debugf("Executing git --git-dir " + srcDir + " archive " + gitModule.tree)
 			cmdOut, err := cmd.StdoutPipe()
 			if err != nil {
 				if !gitModule.ignoreUnreachable {
-					Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
+					logging.Infof("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
 				} else {
 					return false
 				}
-				Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + gitModule.tree + " Error: " + err.Error())
+				logging.Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + gitModule.tree + " Error: " + err.Error())
 			}
 			cmd.Start()
 
@@ -291,16 +292,16 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 
 			err = cmd.Wait()
 			if err != nil {
-				Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + gitModule.tree + " Error: " + err.Error())
+				logging.Fatalf("syncToModuleDir(): Failed to execute command: git --git-dir " + srcDir + " archive " + gitModule.tree + " Error: " + err.Error())
 				//"\nIf you are using GitLab please ensure that you've added your deploy key to your repository." +
 				//"\nThe Puppet environment which is using this unresolveable repository is " + correspondingPuppetEnvironment)
 			}
 
-			Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + gitModule.tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+			logging.Verbosef("syncToModuleDir(): Executing git --git-dir " + srcDir + " archive " + gitModule.tree + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 
 			commitHash := strings.TrimSuffix(er.output, "\n")
 			if isControlRepo {
-				Debugf("Writing to deploy file " + deployFile)
+				logging.Debugf("Writing to deploy file " + deployFile)
 				dr := DeployResult{
 					Name:      gitModule.tree,
 					Signature: commitHash,
@@ -308,7 +309,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 				}
 				writeStructJSONFile(deployFile, dr)
 			} else {
-				Debugf("Writing hash " + commitHash + " from command " + revParseCmd + " to " + hashFile)
+				logging.Debugf("Writing hash " + commitHash + " from command " + revParseCmd + " to " + hashFile)
 				f, _ := os.Create(hashFile)
 				defer f.Close()
 				f.WriteString(commitHash)
@@ -327,7 +328,7 @@ func detectDefaultBranch(gitDir string) string {
 	er := executeCommand(remoteShowOriginCmd, "", config.Timeout, false, false)
 	foundRefs := strings.Split(er.output, "\n")
 	if len(foundRefs) < 1 {
-		Fatalf("Unable to detect default branch for git repository with command git ls-remote --symref " + gitDir)
+		logging.Fatalf("Unable to detect default branch for git repository with command git ls-remote --symref " + gitDir)
 	}
 	// should look like this:
 	// ref: refs/heads/main\tHEAD
@@ -342,13 +343,13 @@ func detectGitRemoteURLChange(d string, url string) bool {
 
 	er := executeCommand(gitRemoteCmd, "", config.Timeout, false, false)
 	if er.returnCode != 0 {
-		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		logging.Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
 		return true
 	}
 
 	f := strings.Fields(er.output)
 	if len(f) < 3 {
-		Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
+		logging.Warnf("WARN: Could not detect remote URL for git repository " + d + " trying to purge it and mirror it again")
 		return true
 	}
 	configuredRemote := f[1]
