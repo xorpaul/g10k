@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 	"gopkg.in/yaml.v2"
 )
@@ -46,15 +48,15 @@ func readConfigfile(configFile string) ConfigSettings {
 	if len(os.Getenv("g10k_cachedir")) > 0 {
 		cachedir := os.Getenv("g10k_cachedir")
 		logging.Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
-		config.CacheDir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
+		config.CacheDir = fsutils.CheckDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
 	} else {
-		config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir from g10k config "+configFile)
+		config.CacheDir = fsutils.CheckDirAndCreate(config.CacheDir, "cachedir from g10k config "+configFile)
 	}
 
-	config.CacheDir = checkDirAndCreate(config.CacheDir, "cachedir")
-	config.ForgeCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "forge"), "cachedir/forge")
-	config.ModulesCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
-	config.EnvCacheDir = checkDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
+	config.CacheDir = fsutils.CheckDirAndCreate(config.CacheDir, "cachedir")
+	config.ForgeCacheDir = fsutils.CheckDirAndCreate(filepath.Join(config.CacheDir, "forge"), "cachedir/forge")
+	config.ModulesCacheDir = fsutils.CheckDirAndCreate(filepath.Join(config.CacheDir, "modules"), "cachedir/modules")
+	config.EnvCacheDir = fsutils.CheckDirAndCreate(filepath.Join(config.CacheDir, "environments"), "cachedir/environments")
 
 	if len(config.ForgeBaseURL) == 0 {
 		config.ForgeBaseURL = "https://forgeapi.puppet.com"
@@ -131,7 +133,7 @@ func readConfigfile(configFile string) ConfigSettings {
 	}
 
 	for source, sa := range config.Sources {
-		sa.Basedir = normalizeDir(sa.Basedir)
+		sa.Basedir = fsutils.NormalizeDir(sa.Basedir)
 
 		// set default to "correct_and_warn" like r10k
 		// https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches
@@ -236,7 +238,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			logging.Fatalf("Error: found dangling module attribute in " + pf + " somewhere here: " + previousLine + line + " Check for missing , at the end of the line.")
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 && len(moduleDirParam) == 0 {
-			moduleDir = normalizeDir(m[1])
+			moduleDir = fsutils.NormalizeDir(m[1])
 			moduleDirs = append(moduleDirs, moduleDir)
 		} else if m := reForgeBaseURL.FindStringSubmatch(line); len(m) > 1 {
 			puppetFile.forgeBaseURL = m[1]
@@ -427,7 +429,7 @@ func readPuppetfile(pf string, sshKey string, source string, branch string, forc
 			}
 		} else {
 			// for now only in dry run mode
-			if dryRun {
+			if internal.DryRun {
 				logging.Fatalf("Error: Could not interpret line: " + line + " In " + pf)
 			}
 

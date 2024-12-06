@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 )
 
@@ -22,7 +24,6 @@ var (
 	pfMode                       bool
 	pfLocation                   string
 	clonegit                     bool
-	dryRun                       bool
 	check4update                 bool
 	checkSum                     bool
 	gitObjectSyntaxNotSupported  bool
@@ -234,7 +235,7 @@ func main() {
 	flag.StringVar(&pfLocation, "puppetfilelocation", "./Puppetfile", "which Puppetfile to use in -puppetfile mode")
 	flag.BoolVar(&clonegit, "clonegit", false, "populate the Puppet environment with a git clone of each git Puppet module. Helpful when developing locally with -puppetfile")
 	flag.BoolVar(&force, "force", false, "purge the Puppet environment directory and do a full sync")
-	flag.BoolVar(&dryRun, "dryrun", false, "do not modify anything, just print what would be changed")
+	flag.BoolVar(&internal.DryRun, "dryrun", false, "do not modify anything, just print what would be changed")
 	flag.BoolVar(&logging.Validate, "validate", false, "only validate given configuration and exit")
 	flag.BoolVar(&usemove, "usemove", false, "do not use hardlinks to populate your Puppet environments with Puppetlabs Forge modules. Instead uses simple move commands and purges the Forge cache directory after each run! (Useful for g10k runs inside a Docker container)")
 	flag.BoolVar(&check4update, "check4update", false, "only check if the is newer version of the Puppet module avaialable. Does implicitly set dryrun to true")
@@ -257,7 +258,7 @@ func main() {
 	}
 
 	if check4update {
-		dryRun = true
+		internal.DryRun = true
 	}
 
 	// check for git executable dependency
@@ -282,7 +283,7 @@ func main() {
 		}
 		logging.Debugf("Using as config file: " + configFile)
 		config = readConfigfile(configFile)
-		checkDirAndCreate(config.CacheDir, "cachedir configured value")
+		fsutils.CheckDirAndCreate(config.CacheDir, "cachedir configured value")
 		target = configFile
 		if len(branchParam) > 0 {
 			resolvePuppetEnvironment(tags, outputNameParam)
@@ -299,17 +300,17 @@ func main() {
 			cachedir := "/tmp/g10k"
 			if len(os.Getenv("g10k_cachedir")) > 0 {
 				cachedir = os.Getenv("g10k_cachedir")
-				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
+				cachedir = fsutils.CheckDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
 				logging.Debugf("Found environment variable g10k_cachedir set to: " + cachedir)
 			} else if len(cacheDirParam) > 0 {
 				logging.Debugf("Using -cachedir parameter set to : " + cacheDirParam)
-				cachedir = checkDirAndCreate(cacheDirParam, "cachedir CLI param")
+				cachedir = fsutils.CheckDirAndCreate(cacheDirParam, "cachedir CLI param")
 			} else {
-				cachedir = checkDirAndCreate(cachedir, "cachedir default value")
+				cachedir = fsutils.CheckDirAndCreate(cachedir, "cachedir default value")
 			}
-			forgeCachedir := checkDirAndCreate(filepath.Join(cachedir, "forge"), "default in pfMode")
-			modulesCacheDir := checkDirAndCreate(filepath.Join(cachedir, "modules"), "default in pfMode")
-			envsCacheDir := checkDirAndCreate(filepath.Join(cachedir, "environments"), "default in pfMode")
+			forgeCachedir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "forge"), "default in pfMode")
+			modulesCacheDir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "modules"), "default in pfMode")
+			envsCacheDir := fsutils.CheckDirAndCreate(filepath.Join(cachedir, "environments"), "default in pfMode")
 			config = ConfigSettings{CacheDir: cachedir, ForgeCacheDir: forgeCachedir, ModulesCacheDir: modulesCacheDir, EnvCacheDir: envsCacheDir, Sources: sm, ForgeBaseURL: "https://forgeapi.puppet.com", Maxworker: maxworker, UseCacheFallback: usecacheFallback, MaxExtractworker: maxExtractworker, RetryGitCommands: retryGitCommands, GitObjectSyntaxNotSupported: gitObjectSyntaxNotSupported}
 			// default purge_levels
 			config.PurgeLevels = []string{"puppetfile"}
@@ -329,7 +330,7 @@ func main() {
 
 	if usemove {
 		// we can not reuse the Forge cache at all when -usemove gets used, because we can not delete the -latest link for some reason
-		defer purgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
+		defer fsutils.PurgeDir(config.ForgeCacheDir, "main() -puppetfile mode with -usemove parameter")
 	}
 
 	logging.Debugf("Forge response JSON parsing took " + strconv.FormatFloat(forgeJSONParseTime, 'f', 4, 64) + " seconds")
@@ -341,7 +342,7 @@ func main() {
 		}
 		fmt.Println("Synced", target, "with", syncGitCount, "git repositories and", syncForgeCount, "Forge modules in "+strconv.FormatFloat(time.Since(before).Seconds(), 'f', 1, 64)+"s with git ("+strconv.FormatFloat(syncGitTime, 'f', 1, 64)+"s sync, I/O", strconv.FormatFloat(ioGitTime, 'f', 1, 64)+"s) and Forge ("+strconv.FormatFloat(syncForgeTime, 'f', 1, 64)+"s query+download, I/O", strconv.FormatFloat(ioForgeTime, 'f', 1, 64)+"s) using", strconv.Itoa(config.Maxworker), "resolve and", strconv.Itoa(config.MaxExtractworker), "extract workers")
 	}
-	if dryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
+	if internal.DryRun && (needSyncForgeCount > 0 || needSyncGitCount > 0) {
 		os.Exit(1)
 	}
 

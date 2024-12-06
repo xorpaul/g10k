@@ -8,9 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 )
 
+// FIXME: this should also go into fsutils
+// need to refactror config first
 func unTar(r io.Reader, targetBaseDir string) {
 	funcName := logging.FuncName()
 	tarBallReader := tar.NewReader(r)
@@ -82,7 +85,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			writer.Close()
 
 		case tar.TypeSymlink:
-			if fileExists(targetFilename) {
+			if fsutils.FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
@@ -92,7 +95,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			}
 
 		case tar.TypeLink:
-			if fileExists(targetFilename) {
+			if fsutils.FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
 					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xorpaul/g10k/internal"
+	"github.com/xorpaul/g10k/internal/fsutils"
 	"github.com/xorpaul/g10k/internal/logging"
 	"github.com/xorpaul/uiprogress"
 )
@@ -117,9 +119,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		// we switch to the defined reference later
 		gitCmd = "git clone " + gitModule.git + " " + workDir
 	}
-	if isDir(workDir) {
+	if fsutils.IsDir(workDir) {
 		if detectGitRemoteURLChange(workDir, gitModule.git) && isControlRepo {
-			purgeDir(workDir, "git remote url changed")
+			fsutils.PurgeDir(workDir, "git remote url changed")
 		} else {
 			gitCmd = "git --git-dir " + workDir + " remote update --prune"
 		}
@@ -148,7 +150,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 			return false
 		} else if config.RetryGitCommands && retryCount > -1 {
 			logging.Warnf("WARN: git command failed: " + gitCmd + " deleting local cached repository and retrying...")
-			purgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
+			fsutils.PurgeDir(workDir, "doMirrorOrUpdate, because git command failed, retrying")
 			return doMirrorOrUpdate(gitModule, workDir, retryCount-1)
 		}
 		logging.Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
@@ -173,7 +175,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	mutex.Lock()
 	syncGitCount++
 	mutex.Unlock()
-	if !isDir(srcDir) {
+	if !fsutils.IsDir(srcDir) {
 		if config.UseCacheFallback {
 			logging.Fatalf("Could not find cached git module " + srcDir)
 		}
@@ -194,7 +196,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	if er.returnCode != 0 {
 		if gitModule.ignoreUnreachable {
 			logging.Debugf("Failed to populate module " + targetDir + " but ignore-unreachable is set. Continuing...")
-			purgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
+			fsutils.PurgeDir(targetDir, "syncToModuleDir, because ignore-unreachable is set for this module")
 		}
 		return false
 	}
@@ -202,7 +204,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 	if len(er.output) > 0 {
 		commitHash := strings.TrimSuffix(er.output, "\n")
 		if strings.HasPrefix(srcDir, config.EnvCacheDir) {
-			if fileExists(deployFile) {
+			if fsutils.FileExists(deployFile) {
 				dr := readDeployResultFile(deployFile)
 				if dr.Signature == strings.TrimSuffix(er.output, "\n") && dr.DeploySuccess {
 					needToSync = false
@@ -233,7 +235,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		moduleDir := "modules"
 		purgeWholeEnvDir := true
 		// check if it is a control repo and already exists
-		if isControlRepo && isDir(targetDir) {
+		if isControlRepo && fsutils.IsDir(targetDir) {
 			// then check if it contains a Puppetfile
 			gitShowCmd := "git --git-dir " + srcDir + " show " + gitModule.tree + ":Puppetfile"
 			executeResult := executeCommand(gitShowCmd, "", config.Timeout, true, false)
@@ -249,7 +251,7 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 						if len(moduleDirParam) != 0 {
 							moduleDir = moduleDirParam
 						} else {
-							moduleDir = normalizeDir(m[1])
+							moduleDir = fsutils.NormalizeDir(m[1])
 						}
 					}
 				}
@@ -258,17 +260,17 @@ func syncToModuleDir(gitModule GitModule, srcDir string, targetDir string, corre
 		// if so delete everything except the moduledir where the Puppet modules reside
 		// else simply delete the whole dir and check it out again
 		if purgeWholeEnvDir {
-			purgeDir(targetDir, "need to sync")
+			fsutils.PurgeDir(targetDir, "need to sync")
 		} else {
 			logging.Infof("Detected control repo change, but trying to preserve module dir " + filepath.Join(targetDir, moduleDir))
 			purgeControlRepoExceptModuledir(targetDir, moduleDir)
 		}
 
-		if !dryRun && !config.CloneGitModules || isControlRepo {
+		if !internal.DryRun && !config.CloneGitModules || isControlRepo {
 			if pfMode {
-				purgeDir(targetDir, "git dir with changes in -puppetfile mode")
+				fsutils.PurgeDir(targetDir, "git dir with changes in -puppetfile mode")
 			}
-			checkDirAndCreate(targetDir, "git dir")
+			fsutils.CheckDirAndCreate(targetDir, "git dir")
 			gitArchiveArgs := []string{"--git-dir", srcDir, "archive", gitModule.tree}
 			cmd := exec.Command("git", gitArchiveArgs...)
 			logging.Debugf("Executing git --git-dir " + srcDir + " archive " + gitModule.tree)
