@@ -170,7 +170,7 @@ func purgeDir(dir string, callingFunction string) {
 	}
 }
 
-func executeCommand(command string, commandDir string, timeout int, allowFail bool, disableHttpProxy bool) ExecResult {
+func executeCommand(command string, commandDir string, timeout int, allowFail bool, disableHTTPProxy bool) ExecResult {
 	if len(commandDir) > 0 {
 		Debugf("Executing " + command + " in cwd " + commandDir)
 	} else {
@@ -193,7 +193,7 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 	if len(commandDir) > 0 {
 		execCommand.Dir = commandDir
 	}
-	if disableHttpProxy {
+	if disableHTTPProxy {
 		Debugf("found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for " + command)
 		// execCommand.Env = append(os.Environ(), "http_proxy=")
 		// execCommand.Env = append(os.Environ(), "https_proxy=")
@@ -346,9 +346,8 @@ func readDeployResultFile(file string) DeployResult {
 func stripComponent(component string, env string) string {
 	if regexp.MustCompile(`^/.*/$`).MatchString(component) {
 		return regexp.MustCompile(component[1:len(component)-1]).ReplaceAllString(env, "")
-	} else {
-		return strings.TrimPrefix(env, component)
 	}
+	return strings.TrimPrefix(env, component)
 }
 
 func matchGitRemoteURLNoProxy(url string) bool {
