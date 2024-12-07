@@ -15,3 +15,4 @@ external_modules/
 tests/github-test-private/
 coverage.txt
 local.yaml
+.vscode/

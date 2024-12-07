@@ -1,4 +1,4 @@
-package main
+package fsutils
 
 import (
 	"archive/tar"
@@ -7,10 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/xorpaul/g10k/internal/logging"
 )
 
-func unTar(r io.Reader, targetBaseDir string) {
-	funcName := funcName()
+// UnTar extracts a tarball from an io.Reader to a target directory stripping the leading path for forge modules
+func UnTar(r io.Reader, targetBaseDir string, forgeCacheDir string, purgeSkipList []string) {
+	funcName := logging.FuncName()
 	tarBallReader := tar.NewReader(r)
 	for {
 		header, err := tarBallReader.Next()
@@ -18,7 +21,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			if err == io.EOF {
 				break
 			}
-			Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + " Error: " + err.Error())
+			logging.Fatalf(funcName + "(): error while tar reader.Next() for io.Reader with targetBaseDir " + targetBaseDir + " Error: " + err.Error())
 		}
 
 		// get the individual filename and extract to the current directory
@@ -28,13 +31,13 @@ func unTar(r io.Reader, targetBaseDir string) {
 		// e.g puppetlabs-stdlib-6.0.0/MAINTAINERS.md for a forge module
 		// and MAINTAINERS.md for a git module
 		skiplistFilename := filename
-		if targetBaseDir == config.ForgeCacheDir {
+		if targetBaseDir == forgeCacheDir {
 			skiplistFilenameComponents := strings.SplitAfterN(filename, "/", 2)
 			if len(skiplistFilenameComponents) > 1 {
 				skiplistFilename = skiplistFilenameComponents[1]
 			}
 		}
-		if matchSkiplistContent(skiplistFilename) {
+		if matchSkiplistContent(skiplistFilename, purgeSkipList) {
 			continue
 		}
 		targetFilename := filepath.Join(targetBaseDir, filename)
@@ -48,14 +51,14 @@ func unTar(r io.Reader, targetBaseDir string) {
 			err = os.MkdirAll(targetFilename, os.FileMode(0755)) // or use 0755 if you prefer
 
 			if err != nil {
-				Fatalf(funcName + "(): error while MkdirAll() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while MkdirAll() file: " + filename + " Error: " + err.Error())
 
 			}
 
 			err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime)
 
 			if err != nil {
-				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
 
 			}
 
@@ -65,38 +68,38 @@ func unTar(r io.Reader, targetBaseDir string) {
 			writer, err := os.Create(targetFilename)
 
 			if err != nil {
-				Fatalf(funcName + "(): error while Create() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while Create() file: " + filename + " Error: " + err.Error())
 			}
 			if _, err = io.Copy(writer, tarBallReader); err != nil {
-				Fatalf(funcName + "(): error while io.copy() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while io.copy() file: " + filename + " Error: " + err.Error())
 			}
 			if err = os.Chmod(targetFilename, os.FileMode(header.Mode)); err != nil {
-				Fatalf(funcName + "(): error while Chmod() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while Chmod() file: " + filename + " Error: " + err.Error())
 			}
 			if err = os.Chtimes(targetFilename, header.AccessTime, header.ModTime); err != nil {
-				Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while Chtimes() file: " + filename + " Error: " + err.Error())
 			}
 
 			writer.Close()
 
 		case tar.TypeSymlink:
-			if fileExists(targetFilename) {
+			if FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
-					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
+					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with symlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
 			}
 			if err = os.Symlink(header.Linkname, targetFilename); err != nil {
-				Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
+				logging.Fatalf(funcName + "(): error while creating symlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
 			}
 
 		case tar.TypeLink:
-			if fileExists(targetFilename) {
+			if FileExists(targetFilename) {
 				if err = os.Remove(targetFilename); err != nil {
-					Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
+					logging.Fatalf(funcName + "(): error while removing existing file " + targetFilename + " to be replaced with hardlink pointing to " + header.Linkname + " Error: " + err.Error())
 				}
 			}
-			if err = os.Link(header.Linkname, targetFilename); err != nil {
-				Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
+			if err = os.Link(filepath.Join(targetBaseDir, header.Linkname), targetFilename); err != nil {
+				logging.Fatalf(funcName + "(): error while creating hardlink " + targetFilename + " pointing to " + header.Linkname + " Error: " + err.Error())
 			}
 
 		// Skip pax_global_header with the commit ID this archive was created from
@@ -104,7 +107,7 @@ func unTar(r io.Reader, targetBaseDir string) {
 			continue
 
 		default:
-			Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
+			logging.Fatalf(funcName + "(): Unable to untar type: " + string(header.Typeflag) + " in file " + filename)
 		}
 	}
 	// tarball produced by git archive has trailing nulls in the stream which are not
@@ -114,19 +117,19 @@ func unTar(r io.Reader, targetBaseDir string) {
 	buf := make([]byte, 4096)
 	nread, err := r.Read(buf)
 	for nread > 0 && err == nil {
-		Debugf(fmt.Sprintf("Discarded %d bytes of trailing data from tar", nread))
+		logging.Debugf(fmt.Sprintf("Discarded %d bytes of trailing data from tar", nread))
 		nread, err = r.Read(buf)
 	}
 }
 
-func matchSkiplistContent(filePath string) bool {
-	for _, blPattern := range config.PurgeSkiplist {
+func matchSkiplistContent(filePath string, purgeSkipList []string) bool {
+	for _, blPattern := range purgeSkipList {
 		filepathResult, _ := filepath.Match(blPattern, filePath)
 		if strings.HasPrefix(filePath, blPattern) || filepathResult {
-			Debugf("skipping file " + filePath + " because purge_skiplist pattern '" + blPattern + "' matches")
+			logging.Debugf("skipping file " + filePath + " because purge_skiplist pattern '" + blPattern + "' matches")
 			return true
 		}
 	}
-	//Debugf("not skipping file " + filePath + " because no purge_skiplist pattern matches")
+	//logging.Debugf("not skipping file " + filePath + " because no purge_skiplist pattern matches")
 	return false
 }
