@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +34,7 @@ func checkDeprecation(fm ForgeModule, lastCheckedFile string) bool {
 		} else if fm.cacheTTL > 0 && fileInfo.ModTime().Add(fm.cacheTTL).Before(time.Now()) {
 			return false
 		} else {
-			json, err := ioutil.ReadFile(lastCheckedFile)
+			json, err := os.ReadFile(lastCheckedFile)
 			if err != nil {
 				logging.Fatalf("doModuleInstallOrNothing(): Error while reading Forge API result from file " + lastCheckedFile + err.Error())
 			}
@@ -205,7 +204,7 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 
 	if resp.StatusCode == http.StatusOK {
 		// need to get latest version
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			logging.Fatalf("queryForgeAPI(): Error while reading response body for Forge module " + fm.name + " from " + url + ": " + err.Error())
 		}
@@ -309,7 +308,7 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 
 		if err != nil {
 			logging.Fatalf("getMetadataForgeModule(): Error while reading response body for Forge module " + fm.name + " from " + url + ": " + err.Error())
@@ -456,7 +455,7 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 
 // readModuleMetadata returns the Forgemodule struct of the given module file path
 func readModuleMetadata(file string) ForgeModule {
-	content, _ := ioutil.ReadFile(file)
+	content, _ := os.ReadFile(file)
 
 	before := time.Now()
 	name := gjson.Get(string(content), "name").String()

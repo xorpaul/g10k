@@ -1,7 +1,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -93,7 +92,7 @@ type Source struct {
 // config.ReadConfigFile creates the ConfigSettings struct from the g10k config file
 func ReadConfigFile(configFile string) ConfigSettings {
 	logging.Debugf("Trying to read g10k config file: " + configFile)
-	data, err := ioutil.ReadFile(configFile)
+	data, err := os.ReadFile(configFile)
 	if err != nil {
 		logging.Fatalf("config.ReadConfigFile(): There was an error parsing the config file " + configFile + ": " + err.Error())
 	}

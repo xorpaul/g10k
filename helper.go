@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -101,7 +101,7 @@ func writeStructJSONFile(file string, v interface{}) {
 		logging.Warnf("Could not encode JSON file " + file + " " + err.Error())
 	}
 
-	err = ioutil.WriteFile(file, content, 0644)
+	err = os.WriteFile(file, content, 0644)
 	if err != nil {
 		logging.Warnf("Could not write JSON file " + file + " " + err.Error())
 	}
@@ -117,7 +117,7 @@ func readDeployResultFile(file string) DeployResult {
 	}
 	defer jsonFile.Close()
 
-	byteValue, err := ioutil.ReadAll(jsonFile)
+	byteValue, err := io.ReadAll(jsonFile)
 	if err != nil {
 		logging.Warnf("Could not read JSON file " + file + " " + err.Error())
 	}
