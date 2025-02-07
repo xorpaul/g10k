@@ -2,6 +2,8 @@ module github.com/xorpaul/g10k
 
 go 1.23
 
+toolchain go1.23.5
+
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.18.0
