@@ -125,9 +125,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	}
 
 	// check if git URL does match NO_PROXY
-	disableHttpProxy := false
+	disableHTTPProxy := false
 	if matchGitRemoteURLNoProxy(gitModule.git) {
-		disableHttpProxy = true
+		disableHTTPProxy = true
 	}
 
 	if explicitlyLoadSSHKey {
@@ -135,9 +135,9 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 		if runtime.GOOS == "darwin" {
 			sshAddCmd = "ssh-add -K "
 		}
-		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", "", config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand("ssh-agent bash -c '"+sshAddCmd+gitModule.privateKey+"; "+gitCmd+"'", "", config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 	} else {
-		er = executeCommand(gitCmd, "", config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand(gitCmd, "", config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 	}
 
 	if er.returnCode != 0 {
@@ -157,7 +157,7 @@ func doMirrorOrUpdate(gitModule GitModule, workDir string, retryCount int) bool 
 	if config.CloneGitModules && !isControlRepo && !isInModulesCacheDir {
 		// if clone of git modules was specified, switch to the module and try to switch to the reference commit hash/tag/branch
 		gitCmd = "git checkout " + gitModule.tree
-		er = executeCommand(gitCmd, workDir, config.Timeout, gitModule.ignoreUnreachable, disableHttpProxy)
+		er = executeCommand(gitCmd, workDir, config.Timeout, gitModule.ignoreUnreachable, disableHTTPProxy)
 		if er.returnCode != 0 {
 			Warnf("WARN: git repository " + gitModule.git + " does not exist or is unreachable at this moment! Error: " + er.output)
 			return false
