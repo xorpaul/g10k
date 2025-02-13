@@ -24,7 +24,8 @@ jobs:
       - name: setup go environment stable
         uses: actions/setup-go@v3
         with:
-          go-version: '1.13.5'
+          go-version: '1.24'
+          check-latest: true
       # Installs dependendencies for testing
       - name: Install additional Packages on ${{ matrix.os }}
         run: |
