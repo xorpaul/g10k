@@ -356,7 +356,7 @@ func TestResolveStaticSkiplist(t *testing.T) {
 	}
 	for _, expectedMissingFile := range expectedMissingFiles {
 		if fileExists(expectedMissingFile) {
-			t.Errorf("skiplisted directory still exists that should have been purged! " + expectedMissingFile)
+			t.Errorf("skiplisted directory still exists that should have been purged! %s", expectedMissingFile)
 		}
 	}
 
@@ -382,6 +382,35 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
 		debug = true
 		branchParam = ""
+		resolvePuppetEnvironment(false, "")
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
+	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := 0
+	if msg, ok := err.(*exec.ExitError); ok { // there is error code
+		exitCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
+	}
+
+	if exitCode != 0 {
+		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, 0)
+	}
+	if !strings.Contains(string(out), "Failed to populate module /tmp/failing/master/modules/sensu but ignore-unreachable is set. Continuing...") {
+		t.Errorf("terminated with the correct exit code, but the expected output was missing. Output was: %s", string(out))
+	}
+	debug = false
+}
+
+func TestConfigGlobalAllowFailForge(t *testing.T) {
+	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
+	config = readConfigfile(filepath.Join("tests", "TestConfigGlobalAllowFail.yaml"))
+
+	if os.Getenv("TEST_FOR_CRASH_"+funcName) == "1" {
+		debug = true
+		branchParam = "singe_forge_unreachable"
 		resolvePuppetEnvironment(false, "")
 		return
 	}
@@ -754,7 +783,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Errorf("Could not find expected line '%s' in output", expectedLine)
 		}
 	}
 	// fix module again
@@ -784,7 +813,7 @@ func TestEnvFullSyncIfModuleWasTemporarilyNotAvailable(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(outAgain), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Errorf("Could not find expected line '%s' in output", expectedLine)
 		}
 	}
 
@@ -1419,7 +1448,7 @@ func TestResolvePuppetfileLocalModules(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Errorf("Could not find expected line '%s' in output", expectedLine)
 		}
 	}
 
@@ -1868,7 +1897,7 @@ func TestPostrunCommand(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(content), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in postrun logfile " + postrunLogfile + " Check variable replacement in postrun command.")
+			t.Errorf("Could not find expected line '%s' in postrun logfile %s Check variable replacement in postrun command.", expectedLine, postrunLogfile)
 		}
 	}
 
@@ -1919,7 +1948,7 @@ func TestPostrunCommandDirs(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(content), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in postrun logfile " + postrunLogfile + ". Check variable replacement in postrun command.")
+			t.Errorf("Could not find expected line '%s' in postrun logfile %s Check variable replacement in postrun command.", expectedLine, postrunLogfile)
 		}
 	}
 
@@ -2056,7 +2085,7 @@ func TestCheckDirPermissions(t *testing.T) {
 		t.Errorf("terminated with the correct exit code, but the expected output was missing. out: %s", string(out))
 	}
 	if err := os.Chmod(cacheDir, 0777); err != nil {
-		t.Errorf("Could not add write permissions again for cachedir: " + cacheDir + " Error: " + err.Error())
+		t.Errorf("Could not add write permissions again for cachedir: %s Error: %s", cacheDir, err.Error())
 	}
 	purgeDir(cacheDir, funcName)
 	purgeDir("/tmp/example", funcName)
@@ -2097,7 +2126,7 @@ func TestPurgeStalePuppetfileOnly(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Errorf("Could not find expected line '%s' in output", expectedLine)
 		}
 	}
 
@@ -2106,7 +2135,7 @@ func TestPurgeStalePuppetfileOnly(t *testing.T) {
 	}
 	for _, missingFile := range missingFiles {
 		if fileExists(missingFile) {
-			t.Errorf("stale file and/or directory still exists! " + missingFile)
+			t.Errorf("stale file and/or directory still exists! %s", missingFile)
 		}
 	}
 
@@ -2164,7 +2193,7 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 
@@ -2232,7 +2261,7 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 
@@ -2248,7 +2277,7 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("files and/or directory missing that should not have been purged! " + expectedFile)
+			t.Error("files and/or directory missing that should not have been purged! " + expectedFile)
 		}
 	}
 
@@ -2294,7 +2323,7 @@ func TestEnvironmentParameter(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 
@@ -2308,7 +2337,7 @@ func TestEnvironmentParameter(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("Puppet environment full_master seems not to have been populated " + expectedFile)
+			t.Error("Puppet environment full_master seems not to have been populated " + expectedFile)
 		}
 	}
 
@@ -2373,7 +2402,7 @@ func TestSkipPurgingWithMultipleSources(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 
@@ -2512,7 +2541,7 @@ func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 
@@ -2527,7 +2556,7 @@ func TestAutoCorrectEnvironmentNamesPurge(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+			t.Error("Puppet environment/module file missing: " + expectedFile)
 		}
 	}
 
@@ -2571,7 +2600,7 @@ func TestUnresolveableModuleReferenceOutputGit(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 }
@@ -2614,7 +2643,7 @@ func TestUnresolveableModuleReferenceOutputForge(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 }
@@ -2661,7 +2690,7 @@ func TestCloneGitModules(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 
@@ -2674,7 +2703,7 @@ func TestCloneGitModules(t *testing.T) {
 
 	for _, expectedDir := range expectedDirs {
 		if !isDir(expectedDir) {
-			t.Errorf("This Puppet module is not a cloned git repository despite clone_git_modules set to true :" + expectedDir)
+			t.Error("This Puppet module is not a cloned git repository despite clone_git_modules set to true :" + expectedDir)
 		}
 	}
 	// check
@@ -2682,13 +2711,13 @@ func TestCloneGitModules(t *testing.T) {
 		headFile := filepath.Join(expectedDir, "HEAD")
 		content, err := os.ReadFile(headFile)
 		if err != nil {
-			t.Errorf("Error while reading content of file " + headFile + " Error: " + err.Error())
+			t.Error("Error while reading content of file " + headFile + " Error: " + err.Error())
 		}
 		stringContent := string(content)
 		if headFile == "/tmp/full/full_another/modules/stdlib/.git/HEAD" {
 			expectedBranch := "ref: refs/heads/release"
 			if strings.TrimRight(stringContent, "\n") != expectedBranch {
-				t.Errorf("Error wrong branch found in checked out Git repo for " + expectedDir + " We expected " + expectedBranch + ", but found content: " + stringContent)
+				t.Error("Error wrong branch found in checked out Git repo for " + expectedDir + " We expected " + expectedBranch + ", but found content: " + stringContent)
 			}
 		}
 	}
@@ -2733,7 +2762,7 @@ func TestPrivateGithubRepository(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+			t.Error("Puppet environment/module file missing: " + expectedFile)
 		}
 	}
 
@@ -2780,7 +2809,7 @@ func TestBranchFilterCommand(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+			t.Error("Puppet environment/module file missing: " + expectedFile)
 		}
 	}
 
@@ -2791,7 +2820,7 @@ func TestBranchFilterCommand(t *testing.T) {
 	}
 	for _, expectedMissingFile := range expectedMissingFiles {
 		if fileExists(expectedMissingFile) {
-			t.Errorf("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
+			t.Error("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
 		}
 	}
 
@@ -2837,7 +2866,7 @@ func TestBranchFilterRegex(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("Puppet environment/module file missing: " + expectedFile)
+			t.Error("Puppet environment/module file missing: " + expectedFile)
 		}
 	}
 
@@ -2848,7 +2877,7 @@ func TestBranchFilterRegex(t *testing.T) {
 	}
 	for _, expectedMissingFile := range expectedMissingFiles {
 		if fileExists(expectedMissingFile) {
-			t.Errorf("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
+			t.Error("Found Puppet environment files, which should've been filtered out by filter_command" + expectedMissingFile)
 		}
 	}
 
@@ -2899,7 +2928,7 @@ func TestResolvePuppetfileUseSSHAgent(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 }
@@ -2963,7 +2992,7 @@ func TestPrecedenceConfig(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 }
@@ -2998,7 +3027,7 @@ func TestPrecedencePuppetfile(t *testing.T) {
 
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in debug output")
+			t.Error("Could not find expected line '" + expectedLine + "' in debug output")
 		}
 	}
 }
@@ -3035,7 +3064,7 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 
@@ -3065,7 +3094,7 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(outAgain), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 
@@ -3075,7 +3104,7 @@ func TestPurgeControlRepoExceptModuledir(t *testing.T) {
 	}
 	for _, forbiddenLine := range forbiddenLines {
 		if strings.Contains(string(outAgain), forbiddenLine) {
-			t.Errorf("Found forbidden line '" + forbiddenLine + "' in output")
+			t.Error("Found forbidden line '" + forbiddenLine + "' in output")
 		}
 	}
 
@@ -3120,7 +3149,7 @@ func TestStripComponentString(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 
@@ -3130,7 +3159,7 @@ func TestStripComponentString(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+			t.Error("files and/or directory missing that should be there! " + expectedFile)
 		}
 	}
 
@@ -3173,7 +3202,7 @@ func TestStripComponentRegex(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 
@@ -3183,7 +3212,7 @@ func TestStripComponentRegex(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+			t.Error("files and/or directory missing that should be there! " + expectedFile)
 		}
 	}
 }
@@ -3220,7 +3249,7 @@ func TestStripComponentConflict(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 }
@@ -3257,7 +3286,7 @@ func TestNoProxy(t *testing.T) {
 	}
 	for _, expectedLine := range expectedLines {
 		if !strings.Contains(string(out), expectedLine) {
-			t.Errorf("Could not find expected line '" + expectedLine + "' in output")
+			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
 }
@@ -3299,7 +3328,7 @@ func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
 
 	for _, expectedFile := range expectedFiles {
 		if !fileExists(expectedFile) {
-			t.Errorf("files and/or directory missing that should be there! " + expectedFile)
+			t.Error("files and/or directory missing that should be there! " + expectedFile)
 		}
 	}
 
