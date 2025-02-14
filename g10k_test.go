@@ -3290,6 +3290,7 @@ func TestNoProxy(t *testing.T) {
 			t.Error("Could not find expected line '" + expectedLine + "' in output")
 		}
 	}
+	purgeDir("/tmp/g10k/", funcName)
 }
 
 func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
@@ -3301,13 +3302,14 @@ func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
 		resolvePuppetEnvironment(false, "")
 		return
 	}
+	purgeDir("/tmp/g10k/", funcName)
 	purgeDir("/tmp/example/", funcName)
 	purgeDir("/tmp/out/", funcName)
 	purgeDir("/tmp/out-clone/", funcName)
 
 	cmd := exec.Command(os.Args[0], "-test.run="+funcName+"$")
 	cmd.Env = append(os.Environ(), "TEST_FOR_CRASH_"+funcName+"=1")
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 
 	exitCode := 0
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
@@ -3316,7 +3318,9 @@ func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
 
 	expectedExitCode := 0
 	if exitCode != expectedExitCode {
-		t.Errorf("terminated with %v, but we expected exit status %v", exitCode, expectedExitCode)
+		lines := strings.Split(string(out), "\n")
+		lastLines := lines[len(lines)-3 : len(lines)-1]
+		t.Errorf("terminated with %v, but we expected exit status %v last line: %v", exitCode, expectedExitCode, lastLines)
 	}
 	// fmt.Println(string(out))
 
