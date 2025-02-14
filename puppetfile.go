@@ -124,7 +124,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 							renamedBranch := branch
 							if (len(outputNameTag) > 0) && (len(branchParam) > 0) {
 								renamedBranch = outputNameTag
-								Debugf("Renaming branch " + branch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+								Debugf("Renaming branch " + branch + " to " + renamedBranch + " from source " + source + " " + sa.Remote)
 							}
 
 							// https://github.com/puppetlabs/r10k/blob/main/doc/dynamic-environments/configuration.mkd#strip_component
@@ -142,9 +142,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								renamedBranch = reInvalidCharacters.ReplaceAllString(renamedBranch, "_")
 								if oldBranch != renamedBranch {
 									if sa.AutoCorrectEnvironmentNames == "correct_and_warn" {
-										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+										Warnf("Renaming branch " + oldBranch + " to " + renamedBranch + " from source " + source + " " + sa.Remote)
 									} else {
-										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch + " from  source " + source + " " + sa.Remote)
+										Debugf("Renaming branch " + oldBranch + " to " + renamedBranch + " from source " + source + " " + sa.Remote)
 									}
 								}
 							}
