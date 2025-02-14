@@ -3319,7 +3319,7 @@ func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
 	expectedExitCode := 0
 	if exitCode != expectedExitCode {
 		lines := strings.Split(string(out), "\n")
-		lastLines := lines[len(lines)-3 : len(lines)-1]
+		lastLines := lines[len(lines)-5:]
 		t.Errorf("terminated with %v, but we expected exit status %v last line: %v", exitCode, expectedExitCode, lastLines)
 	}
 	// fmt.Println(string(out))
