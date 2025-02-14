@@ -2182,8 +2182,8 @@ func TestPurgeStaleDeploymentOnly(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another_force_github_invalidate_cache",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another_force_github_invalidate_cache",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
 		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
@@ -2250,8 +2250,8 @@ func TestPurgeStaleDeploymentOnlyWithAllowList(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG purgeUnmanagedContent(): Glob'ing with path /tmp/full/full_*",
-		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another",
-		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another",
+		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_another_force_github_invalidate_cache",
+		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_another_force_github_invalidate_cache",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_master",
 		"DEBUG purgeUnmanagedContent(): Not purging environment /tmp/full/full_master",
 		"DEBUG purgeUnmanagedContent(): Checking if environment should exist: /tmp/full/full_qa",
@@ -2680,7 +2680,7 @@ func TestCloneGitModules(t *testing.T) {
 
 	expectedLines := []string{
 		"DEBUG executeCommand(): Executing git clone https://github.com/theforeman/puppet-puppet.git /tmp/full/full_master/modules/puppet",
-		"DEBUG executeCommand(): Executing git clone https://github.com/puppetlabs/puppetlabs-stdlib.git /tmp/full/full_another/modules/stdlib",
+		"DEBUG executeCommand(): Executing git clone https://github.com/puppetlabs/puppetlabs-stdlib.git /tmp/full/full_another_force_github_invalidate_cache/modules/stdlib",
 		"DEBUG executeCommand(): Executing git clone https://github.com/xorpaul/g10k-test-module.git /tmp/full/full_symlinks/modules/testmodule",
 		"DEBUG executeCommand(): Executing git clone https://github.com/elastic/puppet-kibana.git /tmp/full/full_qa/modules/kibana",
 		"DEBUG executeCommand(): Executing git checkout 11.0.0 in cwd",
@@ -2697,7 +2697,7 @@ func TestCloneGitModules(t *testing.T) {
 
 	expectedDirs := []string{
 		"/tmp/full/full_master/modules/puppet/.git",
-		"/tmp/full/full_another/modules/stdlib/.git",
+		"/tmp/full/full_another_force_github_invalidate_cache/modules/stdlib/.git",
 		"/tmp/full/full_symlinks/modules/testmodule/.git",
 		"/tmp/full/full_qa/modules/kibana/.git",
 	}
@@ -2715,7 +2715,7 @@ func TestCloneGitModules(t *testing.T) {
 			t.Error("Error while reading content of file " + headFile + " Error: " + err.Error())
 		}
 		stringContent := string(content)
-		if headFile == "/tmp/full/full_another/modules/stdlib/.git/HEAD" {
+		if headFile == "/tmp/full/full_another_force_github_invalidate_cache/modules/stdlib/.git/HEAD" {
 			expectedBranch := "ref: refs/heads/main"
 			if strings.TrimRight(stringContent, "\n") != expectedBranch {
 				t.Error("Error wrong branch found in checked out Git repo for " + expectedDir + " We expected " + expectedBranch + ", but found content: " + stringContent)
@@ -3325,7 +3325,7 @@ func TestMultipleSourcesWithSameBrancheName(t *testing.T) {
 	// fmt.Println(string(out))
 
 	expectedFiles := []string{
-		"/tmp/out-clone/another/Puppetfile",
+		"/tmp/out-clone/another_force_github_invalidate_cache/Puppetfile",
 		"/tmp/out-clone/master/.g10k-deploy.json",
 		"/tmp/out/master/Puppetfile",
 		"/tmp/out/ref/uuui/d0",
