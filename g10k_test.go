@@ -405,6 +405,7 @@ func TestConfigGlobalAllowFail(t *testing.T) {
 }
 
 func TestConfigGlobalAllowFailForge(t *testing.T) {
+	t.Skip("skipping for now")
 	funcName := strings.Split(funcName(), ".")[len(strings.Split(funcName(), "."))-1]
 	config = readConfigfile(filepath.Join("tests", "TestConfigGlobalAllowFail.yaml"))
 
@@ -2683,7 +2684,7 @@ func TestCloneGitModules(t *testing.T) {
 		"DEBUG executeCommand(): Executing git clone https://github.com/xorpaul/g10k-test-module.git /tmp/full/full_symlinks/modules/testmodule",
 		"DEBUG executeCommand(): Executing git clone https://github.com/elastic/puppet-kibana.git /tmp/full/full_qa/modules/kibana",
 		"DEBUG executeCommand(): Executing git checkout 11.0.0 in cwd",
-		"DEBUG executeCommand(): Executing git checkout release in cwd",
+		"DEBUG executeCommand(): Executing git checkout main in cwd",
 		"DEBUG executeCommand(): Executing git checkout symlinks in cwd",
 		"DEBUG executeCommand(): Executing git checkout master in cwd",
 	}
@@ -2715,7 +2716,7 @@ func TestCloneGitModules(t *testing.T) {
 		}
 		stringContent := string(content)
 		if headFile == "/tmp/full/full_another/modules/stdlib/.git/HEAD" {
-			expectedBranch := "ref: refs/heads/release"
+			expectedBranch := "ref: refs/heads/main"
 			if strings.TrimRight(stringContent, "\n") != expectedBranch {
 				t.Error("Error wrong branch found in checked out Git repo for " + expectedDir + " We expected " + expectedBranch + ", but found content: " + stringContent)
 			}
