@@ -161,6 +161,7 @@ func preparePuppetfile(pf string) string {
 
 	pfString := ""
 	scanner := bufio.NewScanner(file)
+	Debugf("scanning file: " + pf)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if !reComment.MatchString(line) && !reEmpty.MatchString(line) {
