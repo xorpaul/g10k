@@ -299,7 +299,11 @@ func main() {
 			Debugf("Trying to use as Puppetfile: " + pfLocation)
 			sm := make(map[string]Source)
 			sm["cmdlineparam"] = Source{Basedir: "./"}
-			cachedir := "/tmp/g10k"
+			cachebase, err := os.UserCacheDir()
+			if err != nil {
+				cachebase = "/tmp"
+			}
+			cachedir := filepath.Join(cachebase, "g10k")
 			if len(os.Getenv("g10k_cachedir")) > 0 {
 				cachedir = os.Getenv("g10k_cachedir")
 				cachedir = checkDirAndCreate(cachedir, "cachedir environment variable g10k_cachedir")
