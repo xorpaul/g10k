@@ -166,7 +166,9 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								syncToModuleDir(gitModule, workDir, targetDir, env)
 							}
 							pf := filepath.Join(targetDir, "Puppetfile")
+							mutex.Lock()
 							allBasedirs[sa.Basedir] = true
+							mutex.Unlock()
 							if !fileExists(pf) {
 								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
 								deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
