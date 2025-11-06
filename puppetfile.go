@@ -166,6 +166,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 								syncToModuleDir(gitModule, workDir, targetDir, env)
 							}
 							pf := filepath.Join(targetDir, "Puppetfile")
+							allBasedirs[sa.Basedir] = true
 							if !fileExists(pf) {
 								Debugf("resolvePuppetEnvironment(): Skipping branch " + source + "_" + branch + " because " + pf + " does not exist")
 								deployFile := filepath.Join(targetDir, ".g10k-deploy.json")
@@ -189,7 +190,6 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 									checkDirAndCreate(filepath.Join(puppetfile.workDir, moduleDir), "moduledir for env")
 								}
 								allPuppetfiles[env] = puppetfile
-								allBasedirs[sa.Basedir] = true
 								mutex.Unlock()
 
 							}
@@ -220,7 +220,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 	//fmt.Println("allPuppetfiles: ", allPuppetfiles, len(allPuppetfiles))
 	//fmt.Println("allPuppetfiles[0]: ", allPuppetfiles["postinstall"])
 	resolvePuppetfile(allPuppetfiles)
-	//fmt.Printf("%+v\n", allEnvironments)
+	// fmt.Printf("%+v\n", allEnvironments)
 	if len(moduleParam) == 0 {
 		purgeUnmanagedContent(allBasedirs, allEnvironments)
 	}
