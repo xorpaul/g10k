@@ -2,7 +2,7 @@
 
 # g10k
 
-My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
+My r10k fork written in Go, designed to work somewhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
 ### Why fork?
 
@@ -83,7 +83,7 @@ User @Conzar was so nice and shared his g10k Puppet module that you can check ou
 
 ## Configuration File
 
-g10k uses a YAML configuration file to define how it should sync your Puppet environments. The configuration file must be specified using the `-config` parameter - there is no default location.
+If you do not run g10k in `-puppetfile` mode, which would just populate the current folder with all Puppet module inside the Puppetfile, then g10k uses a YAML configuration file to define how it should sync your Puppet environments. The configuration file must be specified using the `-config` parameter - there is no default location.
 
 The g10k configuration format is inspired by r10k's configuration which is [documented here](https://github.com/puppetlabs/r10k/blob/main/doc/dynamic-environments/configuration.mkd), though not all r10k features are available in g10k.
 
@@ -101,7 +101,7 @@ sources:
     basedir: "/etc/puppetlabs/code/environments/"
 ```
 
-Then run g10k with: `g10k -config g10k.yaml`
+Then run g10k with: `./g10k -config g10k.yaml`
 
 ### Required Configuration Options
 
