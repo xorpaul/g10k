@@ -52,13 +52,23 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 					if stringSliceContains(config.PurgeLevels, "deployment") {
 						Debugf("Checking if environment should exist: " + env)
 						if allEnvironments[env] {
-							Debugf("Not purging environment " + env)
+							Debugf("Not purging environment " + env + " because it is managed")
 						} else if stringSliceContains(allowlistEnvironments, env) {
 							Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
-							Infof("Removing unmanaged environment " + env)
-							if !dryRun {
-								purgeDir(env, "purgeStaleContent()")
+							if checkRemoteSourceOfEnvironment(env, config.Sources) {
+								// TODO: add test for this using https://github.com/xorpaul/g10k_purge_env_test/branches
+								Debugf("Purging environment " + env + " because its remote source matches configured source remote")
+								Infof("Removing unmanaged environment " + env)
+								if !dryRun {
+									purgeDir(env, "purgeStaleContent()")
+								}
+							} else {
+								Debugf("Purging environment " + env + " because its remote source belongs to a different source remote")
+								Infof("Removing unmanaged environment " + env)
+								if !dryRun {
+									purgeDir(env, "purgeStaleContent()")
+								}
 							}
 						}
 					}
@@ -66,6 +76,27 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 			}
 		}
 	}
+}
+
+func checkRemoteSourceOfEnvironment(environmentDir string, configSources map[string]Source) bool {
+	// check for .g10k-deploy.json inside the environment directory and read source remote from there
+	// if it matches then return true
+
+	dr := DeployResult{}
+	deployFile := filepath.Join(environmentDir, ".g10k-deploy.json")
+	if fileExists(deployFile) {
+		dr = readDeployResultFile(deployFile)
+	} else {
+		Debugf("found no " + deployFile + " file, this folder is likely unmanaged and will be purged")
+	}
+
+	for _, source := range configSources {
+		Debugf("Comparing source remote " + source.Remote + " with deploy result git url " + dr.GitURL)
+		if dr.GitURL == source.Remote {
+			return true
+		}
+	}
+	return false
 }
 
 func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
