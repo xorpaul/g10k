@@ -1,46 +1,53 @@
 [![Build Status](https://github.com/xorpaul/g10k/actions/workflows/main.yml/badge.svg)](https://github.com/xorpaul/g10k/actions) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
+
 # g10k
-My r10k fork written in Go, designed to work somwhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
+
+My r10k fork written in Go, designed to work somewhat similar like [puppetlabs/r10k](https://github.com/puppetlabs/r10k).
 
 ### Why fork?
-  - Lack of caching/version-pre-checking in current r10k implementation hurt performance beyond a certain # of modules per Puppetfile
-  - We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice (fixed in r10k [2.2.0](https://github.com/puppetlabs/r10k/blob/master/CHANGELOG.mkd#220 ))
-  - Good excuse to try Go ;)
+
+- Lack of caching/version-pre-checking in current r10k implementation hurt performance beyond a certain # of modules per Puppetfile
+- We need distinct SSHKeys for each source in the r10k.yaml and 'rugged' never really wanted to play nice (fixed in r10k [2.2.0](https://github.com/puppetlabs/r10k/blob/master/CHANGELOG.mkd#220))
+- Good excuse to try Go ;)
 
 ### Changes breaking complete r10k compatibility
-  - No SVN support
-  - Forge modules must be specified like this:
+
+- No SVN support
+- Forge modules must be specified like this:
 
 ```
 mod 'theforeman/puppet'
 ```
-  - Git modules must be specified like this:
+
+- Git modules must be specified like this:
+
 ```
 mod 'apache',
   :git => 'https://github.com/puppetlabs/puppetlabs-apache.git'
 ```
 
 ### Non-breaking changes to r10k
-  - Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective version only once
-  - Most things (git, forge, and copy operations) done in parallel over each branch
-  - Optional support for different ssh keys for each source inside the r10k.yaml
+
+- Download/Cache each git Puppet Module repository and each Puppetlabs Forge Puppet Module for each respective version only once
+- Most things (git, forge, and copy operations) done in parallel over each branch
+- Optional support for different ssh keys for each source inside the r10k.yaml
 
 ### Pseudo "benchmark"
-
 
 Using Puppetfile with 4 git repositories and 25 Forge modules
 https://github.com/xorpaul/g10k-environment/blob/benchmark/Puppetfile
 
-| 2016-10-14 | w/o cache | w/ cache |
-| ------------ | ------------ | ------------- |
-| r10k | 1m14s,1m18s,1m12s | 18s,17s,17s |
-| g10k | 4.6s,5s,4.7s | 1s,1s,1s |
+| 2016-10-14 | w/o cache         | w/ cache    |
+| ---------- | ----------------- | ----------- |
+| r10k       | 1m14s,1m18s,1m12s | 18s,17s,17s |
+| g10k       | 4.6s,5s,4.7s      | 1s,1s,1s    |
 
 Using go 1.7.1 and g10k commit 7524778
 Using ruby 2.1.5+deb8u2 and r10k v2.4.3
 On Dell PowerEdge R320 Intel Xeon E5-2430 24 GB RAM on Debian Jessie
 
 ##### Benchmark w/o cache
+
 ```
 rm -rf /tmp/g10k ; GDIR=$RANDOM ; mkdir /tmp/$GDIR/ ; cd /tmp/$GDIR/ ; \
 wget https://raw.githubusercontent.com/xorpaul/g10k-environment/benchmark/Puppetfile ; \
@@ -50,12 +57,13 @@ RDIR=$RANDOM ; mkdir /tmp/$RDIR/ ; cd /tmp/$RDIR/ ; \
 wget https://raw.githubusercontent.com/xorpaul/g10k-environment/benchmark/Puppetfile ; \
 time r10k puppetfile install
 ```
+
 ##### Benchmark w/ cache
+
 ```
 cd /tmp/$GDIR/ ; time g10k -puppetfile
 cd /tmp/$RDIR/ ; time r10k puppetfile install
 ```
-
 
 # installation
 
@@ -70,11 +78,62 @@ https://github.com/xorpaul/g10k/releases
 
 User @Conzar was so nice and shared his g10k Puppet module that you can check out here:
 
-* [Puppet Forge](https://forge.puppet.com/landcareresearch/g10k)
-* [Source code](https://bitbucket.org/landcareresearch/puppet-g10k)
+- [Puppet Forge](https://forge.puppet.com/landcareresearch/g10k)
+- [Source code](https://bitbucket.org/landcareresearch/puppet-g10k)
 
+## Configuration File
+
+If you do not run g10k in `-puppetfile` mode, which would just populate the current folder with all Puppet module inside the Puppetfile, then g10k uses a YAML configuration file to define how it should sync your Puppet environments. The configuration file must be specified using the `-config` parameter - there is no default location.
+
+The g10k configuration format is inspired by r10k's configuration which is [documented here](https://github.com/puppetlabs/r10k/blob/main/doc/dynamic-environments/configuration.mkd), though not all r10k features are available in g10k.
+
+### Basic Configuration Example
+
+Create a configuration file (e.g., `g10k.yaml`) with the following structure:
+
+```yaml
+---
+:cachedir: "/var/cache/g10k"
+
+sources:
+  puppet:
+    remote: "https://github.com/your-org/puppet-control-repo.git"
+    basedir: "/etc/puppetlabs/code/environments/"
+```
+
+Then run g10k with: `./g10k -config g10k.yaml`
+
+### Required Configuration Options
+
+- **cachedir**: Directory where g10k will cache git repositories and Forge modules
+- **sources**: One or more Puppet environment sources, each containing:
+  - **remote**: Git URL of your Puppet control repository
+  - **basedir**: Directory where Puppet environments will be created
+
+### Common Configuration Options
+
+- **timeout**: Timeout in seconds for git and forge operations (default: 5)
+- **maxworker**: Number of concurrent workers for git/forge operations (default: 50)
+- **maxextractworker**: Number of concurrent workers for extraction operations (default: 20)
+- **forge_base_url**: Custom Forge API URL (default: https://forgeapi.puppet.com)
+- **deploy**: Advanced deployment settings including purge levels and allowlists
+  - **purge_levels**: Array controlling what to purge (e.g., `['deployment', 'puppetfile']`)
+  - **purge_allowlist**: Files/directories to preserve during purge operations
+
+### Per-Source Options
+
+Each source can have additional options:
+
+- **prefix**: Prefix to add to environment names (boolean or string)
+- **private_key**: Path to SSH private key for authentication
+- **force_forge_versions**: Require explicit versions for Forge modules (boolean)
+- **invalid_branches**: How to handle invalid branch names (`correct`, `correct_and_warn`, `error`)
+- **filter_regex**: Regex pattern to filter which branches to sync
+
+See the [additional g10k config features](#additional-g10k-config-features-compared-to-r10k) section for more advanced options.
 
 ## Usage Docs
+
 ```
 Usage of ./g10k:
   -branch string
@@ -136,18 +195,21 @@ Usage of ./g10k:
 Regarding anything usage/workflow you really can just use the great [puppetlabs/r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments.mkd) docs as the [Puppetfile](https://github.com/puppetlabs/r10k/blob/master/doc/puppetfile.mkd) etc. are all intentionally kept unchanged.
 
 ## Using g10k behind a proxy
+
 Set the environment variables `http_proxy` or `https_proxy` to make g10k use a proxy.
-E.g. ```http_proxy=http://proxy.domain.tld:8080 ./g10k -puppetfile```
+E.g. `http_proxy=http://proxy.domain.tld:8080 ./g10k -puppetfile`
 See https://golang.org/pkg/net/http/#ProxyFromEnvironment for details.
 
 # additional Puppetfile features
 
 - link Git module branch to the current environment branch:
+
 ```
 mod 'awesomemodule',
     :git => 'http://github.com/foo/bar.git',
     :link => 'true'
 ```
+
 If you are in environment branch `dev` then g10k would try to check out this module with branch `dev`.
 This helps to be able to use the same Puppetfile over multiple environment branches and makes merges easier.
 See https://github.com/xorpaul/g10k/issues/6 for details.
@@ -155,6 +217,7 @@ See https://github.com/xorpaul/g10k/issues/6 for details.
 Now also supports the r10k setting name `:branch => :control_branch` See [#73](https://github.com/xorpaul/g10k/issues/73)
 
 - only clone if branch/tag/commit exists
+
 ```
 mod 'awesomemodule',
     :git => 'http://github.com/foo/bar.git',
@@ -165,16 +228,21 @@ In combination with the previous link feature you don't need to keep all environ
 See https://github.com/xorpaul/g10k/issues/9 for details.
 
 - use different Forge base URL for your modules in your Puppetfile
+
 ```
 forge.baseUrl http://foobar.domain.tld/
 ```
+
 - skip version checks for latest Forge modules for a certain time to speed up the sync
+
 ```
 forge.cacheTtl 4h
 ```
+
 You need to specify the TTL value in the form of golang Duration (https://golang.org/pkg/time/#ParseDuration)
 
 - try multiple Git branches for a Puppet module until one can be used
+
 ```
 mod 'stdlib',
     :git => 'https://github.com/puppetlabs/puppetlabs-stdlib.git',
@@ -200,7 +268,7 @@ Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git
 
 Now also supports the r10k setting name `:default_branch => 'master'` See [#73](https://github.com/xorpaul/g10k/issues/73)
 
-- additionl Git attribute `:use_ssh_agent`:
+- additional Git attribute `:use_ssh_agent`:
 
 Normally g10k adds the SSH key specified in the g10k config for each SSH+Git module in your Puppetfile.
 If you don't want to use this SSH key, need a different key for a certain Git module or have the key encrypted in your SSH agent, then use this parameter to skip the `ssh-add` commands:
@@ -211,6 +279,7 @@ mod 'example_module',
   :branch => 'foo',
   :use_ssh_agent => true
 ```
+
 See [#171](https://github.com/xorpaul/g10k/issues/171) for more details.
 
 - additional Forge attribute `:sha256sum`:
@@ -247,8 +316,8 @@ g10k_cachedir=/var/tmp g10k ...
 
 This will also override the `-cachedir` parameter.
 
-
 # additional g10k config features compared to r10k
+
 - you can enforce version numbers of Forge modules in your Puppetfiles instead of `:latest` or `:present` by adding `force_forge_versions: true` to the g10k config in the specific resource
 
 ```
@@ -329,6 +398,7 @@ If you then call g10k with this config file. You should get:
 WARN: git repository git://github.com/xorpaul/g10k-environment-unavailable.git does not exist or is unreachable at this moment!
 WARNING: Could not resolve git repository in source 'example' (git://github.com/xorpaul/g10k-environment-unavailable.git)
 ```
+
 with an exit code 1
 
 - g10k can use the cached version of Forge and git modules if their sources are currently not available:
@@ -350,6 +420,7 @@ If you then call g10k with this config file and your github.com repository is un
 WARN: git repository https://github.com/puppetlabs/puppetlabs-firewall.git does not exist or is unreachable at this moment!
 WARN: Trying to use cache for https://github.com/puppetlabs/puppetlabs-firewall.git git repository
 ```
+
 if your g10k did manage to at least once cache this git repository.
 
 If there is no useable cache available your g10k run still fails.
@@ -379,13 +450,14 @@ See [#76](https://github.com/xorpaul/g10k/issues/76) for details.
 
 Like in [r10k](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/git-environments.mkd#invalid_branches) for each source in your g10k config you can set the attribute `invalid_branches` with the following values:
 
-  * `correct_and_warn`: Non-word characters will be replaced with underscores and a warning will be emitted.
-  * `correct`: Non-word characters will silently be replaced with underscores.
-  * `error`: Branches with non-word characters will be ignored and an error will be emitted.
+- `correct_and_warn`: Non-word characters will be replaced with underscores and a warning will be emitted.
+- `correct`: Non-word characters will silently be replaced with underscores.
+- `error`: Branches with non-word characters will be ignored and an error will be emitted.
 
 The default value is to leave the environment unchanged, which differs from the r10k default!
 
 Example:
+
 ```
 ---
 :cachedir: '/tmp/g10k'
@@ -406,6 +478,7 @@ See [#81](https://github.com/xorpaul/g10k/issues/81) for details.
 To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91)
 g10k will skip this sanity check when the g10k config setting `git_object_syntax_not_supported` is set to `true` (defaults to `false`)
 Example:
+
 ```
 ---
 :cachedir: '/tmp/g10k'
@@ -424,9 +497,10 @@ Starting with [v.0.9.0](https://github.com/xorpaul/g10k/releases/tag/v0.9.0) g10
 Please check if you need to allowlist files/folders inside your Puppet environments!
 
 As an additional setting, you can also allowlist Puppet environments with `deployment_purge_allowlist`, that would've been purged by the [deployment](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#deployment) `purge_level`.
-This can be helpful if you have a similar source name or prefix set. E.g. having a source called `foobar` and another one `foobar_hiera` would have purged all foobar_hiera_\* branches if there are not branches called `hiera_master` or similar in the `foobar` source.
+This can be helpful if you have a similar source name or prefix set. E.g. having a source called `foobar` and another one `foobar_hiera` would have purged all foobar*hiera*\* branches if there are not branches called `hiera_master` or similar in the `foobar` source.
 
 Example:
+
 ```
 ---
 deploy:
@@ -473,7 +547,9 @@ sources:
     basedir: './example/'
     filter_command: 'tests/branch_filter_command.sh $R10K_BRANCH ^(single|master)$'
 ```
+
 or via regex
+
 ```
 ---
 sources:
@@ -485,8 +561,8 @@ sources:
 
 See #166 for the discussion and #167 for the merge request.
 
-
 # building
+
 ```
 # only initially needed to resolve all dependencies
 go get
@@ -494,8 +570,8 @@ go get
 BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -ldflags "-s -w -X main.buildtime=$BUILDTIME"
 ```
 
-
 # execute example with debug output
+
 ```
 ./g10k -debug -config test.yaml
 ```
