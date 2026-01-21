@@ -57,6 +57,7 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 							Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
 							if checkRemoteSourceOfEnvironment(env, config.Sources) {
+								// TODO: add test for this using https://github.com/xorpaul/g10k_purge_env_test/branches
 								Debugf("Purging environment " + env + " because its remote source matches configured source remote")
 								Infof("Removing unmanaged environment " + env)
 								if !dryRun {
@@ -64,6 +65,10 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 								}
 							} else {
 								Debugf("Purging environment " + env + " because its remote source belongs to a different source remote")
+								Infof("Removing unmanaged environment " + env)
+								if !dryRun {
+									purgeDir(env, "purgeStaleContent()")
+								}
 							}
 						}
 					}
