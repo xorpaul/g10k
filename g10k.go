@@ -324,7 +324,7 @@ func main() {
 				config.CloneGitModules = true
 			}
 			target = pfLocation
-			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false, false)
+			puppetfile := readPuppetfile(target, "", "cmdlineparam", "cmdlineparam", false)
 			puppetfile.workDir = ""
 			pfm := make(map[string]Puppetfile)
 			pfm["cmdlineparam"] = puppetfile

@@ -616,7 +616,7 @@ func spinUpFakeForge(t *testing.T, metadataFile string) *httptest.Server {
 }
 
 func TestModuleDirOverride(t *testing.T) {
-	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
+	got := readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false)
 	//fmt.Println(got.forgeModules["apt"].moduleDir)
 	if got.forgeModules["apt"].moduleDir != "external_modules" {
 		t.Error("Expected 'external_modules' for module dir, but got", got.forgeModules["apt"].moduleDir)
@@ -625,7 +625,7 @@ func TestModuleDirOverride(t *testing.T) {
 		t.Error("Expected 'modules' for module dir, but got", got.gitModules["another_module"].moduleDir)
 	}
 	moduleDirParam = "foobar"
-	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false, false)
+	got = readPuppetfile("tests/TestReadPuppetfile", "", "test", "test", false)
 	if got.forgeModules["apt"].moduleDir != "foobar" {
 		t.Error("Expected '", moduleDirParam, "' for module dir, but got", got.forgeModules["apt"].moduleDir)
 	}
