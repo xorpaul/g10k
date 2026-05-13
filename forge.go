@@ -226,6 +226,10 @@ func queryForgeAPI(fm ForgeModule) ForgeResult {
 		Fatalf("Received 404 from Forge for module " + fm.author + "-" + fm.name + " using URL " + url + " Does the module really exist and is it correctly named?")
 		return ForgeResult{false, "", "", 0}
 	}
+	if config.IgnoreUnreachableModules {
+		Debugf("Ignoring unreachable module at " + url)
+		return ForgeResult{false, "", "", 0}
+	}
 	Fatalf("Unexpected response code " + resp.Status)
 	return ForgeResult{false, "", "", 0}
 }
@@ -325,6 +329,9 @@ func getMetadataForgeModule(fm ForgeModule) ForgeModule {
 		mutex.Unlock()
 
 		return ForgeModule{md5sum: modulemd5sum, fileSize: moduleFilesize}
+	} else if config.IgnoreUnreachableModules {
+		Debugf("Ignoring unreachable module at " + url)
+		return ForgeModule{}
 	}
 	Fatalf("getMetadataForgeModule(): Unexpected response code while GETing " + url + " " + resp.Status)
 	return ForgeModule{}
@@ -431,6 +438,10 @@ func downloadForgeModule(name string, version string, fm ForgeModule, retryCount
 				"\nCheck if the module name '" + fm.author + "-" + fm.name + "' and version '" + version + "' really exist" +
 				"\nUsed in Puppet environment '" + fm.sourceBranch + "'")
 		default:
+			if config.IgnoreUnreachableModules {
+				Debugf("Ignoring unreachable module at " + url)
+				return
+			}
 			Fatalf("Unexpected response code while GETing " + url + " " + resp.Status)
 		}
 	} else {
@@ -725,7 +736,11 @@ func syncForgeToModuleDir(name string, m ForgeModule, moduleDir string, correspo
 	workDir := normalizeDir(filepath.Join(config.ForgeCacheDir, moduleName+"-"+m.version))
 	resolvedWorkDir, err := filepath.EvalSymlinks(workDir)
 	if err != nil {
-		Fatalf(funcName + "(): Failed to resolve possible symlink " + workDir + " Error: " + err.Error())
+		if !config.IgnoreUnreachableModules {
+			Fatalf(funcName + "(): Failed to resolve possible symlink " + workDir + " Error: " + err.Error())
+		}
+		Debugf("Ignoring error with module at " + workDir)
+		return
 	}
 	if !isDir(resolvedWorkDir) {
 		if config.UseCacheFallback {
