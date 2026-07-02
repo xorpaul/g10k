@@ -1,4 +1,4 @@
-[![Build Status](https://github.com/xorpaul/g10k/actions/workflows/main.yml/badge.svg)](https://github.com/xorpaul/g10k/actions) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
+[![Build Status](https://github.com/voxpupuli/g10k/actions/workflows/build.yml/badge.svg)](https://github.com/voxpupuli/g10k/actions) [![Go Report Card](https://goreportcard.com/badge/github.com/xorpaul/g10k)](https://goreportcard.com/report/github.com/xorpaul/g10k)
 
 # g10k
 
@@ -68,7 +68,9 @@ cd /tmp/$RDIR/ ; time r10k puppetfile install
 # installation
 
 You can just grab the most recent stable release here:
-https://github.com/xorpaul/g10k/releases
+https://github.com/voxpupuli/g10k/releases
+
+Tagged releases are built by GitHub Actions with GoReleaser.
 
 - Before using g10k with a large Puppet setup with many modules, be sure to increase the amount of open file handles (nfiles) and number of child processes (nproc), see limits.conf(5) for details.
 - If you are using a private Git or Forge server think about adjusting the `-maxworker` parameter/config setting before DOSing your own infrastructure ;) (default 50)
@@ -212,11 +214,11 @@ mod 'awesomemodule',
 
 If you are in environment branch `dev` then g10k would try to check out this module with branch `dev`.
 This helps to be able to use the same Puppetfile over multiple environment branches and makes merges easier.
-See https://github.com/xorpaul/g10k/issues/6 for details.
+See https://github.com/voxpupuli/g10k/issues/6 for details.
 
-Now also supports the r10k setting name `:branch => :control_branch` See [#73](https://github.com/xorpaul/g10k/issues/73)
+Now also supports the r10k setting name `:branch => :control_branch` See [#73](https://github.com/voxpupuli/g10k/issues/73)
 
-- only clone if branch/tag/commit exists
+See https://github.com/voxpupuli/g10k/issues/6 for details.
 
 ```
 mod 'awesomemodule',
@@ -225,7 +227,7 @@ mod 'awesomemodule',
 ```
 
 In combination with the previous link feature you don't need to keep all environment branches also available for your modules.
-See https://github.com/xorpaul/g10k/issues/9 for details.
+See https://github.com/voxpupuli/g10k/issues/9 for details.
 
 - use different Forge base URL for your modules in your Puppetfile
 
@@ -266,7 +268,7 @@ Tip: You can see which branch was used, when using the `-verbose` parameter:
 Synced ./Puppetfile with 4 git repositories and 0 Forge modules in 1.1s with git (1.1s sync, I/O 0.0s) and Forge (0.0s query+download, I/O 0.0s)
 ```
 
-Now also supports the r10k setting name `:default_branch => 'master'` See [#73](https://github.com/xorpaul/g10k/issues/73)
+Now also supports the r10k setting name `:default_branch => 'master'` See [#73](https://github.com/voxpupuli/g10k/issues/73)
 
 - additional Git attribute `:use_ssh_agent`:
 
@@ -280,11 +282,11 @@ mod 'example_module',
   :use_ssh_agent => true
 ```
 
-See [#171](https://github.com/xorpaul/g10k/issues/171) for more details.
+See [#171](https://github.com/voxpupuli/g10k/issues/171) for more details.
 
 - additional Forge attribute `:sha256sum`:
 
-For (some) increased security you can add a SHA256 sum for each Forge module, which g10k will verify after downloading the respective .tar.gz file:
+Starting with [v.0.7.1](https://github.com/voxpupuli/g10k/releases/tag/v0.7.1) g10k supports `purge_skiplist` feature to remove unnecessary files from the sync / Puppetservers.
 
 ```
 mod 'puppetlabs/ntp', '6.0.0', :sha256sum => 'a988a172a3edde6ac2a26d0e893faa88d37bc47465afc50d55225a036906c944'
@@ -356,7 +358,7 @@ If you then call g10k with this config file and the following parameter `-branch
 WARNING: Couldn't find specified branch 'nonExistingBranch' anywhere in source 'example' (https://github.com/xorpaul/g10k-environment.git)
 ```
 
-This can be helpful if you use a dedicated hiera repository/g10k source and you want to ensure that you always have a matching branch, see [#45](https://github.com/xorpaul/g10k/issues/45)
+This can be helpful if you use a dedicated hiera repository/g10k source and you want to ensure that you always have a matching branch, see [#45](https://github.com/voxpupuli/g10k/issues/45)
 
 - By default g10k fails if one of your Puppet environments could not be completely populated (e.g. if one of your Puppet Git module branches doesn't exist anymore). You can change this by setting `ignore_unreachable_modules` to true in your g10k config:
 
@@ -377,7 +379,7 @@ If you then call g10k with this config file and `debug` verbosity level, you sho
 DEBUG: Failed to populate module /tmp/failing/master/modules//sensu/ but ignore-unreachable is set. Continuing...
 ```
 
-See [#57](https://github.com/xorpaul/g10k/issues/57) for details.
+See [#57](https://github.com/voxpupuli/g10k/issues/57) for details.
 
 - abort g10k run if source repository is unreachable
 
@@ -444,7 +446,7 @@ If you then call g10k with this config file and have a corrupted local Git repos
 WARN: git command failed: git --git-dir /tmp/g10k/modules/https-__github.com_puppetlabs_puppetlabs-firewall.git remote update --prune deleting local cached repository and retrying...
 ```
 
-See [#76](https://github.com/xorpaul/g10k/issues/76) for details.
+See [#76](https://github.com/voxpupuli/g10k/issues/76) for details.
 
 - Autocorrecting Puppet environment names
 
@@ -471,11 +473,11 @@ sources:
 
 If you then call g10k with this config file and have a branch named something like `single_autocorrect-%-fooo` it will be renamed to `single_autocorrect___fooo`
 
-See [#81](https://github.com/xorpaul/g10k/issues/81) for details.
+See [#81](https://github.com/voxpupuli/g10k/issues/81) for details.
 
 - Support for older Git versions, like on CentOS 6
 
-To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/xorpaul/g10k/issues/91)
+To check for really existing objects, g10k uses `master^{object}` syntax, which is not supported in older Git versions, like on CentOS 6, see [#91](https://github.com/voxpupuli/g10k/issues/91)
 g10k will skip this sanity check when the g10k config setting `git_object_syntax_not_supported` is set to `true` (defaults to `false`)
 Example:
 
@@ -492,7 +494,7 @@ sources:
 
 - Added support for r10k-like purge behaviour of stale content
 
-Starting with [v.0.9.0](https://github.com/xorpaul/g10k/releases/tag/v0.9.0) g10k supports the r10k-like purge behaviour of stale content with the different configuration settings `purge_level` and `purge_allowlist` as documented [here for purge_levels](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_levels) and [here for purge_allowlist](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_allowlist)
+Starting with [v.0.9.0](https://github.com/voxpupuli/g10k/releases/tag/v0.9.0) g10k supports the r10k-like purge behaviour of stale content with the different configuration settings `purge_level` and `purge_allowlist` as documented [here for purge_levels](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_levels) and [here for purge_allowlist](https://github.com/puppetlabs/r10k/blob/master/doc/dynamic-environments/configuration.mkd#purge_allowlist)
 
 Please check if you need to allowlist files/folders inside your Puppet environments!
 
@@ -519,7 +521,7 @@ sources:
     prefix: true
 ```
 
-Starting with [v.0.7.1](https://github.com/xorpaul/g10k/releases/tag/v0.7.1) g10k supports `purge_skiplist` feature to remove unnecessary files from the sync / Puppetservers.
+Starting with [v.0.7.1](https://github.com/voxpupuli/g10k/releases/tag/v0.7.1) g10k supports `purge_skiplist` feature to remove unnecessary files from the sync / Puppetservers.
 
 Example:
 
@@ -535,7 +537,7 @@ sources:
     basedir: './example/'
 ```
 
-Starting with [v.0.8.12](https://github.com/xorpaul/g10k/releases/tag/v0.8.12) g10k supports filtering branches via regex or an external script:
+Starting with [v.0.8.12](https://github.com/voxpupuli/g10k/releases/tag/v0.8.12) g10k supports filtering branches via regex or an external script:
 
 Example using external script:
 
@@ -564,10 +566,14 @@ See #166 for the discussion and #167 for the merge request.
 # building
 
 ```
-# only initially needed to resolve all dependencies
-go get
-# actually compiling the binary with the current date as build time
-BUILDTIME=$(date -u '+%Y-%m-%d_%H:%M:%S') && go build -ldflags "-s -w -X main.buildtime=$BUILDTIME"
+# build a local binary with a fake version string
+make build BUILDVERSION=v0.0.0-dev
+
+# make the fake build time deterministic if you want to compare outputs
+BUILDTIME=2026-07-02_12:00:00 make build BUILDVERSION=v0.0.0-dev
+
+# exercise the release packaging locally without publishing anything
+goreleaser build --snapshot --clean
 ```
 
 # execute example with debug output

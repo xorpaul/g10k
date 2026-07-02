@@ -9,10 +9,10 @@ COPY --from=builder /usr/src/g10k/g10k /usr/bin/
 COPY Dockerfile /Dockerfile
 LABEL org.label-schema.maintainer="Benjamin Kübler <g10k-docker@kuebler.email>" \
       org.label-schema.vendor="Andreas Paul" \
-      org.label-schema.url="https://github.com/xorpaul/g10k" \
+  org.label-schema.url="https://github.com/voxpupuli/g10k" \
       org.label-schema.name="g10k" \
       org.label-schema.license="Apache-2.0" \
-      org.label-schema.vcs-url="https://github.com/xorpaul/g10k" \
+  org.label-schema.vcs-url="https://github.com/voxpupuli/g10k" \
       org.label-schema.schema-version="1.0" \
       org.label-schema.dockerfile="/Dockerfile"
 WORKDIR /code

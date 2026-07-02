@@ -16,3 +16,4 @@ tests/github-test-private/
 coverage.txt
 local.yaml
 build/
+dist/
