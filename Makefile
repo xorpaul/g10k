@@ -1,6 +1,6 @@
 DEPS = $(wildcard */*.go)
-BUILDVERSION = $(shell git describe --tags)
-BUILDTIME = $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+BUILDVERSION ?= $(shell git describe --tags --dirty --always 2>/dev/null || echo dev)
+BUILDTIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
 UNAME := $(shell uname)
 
 GO           ?= go
@@ -27,6 +27,12 @@ ifeq ($(GOHOSTOS),$(filter $(GOHOSTOS),linux darwin))
 endif
 
 all: test g10k
+
+build:
+	CGO_ENABLED=0 go build \
+		-trimpath \
+		-ldflags "-s -w -X main.buildversion=${BUILDVERSION} -X main.buildtime=${BUILDTIME}" \
+	-o g10k .
 
 g10k: g10k.go $(DEPS)
 # -race flag is currently removed because of issues in OS X Monterey. Should be solved above go version 1.17.6
@@ -80,7 +86,7 @@ ifeq ($(UNAME), Linux)
 endif
 
 clean:
-	rm -rf g10k coverage.txt cache example
+	rm -rf g10k dist coverage.txt cache example
 
 build-image:
 	docker build -t g10k:${BUILDVERSION} .
@@ -89,4 +95,4 @@ update-deps:
 	go get -u
 	go mod vendor
 
-.PHONY: all lint vet imports test clean
+.PHONY: all build lint vet imports test clean

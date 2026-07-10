@@ -1,0 +1,70 @@
+name: build
+
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  go_version: '1.25.3'
+
+jobs:
+  golangci-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.11
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.go_version }}
+          check-latest: true
+      - name: Install additional Packages for tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y hashdeep
+        shell: bash
+      - name: Test
+        run: make test SKIP_GOLANGCI_LINT=1
+
+  goreleaser:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.go_version }}
+          check-latest: true
+      - name: Run GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --snapshot --clean
+
+  tests:
+    needs:
+      - golangci-lint
+      - test
+      - goreleaser
+    runs-on: ubuntu-24.04
+    name: Test suite
+    steps:
+      - run: echo Test suite completed
