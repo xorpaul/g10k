@@ -182,7 +182,7 @@ func resolvePuppetEnvironment(tags bool, outputNameTag string) {
 									writeStructJSONFile(deployFile, dr)
 								}
 							} else {
-								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions, false)
+								puppetfile := readPuppetfile(pf, sa.PrivateKey, source, branch, sa.ForceForgeVersions)
 								puppetfile.workDir = normalizeDir(targetDir)
 								puppetfile.controlRepoBranch = branch
 								puppetfile.gitDir = workDir
