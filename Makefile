@@ -92,7 +92,7 @@ build-image:
 	docker build -t g10k:${BUILDVERSION} .
 
 update-deps:
-	go get -u
-	go mod vendor
+	go get -u ./...
+	go mod tidy
 
 .PHONY: all build lint vet imports test clean

@@ -38,7 +38,7 @@ make lint         # golint all .go files
 make vet          # go vet
 make imports      # goimports check
 make clean        # Remove build artifacts and cache/example dirs
-make update-deps  # go get -u && go mod vendor
+make update-deps  # go get -u ./... && go mod tidy
 ```
 
 ## Testing Patterns
