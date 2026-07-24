@@ -21,6 +21,27 @@ import (
 	"github.com/xorpaul/uiprogress"
 )
 
+// createSymlinkIdempotent creates a symlink from linkPath pointing to targetPath.
+// If the symlink already exists and points to targetPath it is treated as success,
+// allowing concurrent goroutines to race on the same symlink without fataling.
+func createSymlinkIdempotent(targetPath, linkPath string) error {
+	if err := os.Symlink(targetPath, linkPath); err != nil {
+		if os.IsExist(err) {
+			existing, readErr := os.Readlink(linkPath)
+			if readErr != nil {
+				return err
+			}
+			if existing == targetPath {
+				Debugf("symlink " + linkPath + " already points to " + targetPath + ", skipping")
+				return nil
+			}
+			return fmt.Errorf("symlink %s already exists pointing to %s, expected %s", linkPath, existing, targetPath)
+		}
+		return err
+	}
+	return nil
+}
+
 func checkDeprecation(fm ForgeModule, lastCheckedFile string) bool {
 	// check content of lastCheckedFile (which should be the Forge API response body) if the module is deprecated
 	// return false if the api needs to be queried again
@@ -67,7 +88,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 					if err != nil {
 						Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
 					}
-					if err := os.Symlink(absolutePath, workDir); err != nil {
+					if err := createSymlinkIdempotent(absolutePath, workDir); err != nil {
 						Fatalf("doModuleInstallOrNothing(): 1 Error while creating symlink " + workDir + " pointing to " + absolutePath + " Error: " + err.Error())
 					}
 					//} else {
@@ -154,7 +175,7 @@ func doModuleInstallOrNothing(fm ForgeModule) {
 					Fatalf("doModuleInstallOrNothing(): Error while resolving absolute file path for " + versionDir + " Error: " + err.Error())
 				}
 				Debugf("trying to create symlink " + workDir + " pointing to " + absolutePath)
-				if err := os.Symlink(absolutePath, workDir); err != nil {
+				if err := createSymlinkIdempotent(absolutePath, workDir); err != nil {
 					Fatalf("doModuleInstallOrNothing(): 2 Error while creating symlink " + workDir + " pointing to " + absolutePath + err.Error())
 				}
 			}
@@ -852,7 +873,7 @@ func getLatestCachedModule(m ForgeModule) string {
 			Fatalf("Error while resolving absolute file path for " + latest + " Error: " + err.Error())
 		}
 		Debugf("trying to create symlink " + latestDir + " pointing to " + latest)
-		if err := os.Symlink(absolutePath, latestDir); err != nil {
+		if err := createSymlinkIdempotent(absolutePath, latestDir); err != nil {
 			Fatalf("Error while creating symlink " + latestDir + " pointing to " + absolutePath + err.Error())
 		}
 		version = strings.Split(latest, m.author+"-"+m.name+"-")[1]
