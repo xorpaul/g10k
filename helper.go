@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/kballard/go-shellquote"
 	"golang.org/x/sys/unix"
 )
 
@@ -179,7 +178,7 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 	cmd := parts[0]
 	cmdArgs := []string{}
 	if len(parts) > 1 {
-		args, err := shellquote.Split(parts[1])
+		args, err := splitCommandLine(parts[1])
 		if err != nil {
 			Debugf("err: " + fmt.Sprint(err))
 		} else {
@@ -218,6 +217,83 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 		er.output = fmt.Sprint(err) + " " + fmt.Sprint(string(out))
 	}
 	return er
+}
+
+func splitCommandLine(input string) ([]string, error) {
+	var words []string
+	var word strings.Builder
+	inWord := false
+	quote := rune(0)
+	escaped := false
+
+	flush := func() {
+		if inWord {
+			words = append(words, word.String())
+			word.Reset()
+			inWord = false
+		}
+	}
+
+	for _, character := range input {
+		if escaped {
+			if character == '\n' {
+				escaped = false
+				continue
+			}
+			if quote == '"' && !strings.ContainsRune("$`\"\\", character) {
+				word.WriteRune('\\')
+			}
+			word.WriteRune(character)
+			escaped = false
+			inWord = true
+			continue
+		}
+
+		if quote == '\'' {
+			if character == '\'' {
+				quote = 0
+			} else {
+				word.WriteRune(character)
+			}
+			inWord = true
+			continue
+		}
+
+		if quote == '"' {
+			switch character {
+			case '"':
+				quote = 0
+			case '\\':
+				escaped = true
+			default:
+				word.WriteRune(character)
+			}
+			inWord = true
+			continue
+		}
+
+		switch character {
+		case '\\':
+			escaped = true
+		case '\'', '"':
+			quote = character
+			inWord = true
+		case ' ', '\n', '\t':
+			flush()
+		default:
+			word.WriteRune(character)
+			inWord = true
+		}
+	}
+
+	if escaped {
+		return nil, fmt.Errorf("unterminated backslash escape")
+	}
+	if quote != 0 {
+		return nil, fmt.Errorf("unterminated quoted string")
+	}
+	flush()
+	return words, nil
 }
 
 // funcName return the function name as a string

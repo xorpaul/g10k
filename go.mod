@@ -5,7 +5,6 @@ go 1.25.3
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.18.0
-	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/klauspost/pgzip v1.2.6
 	github.com/remeh/sizedwaitgroup v1.0.0
 	github.com/tidwall/gjson v1.18.0
