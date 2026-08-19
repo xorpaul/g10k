@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -15,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
 )
 
 func removeTimestampsFromDeployfile(rt *Runtime, file string) {
@@ -87,13 +86,7 @@ func TestConfigPrefix(t *testing.T) {
 		Sources:             s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestConfigForceForgeVersions(t *testing.T) {
@@ -117,13 +110,7 @@ func TestConfigForceForgeVersions(t *testing.T) {
 		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestConfigAddWarning(t *testing.T) {
@@ -147,13 +134,7 @@ func TestConfigAddWarning(t *testing.T) {
 		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestConfigSimplePostrunCommand(t *testing.T) {
@@ -178,13 +159,7 @@ func TestConfigSimplePostrunCommand(t *testing.T) {
 		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestConfigPostrunCommand(t *testing.T) {
@@ -209,13 +184,7 @@ func TestConfigPostrunCommand(t *testing.T) {
 		Sources:      s, Timeout: 5, Maxworker: 50, MaxExtractworker: 20,
 		PurgeLevels: []string{"deployment", "puppetfile"}, PostRunCommand: postrunCommand}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestConfigDeploy(t *testing.T) {
@@ -241,13 +210,7 @@ func TestConfigDeploy(t *testing.T) {
 		PurgeAllowList:           []string{"custom.json", "**/*.xpp"},
 		DeploymentPurgeAllowList: []string{"full_hiera_*"}}
 
-	if !reflect.DeepEqual(got, expected) {
-		fmt.Println("### Expected:")
-		spew.Dump(expected)
-		fmt.Println("### Got:")
-		spew.Dump(got)
-		t.Errorf("Expected ConfigSettings: %+v, but got ConfigSettings: %+v", expected, got)
-	}
+	assert.Equal(t, expected, got)
 }
 
 func TestResolveConfigAddWarning(t *testing.T) {

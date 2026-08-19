@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
 )
 
 func equalPuppetfile(rt *Runtime, a, b Puppetfile) bool {
@@ -175,11 +175,7 @@ func TestCommentPuppetfile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !expected.MatchString(got) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Error("Expected", expected, "got", got)
-	}
+	assert.Regexp(t, expected, got)
 }
 
 func TestReadPuppetfile(t *testing.T) {
@@ -218,11 +214,7 @@ func TestReadPuppetfile(t *testing.T) {
 
 	expected := Puppetfile{gitModules: gm, forgeModules: fm, source: "test", forgeCacheTTL: time.Duration(50 * time.Minute), forgeBaseURL: "foobar"}
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestFallbackPuppetfile(t *testing.T) {
@@ -352,11 +344,7 @@ func TestReadPuppetfileChecksumAttribute(t *testing.T) {
 
 	expected := Puppetfile{forgeModules: fm, source: "test"}
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
@@ -367,11 +355,7 @@ func TestReadPuppetfileForgeSlashNotation(t *testing.T) {
 	fm := make(map[string]ForgeModule)
 	fm["filebeat"] = ForgeModule{version: "0.10.4", author: "pcfens", name: "filebeat"}
 	expected := Puppetfile{forgeModules: fm, source: "test"}
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Error("Expected Puppetfile:", expected, ", but got Puppetfile:", got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 
 }
 
@@ -385,11 +369,7 @@ func TestReadPuppetfileForgeDash(t *testing.T) {
 
 	expected := Puppetfile{forgeModules: fm, source: "test"}
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileInstallPath(t *testing.T) {
@@ -403,11 +383,7 @@ func TestReadPuppetfileInstallPath(t *testing.T) {
 	expected := Puppetfile{gitModules: gm, source: "test"}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileLocalModule(t *testing.T) {
@@ -424,11 +400,7 @@ func TestReadPuppetfileLocalModule(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileMissingTrailingComma(t *testing.T) {
@@ -450,11 +422,7 @@ func TestReadPuppetfileForgeNotationGitModule(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileGitSlashNotation(t *testing.T) {
@@ -475,11 +443,7 @@ func TestReadPuppetfileGitSlashNotation(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileGitDashNotation(t *testing.T) {
@@ -500,11 +464,7 @@ func TestReadPuppetfileGitDashNotation(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
@@ -525,11 +485,7 @@ func TestReadPuppetfileGitDashNSlashNotation(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		spew.Dump(expected)
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
 
 func TestReadPuppetfileSSHKeyAlreadyLoaded(t *testing.T) {
@@ -544,11 +500,5 @@ func TestReadPuppetfileSSHKeyAlreadyLoaded(t *testing.T) {
 	expected := Puppetfile{source: "test", gitModules: gm, forgeModules: fm}
 	//fmt.Println(got)
 
-	if !equalPuppetfile(rt, got, expected) {
-		fmt.Println("Expected:")
-		spew.Dump(expected)
-		fmt.Println("Got:")
-		spew.Dump(got)
-		t.Errorf("Expected Puppetfile: %+v, but got Puppetfile: %+v", expected, got)
-	}
+	assert.True(t, equalPuppetfile(rt, got, expected))
 }
