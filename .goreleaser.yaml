@@ -37,3 +37,9 @@ snapshot:
 release:
   # mark GitHub releases as pre-release automatically for tags like v1.0.0-rc1
   prerelease: auto
+
+changelog:
+  filters:
+    exclude:
+      - "^Merge pull request"
+      - "^Merge branch"
