@@ -33,3 +33,7 @@ checksum:
 
 snapshot:
   version_template: "{{ incpatch .Version }}-dev"
+
+release:
+  # mark GitHub releases as pre-release automatically for tags like v1.0.0-rc1
+  prerelease: auto
