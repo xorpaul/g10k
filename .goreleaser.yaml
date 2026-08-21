@@ -28,6 +28,19 @@ archives:
     files:
       - none*
 
+nfpms:
+  - homepage: https://github.com/voxpupuli/g10k
+    maintainer: Vox Pupuli <voxpupuli@groups.io>
+    description: |-
+      g10k is a r10k fork written in Go
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+    provides:
+      - g10k
+    bindir: /usr/bin
+
 checksum:
   name_template: checksums.txt
 
