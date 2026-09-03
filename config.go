@@ -66,46 +66,46 @@ func (rt *Runtime) readConfigfile(configFile string) (ConfigSettings, error) {
 		config.Timeout = 5
 	}
 
-	if rt.Options.UseCacheFallback {
+	if rt.UseCacheFallback {
 		config.UseCacheFallback = true
 	}
 
-	if rt.Options.RetryGitCommands {
+	if rt.RetryGitCommands {
 		config.RetryGitCommands = true
 	}
 
-	if rt.Options.GitObjectSyntaxNotSupported {
+	if rt.GitObjectSyntaxNotSupported {
 		config.GitObjectSyntaxNotSupported = true
 	}
 
 	// set default max Go routines for Forge and Git module resolution if none is given
 	if config.Maxworker <= 0 {
-		config.Maxworker = rt.Options.MaxWorker
+		config.Maxworker = rt.MaxWorker
 	}
-	if rt.Options.MaxWorker != 50 {
-		config.Maxworker = rt.Options.MaxWorker
+	if rt.MaxWorker != 50 {
+		config.Maxworker = rt.MaxWorker
 	}
 
-	if rt.Options.MaxWorker == 0 && config.Maxworker == 0 {
+	if rt.MaxWorker == 0 && config.Maxworker == 0 {
 		config.Maxworker = 50
 	}
 
 	// set default max Go routines for Forge and Git module extracting
 	if config.MaxExtractworker <= 0 {
-		config.MaxExtractworker = rt.Options.MaxExtractWorker
+		config.MaxExtractworker = rt.MaxExtractWorker
 	}
-	if rt.Options.MaxExtractWorker != 20 {
-		config.MaxExtractworker = rt.Options.MaxExtractWorker
+	if rt.MaxExtractWorker != 20 {
+		config.MaxExtractworker = rt.MaxExtractWorker
 	}
 
-	if rt.Options.MaxExtractWorker == 0 && config.MaxExtractworker == 0 {
+	if rt.MaxExtractWorker == 0 && config.MaxExtractworker == 0 {
 		config.MaxExtractworker = 20
 	}
 
 	if len(config.ForgeCacheTTLString) != 0 {
 		ttl, err := time.ParseDuration(config.ForgeCacheTTLString)
 		if err != nil {
-			return ConfigSettings{}, fmt.Errorf("Error: Can not convert value %s of config setting forge_cache_ttl to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In %s", config.ForgeCacheTTLString, configFile)
+			return ConfigSettings{}, fmt.Errorf("error: Can not convert value %s of config setting forge_cache_ttl to a golang Duration. valid time units are 300ms, 1.5h or 2h45m. In %s", config.ForgeCacheTTLString, configFile)
 		}
 		config.ForgeCacheTTL = ttl
 	}
@@ -140,8 +140,10 @@ func (rt *Runtime) readConfigfile(configFile string) (ConfigSettings, error) {
 		config.Sources[source] = sa
 	}
 
-	if rt.Options.Validate {
-		rt.Validatef()
+	if rt.Validate {
+		if err := rt.Validatef(); err != nil {
+			return ConfigSettings{}, err
+		}
 	}
 
 	// fmt.Printf("%+v\n", config)
@@ -204,7 +206,7 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 		var err error
 		n, err = rt.preparePuppetfile(pf)
 		if err != nil {
-			return Puppetfile{}, fmt.Errorf("Error preparing Puppetfile: %s", err.Error())
+			return Puppetfile{}, fmt.Errorf("error preparing Puppetfile: %s", err.Error())
 		}
 	}
 
@@ -232,14 +234,14 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 			continue
 		}
 		if strings.Count(line, ":git") > 1 || strings.Count(line, ":tag") > 1 || strings.Count(line, ":branch") > 1 || strings.Count(line, ":ref") > 1 || strings.Count(line, ":link") > 1 {
-			return Puppetfile{}, fmt.Errorf("Error: trailing comma found in %s somewhere here: %s", pf, line)
+			return Puppetfile{}, fmt.Errorf("error: trailing comma found in %s somewhere here: %s", pf, line)
 		}
 		if m := reDanglingAttribute.FindStringSubmatch(line); len(m) >= 1 {
 			previousLine := ""
 			if i-1 >= 0 {
 				previousLine = lines[i-1]
 			}
-			return Puppetfile{}, fmt.Errorf("Error: found dangling module attribute in %s somewhere here: %s%s Check for missing , at the end of the line.", pf, previousLine, line)
+			return Puppetfile{}, fmt.Errorf("error: found dangling module attribute in %s somewhere here: %s%s check for missing , at the end of the line", pf, previousLine, line)
 		}
 		if m := reModuledir.FindStringSubmatch(line); len(m) > 1 && len(rt.ModuleDir) == 0 {
 			moduleDir = normalizeDir(m[1])
@@ -250,7 +252,7 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 		} else if m := reForgeCacheTTL.FindStringSubmatch(line); len(m) > 1 {
 			ttl, err := time.ParseDuration(m[1])
 			if err != nil {
-				return Puppetfile{}, fmt.Errorf("Error: Can not convert value %s of parameter %s to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In %s line: %s", m[1], m[0], pf, line)
+				return Puppetfile{}, fmt.Errorf("error: Can not convert value %s of parameter %s to a golang Duration. valid time units are 300ms, 1.5h or 2h45m. In %s line: %s", m[1], m[0], pf, line)
 			}
 			puppetFile.forgeCacheTTL = ttl
 		} else if m := reForgeModule.FindStringSubmatch(line); len(m) > 1 {
@@ -262,12 +264,12 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 				comp = strings.Split(forgeModuleName, "-")
 				forgeModuleNameSeparator = "-"
 				if len(comp) != 2 {
-					return Puppetfile{}, fmt.Errorf("Error: Forge module name is invalid! Should be like puppetlabs/apt or puppetlabs-apt, but is: %s in %s line: %s", m[2], pf, line)
+					return Puppetfile{}, fmt.Errorf("error: Forge module name is invalid! Should be like puppetlabs/apt or puppetlabs-apt, but is: %s in %s line: %s", m[2], pf, line)
 				}
 			}
 			forgeModuleName = comp[0] + "/" + comp[1]
 			if _, ok := puppetFile.forgeModules[comp[1]]; ok {
-				return Puppetfile{}, fmt.Errorf("Error: Duplicate forge module found in %s for module %s line: %s", pf, forgeModuleName, line)
+				return Puppetfile{}, fmt.Errorf("error: Duplicate forge module found in %s for module %s line: %s", pf, forgeModuleName, line)
 			}
 			//Debugf("Found Forge module name " + forgeModuleName + " with " + forgeModuleNameSeparator + " as a separator")
 			forgeModuleVersion := "present"
@@ -299,7 +301,7 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 							//fmt.Println("line:", line)
 							removeForgeNotationAuthor := strings.Split(line, forgeModuleNameSeparator)
 							if len(removeForgeNotationAuthor) < 2 {
-								return Puppetfile{}, fmt.Errorf("Error: Found git module in Forge notation: %s with git url: %s, but something went wrong while trying to remove the author part to make g10k detect it as an Git module module:%s line: %s", forgeModuleName, forgeAttributeValue, comp[1], line)
+								return Puppetfile{}, fmt.Errorf("error: Found git module in Forge notation: %s with git url: %s, but something went wrong while trying to remove the author part to make g10k detect it as an Git module module:%s line: %s", forgeModuleName, forgeAttributeValue, comp[1], line)
 							} else {
 								//fmt.Println("removeForgeNotationAuthor:", removeForgeNotationAuthor[0])
 								replacedLine := strings.Replace(line, removeForgeNotationAuthor[0]+forgeModuleNameSeparator, "mod '", 1)
@@ -314,10 +316,10 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 				}
 			}
 			if forceForgeVersions && (forgeModuleVersion == "present" || forgeModuleVersion == "latest") {
-				return Puppetfile{}, fmt.Errorf("Error: Found %s setting for forge module in %s for module %s line: %s and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')", forgeModuleVersion, pf, forgeModuleName, line)
+				return Puppetfile{}, fmt.Errorf("error: Found %s setting for forge module in %s for module %s line: %s and force_forge_versions is set to true! Please specify a version (e.g. '2.3.0')", forgeModuleVersion, pf, forgeModuleName, line)
 			}
 			if _, ok := puppetFile.gitModules[comp[1]]; ok {
-				return Puppetfile{}, fmt.Errorf("Error: Forge Puppet module with same name found in %s for module %s line: %s", pf, comp[1], line)
+				return Puppetfile{}, fmt.Errorf("error: Forge Puppet module with same name found in %s for module %s line: %s", pf, comp[1], line)
 			}
 			// the base url in the Puppetfile takes precedence over an base url specified in the g10k config yaml
 			if len(puppetFile.forgeBaseURL) == 0 {
@@ -335,13 +337,13 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 				gitModuleAttributes := m[2]
 				//fmt.Println("found git mod attribute ---> ", gitModuleAttributes)
 				if strings.Count(gitModuleAttributes, ":git") < 1 && strings.Count(gitModuleAttributes, ":local") < 1 {
-					return Puppetfile{}, fmt.Errorf("Error: Missing :git url in %s for module %s line: %s", pf, gitModuleName, line)
+					return Puppetfile{}, fmt.Errorf("error: missing :git url in %s for module %s line: %s", pf, gitModuleName, line)
 				}
 				if strings.Count(gitModuleAttributes, ",") > 3 {
-					return Puppetfile{}, fmt.Errorf("Error: Too many attributes in %s for module %s line: %s", pf, gitModuleName, line)
+					return Puppetfile{}, fmt.Errorf("error: too many attributes in %s for module %s line: %s", pf, gitModuleName, line)
 				}
 				if _, ok := puppetFile.gitModules[gitModuleName]; ok {
-					return Puppetfile{}, fmt.Errorf("Error: Duplicate module found in %s for module %s line: %s", pf, gitModuleName, line)
+					return Puppetfile{}, fmt.Errorf("error: duplicate module found in %s for module %s line: %s", pf, gitModuleName, line)
 				}
 				gas := reUniqueGitAttribute.FindAllStringSubmatch(gitModuleAttributes, -1)
 				cga := ""
@@ -349,7 +351,7 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 					for _, ga := range gas {
 						cga += strings.TrimSpace(strings.ReplaceAll(ga[0], "=>", "")) + ", "
 					}
-					return Puppetfile{}, fmt.Errorf("Error: Found conflicting git attributes %sin %s for module %s line: %s", cga, pf, gitModuleName, line)
+					return Puppetfile{}, fmt.Errorf("error: found conflicting git attributes %sin %s for module %s line: %s", cga, pf, gitModuleName, line)
 				}
 				puppetFile.gitModules[gitModuleName] = GitModule{}
 				gm := GitModule{moduleDir: moduleDir}
@@ -359,18 +361,18 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 				for i := 0; i <= strings.Count(gitModuleAttributes, ","); i++ {
 					//fmt.Println("i -->", i)
 					if i >= len(gitModuleAttributesArray) {
-						return Puppetfile{}, fmt.Errorf("Error: Trailing comma or invalid setting for module found in %s for module %s line: %s", pf, gitModuleName, line)
+						return Puppetfile{}, fmt.Errorf("error: trailing comma or invalid setting for module found in %s for module %s line: %s", pf, gitModuleName, line)
 					}
 					a := reGitAttribute.FindStringSubmatch(gitModuleAttributesArray[i])
 					//fmt.Println("a -->", a)
 					if len(a) == 0 {
-						return Puppetfile{}, fmt.Errorf("Error: Trailing comma or invalid setting for module found in %s for module %s line: %s", pf, gitModuleName, line)
+						return Puppetfile{}, fmt.Errorf("error: trailing comma or invalid setting for module found in %s for module %s line: %s", pf, gitModuleName, line)
 					}
 					gitModuleAttribute := a[1]
 					switch gitModuleAttribute {
 					case "git":
 						if strings.Contains(a[2], "ProxyCommand") {
-							return Puppetfile{}, fmt.Errorf("Error: Found ProxyCommand option in git url in %s for module %s line: %s", pf, gitModuleName, line)
+							return Puppetfile{}, fmt.Errorf("error: found ProxyCommand option in git url in %s for module %s line: %s", pf, gitModuleName, line)
 						}
 						gm.git = a[2]
 					case "branch":
@@ -390,13 +392,13 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 					case "link":
 						link, err := strconv.ParseBool(a[2])
 						if err != nil {
-							return Puppetfile{}, fmt.Errorf("Error: Can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
+							return Puppetfile{}, fmt.Errorf("error: can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
 						}
 						gm.link = link
 					case "ignore-unreachable", "ignore_unreachable":
 						ignoreUnreachable, err := strconv.ParseBool(a[2])
 						if err != nil {
-							return Puppetfile{}, fmt.Errorf("Error: Can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
+							return Puppetfile{}, fmt.Errorf("error: can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
 						}
 						gm.ignoreUnreachable = ignoreUnreachable
 					case "fallback", "default_branch":
@@ -409,7 +411,7 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 					case "local":
 						local, err := strconv.ParseBool(a[2])
 						if err != nil {
-							return Puppetfile{}, fmt.Errorf("Error: Can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
+							return Puppetfile{}, fmt.Errorf("error: can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
 						}
 						if local {
 							gm.local = true
@@ -417,14 +419,14 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 					case "use_ssh_agent":
 						useSSHAgent, err := strconv.ParseBool(a[2])
 						if err != nil {
-							return Puppetfile{}, fmt.Errorf("Error: Can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
+							return Puppetfile{}, fmt.Errorf("error: can not convert value %s of parameter %s to boolean. In %s for module %s line: %s", a[2], gitModuleAttribute, pf, gitModuleName, line)
 						}
 						gm.useSSHAgent = useSSHAgent
 					}
 
 				}
 				if _, ok := puppetFile.forgeModules[gitModuleName]; ok {
-					return Puppetfile{}, fmt.Errorf("Error: Git Puppet module with same name found in %s for module %s line: %s", pf, gitModuleName, line)
+					return Puppetfile{}, fmt.Errorf("error: git puppet module with same name found in %s for module %s line: %s", pf, gitModuleName, line)
 				}
 				if rt.Config.IgnoreUnreachableModules {
 					rt.Debugf("Setting :ignore_unreachable for Git module " + gitModuleName)
@@ -434,8 +436,8 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 			}
 		} else {
 			// for now only in dry run mode
-			if rt.Options.DryRun {
-				return Puppetfile{}, fmt.Errorf("Error: Could not interpret line: %s In %s", line, pf)
+			if rt.DryRun {
+				return Puppetfile{}, fmt.Errorf("error: could not interpret line: %s in %s", line, pf)
 			}
 
 		}
@@ -447,8 +449,10 @@ func (rt *Runtime) readPuppetfile(pf string, sshKey string, source string, branc
 		moduleDirs = append(moduleDirs, moduleDir)
 	}
 
-	if rt.Options.Validate {
-		rt.Validatef()
+	if rt.Validate {
+		if err := rt.Validatef(); err != nil {
+			return Puppetfile{}, err
+		}
 	}
 
 	puppetFile.moduleDirs = moduleDirs
