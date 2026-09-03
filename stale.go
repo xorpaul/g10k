@@ -5,36 +5,36 @@ import (
 	"strings"
 )
 
-func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[string]bool) {
-	if !stringSliceContains(config.PurgeLevels, "deployment") {
-		if !stringSliceContains(config.PurgeLevels, "environment") {
+func (rt *Runtime) purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[string]bool) {
+	if !stringSliceContains(rt.Config.PurgeLevels, "deployment") {
+		if !stringSliceContains(rt.Config.PurgeLevels, "environment") {
 			// nothing allowed to purge
 			return
 		}
 	}
-	for source, sa := range config.Sources {
+	for source, sa := range rt.Config.Sources {
 		// fmt.Printf("source: %+v\n", sa)
-		prefix := resolveSourcePrefix(source, sa)
+		prefix := rt.resolveSourcePrefix(source, sa)
 
-		if len(environmentParam) > 0 {
-			if !strings.HasPrefix(environmentParam, prefix) {
-				Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + environmentParam)
+		if len(rt.Environment) > 0 {
+			if !strings.HasPrefix(rt.Environment, prefix) {
+				rt.Debugf("Skipping purging unmanaged content for source '" + source + "', because -environment parameter is set to " + rt.Environment)
 				continue
 			}
 		}
 
 		// Clean up unknown environment directories
-		if len(branchParam) == 0 {
+		if len(rt.Branch) == 0 {
 			for basedir := range allBasedirs {
 				globPath := filepath.Join(basedir, prefix+"*")
-				Debugf("Glob'ing with path " + globPath)
+				rt.Debugf("Glob'ing with path " + globPath)
 				environments, _ := filepath.Glob(globPath)
 
 				allowlistEnvironments := []string{}
-				if len(config.DeploymentPurgeAllowList) > 0 {
-					for _, wlpattern := range config.DeploymentPurgeAllowList {
+				if len(rt.Config.DeploymentPurgeAllowList) > 0 {
+					for _, wlpattern := range rt.Config.DeploymentPurgeAllowList {
 						allowlistGlobPath := filepath.Join(basedir, wlpattern)
-						Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
+						rt.Debugf("deployment_purge_allowlist Glob'ing with path " + allowlistGlobPath)
 						we, _ := filepath.Glob(allowlistGlobPath)
 						allowlistEnvironments = append(allowlistEnvironments, we...)
 					}
@@ -43,31 +43,31 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 				for _, env := range environments {
 					envPath := strings.Split(env, "/")
 					envName := envPath[len(envPath)-1]
-					if len(environmentParam) > 0 {
-						if envName != environmentParam {
-							Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + environmentParam)
+					if len(rt.Environment) > 0 {
+						if envName != rt.Environment {
+							rt.Debugf("Skipping purging unmanaged content for Puppet environment '" + envName + "', because -environment parameter is set to " + rt.Environment)
 							continue
 						}
 					}
-					if stringSliceContains(config.PurgeLevels, "deployment") {
-						Debugf("Checking if environment should exist: " + env)
+					if stringSliceContains(rt.Config.PurgeLevels, "deployment") {
+						rt.Debugf("Checking if environment should exist: " + env)
 						if allEnvironments[env] {
-							Debugf("Not purging environment " + env + " because it is managed")
+							rt.Debugf("Not purging environment " + env + " because it is managed")
 						} else if stringSliceContains(allowlistEnvironments, env) {
-							Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
+							rt.Debugf("Not purging environment " + env + " due to deployment_purge_allowlist match")
 						} else {
-							if checkRemoteSourceOfEnvironment(env, config.Sources) {
+							if rt.checkRemoteSourceOfEnvironment(env, rt.Config.Sources) {
 								// TODO: add test for this using https://github.com/xorpaul/g10k_purge_env_test/branches
-								Debugf("Purging environment " + env + " because its remote source matches configured source remote")
-								Infof("Removing unmanaged environment " + env)
-								if !dryRun {
-									purgeDir(env, "purgeStaleContent()")
+								rt.Debugf("Purging environment " + env + " because its remote source matches configured source remote")
+								rt.Infof("Removing unmanaged environment " + env)
+								if !rt.DryRun {
+									rt.purgeDir(env, "purgeStaleContent()")
 								}
 							} else {
-								Debugf("Purging environment " + env + " because its remote source belongs to a different source remote")
-								Infof("Removing unmanaged environment " + env)
-								if !dryRun {
-									purgeDir(env, "purgeStaleContent()")
+								rt.Debugf("Purging environment " + env + " because its remote source belongs to a different source remote")
+								rt.Infof("Removing unmanaged environment " + env)
+								if !rt.DryRun {
+									rt.purgeDir(env, "purgeStaleContent()")
 								}
 							}
 						}
@@ -78,20 +78,20 @@ func purgeUnmanagedContent(allBasedirs map[string]bool, allEnvironments map[stri
 	}
 }
 
-func checkRemoteSourceOfEnvironment(environmentDir string, configSources map[string]Source) bool {
+func (rt *Runtime) checkRemoteSourceOfEnvironment(environmentDir string, configSources map[string]Source) bool {
 	// check for .g10k-deploy.json inside the environment directory and read source remote from there
 	// if it matches then return true
 
 	dr := DeployResult{}
 	deployFile := filepath.Join(environmentDir, ".g10k-deploy.json")
 	if fileExists(deployFile) {
-		dr = readDeployResultFile(deployFile)
+		dr = rt.readDeployResultFile(deployFile)
 	} else {
-		Debugf("found no " + deployFile + " file, this folder is likely unmanaged and will be purged")
+		rt.Debugf("found no " + deployFile + " file, this folder is likely unmanaged and will be purged")
 	}
 
 	for _, source := range configSources {
-		Debugf("Comparing source remote " + source.Remote + " with deploy result git url " + dr.GitURL)
+		rt.Debugf("Comparing source remote " + source.Remote + " with deploy result git url " + dr.GitURL)
 		if dr.GitURL == source.Remote {
 			return true
 		}
@@ -99,18 +99,18 @@ func checkRemoteSourceOfEnvironment(environmentDir string, configSources map[str
 	return false
 }
 
-func purgeControlRepoExceptModuledir(dir string, moduleDir string) {
+func (rt *Runtime) purgeControlRepoExceptModuledir(dir string, moduleDir string) {
 	moduleDir = filepath.Join(dir, moduleDir)
 
 	globPath := filepath.Join(dir, "*")
-	Debugf("Glob'ing with path " + globPath)
+	rt.Debugf("Glob'ing with path " + globPath)
 	folders, _ := filepath.Glob(globPath)
 	for _, folder := range folders {
 		if folder == moduleDir || strings.HasPrefix(folder, moduleDir) {
 			continue
 		} else {
-			Debugf("deleting " + folder)
-			purgeDir(folder, "purgeControlRepoExceptModuledir")
+			rt.Debugf("deleting " + folder)
+			rt.purgeDir(folder, "purgeControlRepoExceptModuledir")
 		}
 
 	}
