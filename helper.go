@@ -21,7 +21,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var ErrValidationFailed = errors.New("Config validation failed")
+var ErrValidationFailed = errors.New("config validation failed")
 var ErrFatal = errors.New("g10k: fatal error")
 
 // Debugf is a helper function for debug logging if global variable debug is set to true
