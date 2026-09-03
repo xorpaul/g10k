@@ -317,13 +317,13 @@ func Run(opts Options) (int, error) {
 
 	if opts.ConfigFile != "" {
 		if opts.UseMove {
-			return 1, fmt.Errorf("Error: -usemove is only allowed in puppetfile mode")
+			return 1, fmt.Errorf("error: -usemove is only allowed in puppetfile mode")
 		}
 		if opts.PFMode {
-			return 1, fmt.Errorf("Error: -puppetfile parameter not allowed with -config parameter")
+			return 1, fmt.Errorf("error: -puppetfile parameter not allowed with -config parameter")
 		}
 		if opts.OutputName != "" && opts.Branch == "" {
-			return 1, fmt.Errorf("Error: -outputname specified without a branch!")
+			return 1, fmt.Errorf("error: -outputname specified without a branch")
 		}
 		if opts.UseCacheFallback {
 			rt.Config.UseCacheFallback = true

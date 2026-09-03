@@ -244,8 +244,8 @@ func (rt *Runtime) syncToModuleDir(gitModule GitModule, srcDir string, targetDir
 				for _, line := range lines {
 					if m := reModuledir.FindStringSubmatch(line); len(m) > 1 {
 						// moduledir CLI parameter override
-						if len(rt.Options.ModuleDir) != 0 {
-							moduleDir = rt.Options.ModuleDir
+						if len(rt.ModuleDir) != 0 {
+							moduleDir = rt.ModuleDir
 						} else {
 							moduleDir = normalizeDir(m[1])
 						}

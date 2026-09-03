@@ -328,15 +328,15 @@ func TestReadPuppetfileIgnoreUnreachable(t *testing.T) {
 }
 
 func TestReadPuppetfileForgeCacheTTL(t *testing.T) {
-	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Can not convert value 300x of parameter forge.cacheTtl 300x to a golang Duration. Valid time units are 300ms, 1.5h or 2h45m. In tests/TestReadPuppetfileForgeCacheTTL line: forge.cacheTtl 300x")
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "error: Can not convert value 300x of parameter forge.cacheTtl 300x to a golang Duration. valid time units are 300ms, 1.5h or 2h45m. In tests/TestReadPuppetfileForgeCacheTTL line: forge.cacheTtl 300x")
 }
 
 func TestReadPuppetfileLink(t *testing.T) {
-	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Found conflicting git attributes :branch, :link, in tests/TestReadPuppetfileLink for module example_module line: mod 'example_module',:git => 'git@somehost.com/foo/example-module.git',:branch => 'foo',:link => true")
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "error: found conflicting git attributes :branch, :link, in tests/TestReadPuppetfileLink for module example_module line: mod 'example_module',:git => 'git@somehost.com/foo/example-module.git',:branch => 'foo',:link => true")
 }
 
 func TestReadPuppetfileDuplicateForgeGitModule(t *testing.T) {
-	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "Error: Git Puppet module with same name found in tests/TestReadPuppetfileDuplicateForgeGitModule for module bar line: mod 'bar',:git => 'https://github.com/foo/bar.git'")
+	checkExitCodeAndOutputOfReadPuppetfileSubprocess(t, false, 1, "error: git puppet module with same name found in tests/TestReadPuppetfileDuplicateForgeGitModule for module bar line: mod 'bar',:git => 'https://github.com/foo/bar.git'")
 }
 
 func TestReadPuppetfileChecksumAttribute(t *testing.T) {
