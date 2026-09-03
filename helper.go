@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,11 +21,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var validationMessages []string
+var ErrValidationFailed = errors.New("Config validation failed")
+var ErrFatal = errors.New("g10k: fatal error")
 
 // Debugf is a helper function for debug logging if global variable debug is set to true
-func Debugf(s string) {
-	if debug {
+func (rt *Runtime) Debugf(s string) {
+	if rt.Debug {
 		pc, _, _, _ := runtime.Caller(1)
 		callingFunctionName := strings.Split(runtime.FuncForPC(pc).Name(), ".")[len(strings.Split(runtime.FuncForPC(pc).Name(), "."))-1]
 		if strings.HasPrefix(callingFunctionName, "func") {
@@ -37,43 +39,42 @@ func Debugf(s string) {
 }
 
 // Verbosef is a helper function for verbose logging if global variable verbose is set to true
-func Verbosef(s string) {
-	if debug || verbose {
+func (rt *Runtime) Verbosef(s string) {
+	if rt.Debug || rt.Verbose {
 		log.Print(fmt.Sprint(s))
 	}
 }
 
 // Infof is a helper function for info logging if global variable info is set to true
-func Infof(s string) {
-	if debug || verbose || info {
+func (rt *Runtime) Infof(s string) {
+	if rt.Debug || rt.Verbose || rt.Info {
 		color.Green(s)
 	}
 }
 
 // Validatef is a helper function for validation logging if global variable validate is set to true
-func Validatef() {
-	if len(validationMessages) > 0 {
-		for _, message := range validationMessages {
+func (rt *Runtime) Validatef() error {
+	if len(rt.ValidationMessages) > 0 {
+		for _, message := range rt.ValidationMessages {
 			_, _ = color.New(color.FgRed).Fprintln(os.Stdout, message) // FIXME: error should be handled
 		}
-		os.Exit(1)
-	} else {
-		_, _ = color.New(color.FgGreen).Fprintln(os.Stdout, "Configuration successfully parsed.") // FIXME: error should be handled
-		os.Exit(0)
+		return ErrValidationFailed
 	}
+	_, _ = color.New(color.FgGreen).Fprintln(os.Stdout, "Configuration successfully parsed.") // FIXME: error should be handled
+	return nil
 }
 
 // Warnf is a helper function for warning logging
-func Warnf(s string) {
+func (rt *Runtime) Warnf(s string) {
 	color.Set(color.FgYellow)
 	fmt.Println(s)
 	color.Unset()
 }
 
 // Fatalf is a helper function for fatal logging
-func Fatalf(s string) {
-	if validate {
-		validationMessages = append(validationMessages, s)
+func (rt *Runtime) Fatalf(s string) {
+	if rt.Validate {
+		rt.ValidationMessages = append(rt.ValidationMessages, s)
 	} else {
 		_, _ = color.New(color.FgRed).Fprintln(os.Stderr, s) // FIXME: error should be handled
 		os.Exit(1)
@@ -111,54 +112,54 @@ func normalizeDir(dir string) string {
 }
 
 // checkDirAndCreate tests if the given directory exists and tries to create it
-func checkDirAndCreate(dir string, name string) string {
-	if !dryRun {
+func (rt *Runtime) checkDirAndCreate(dir string, name string) string {
+	if !rt.DryRun {
 		if len(dir) != 0 {
 			if !fileExists(dir) {
 				//log.Printf("checkDirAndCreate(): trying to create dir '%s' as %s", dir, name){
 				if err := os.MkdirAll(dir, 0777); err != nil {
-					Fatalf("checkDirAndCreate(): Error: failed to create directory: " + dir)
+					rt.Fatalf("checkDirAndCreate(): Error: failed to create directory: " + dir)
 				}
 			} else {
 				if !isDir(dir) {
-					Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not a directory! Exiting!")
+					rt.Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not a directory! Exiting!")
 				} else {
 					if unix.Access(dir, unix.W_OK) != nil {
-						Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not writable! Exiting!")
+						rt.Fatalf("checkDirAndCreate(): Error: " + dir + " exists, but is not writable! Exiting!")
 					}
 				}
 			}
 		} else {
 			// TODO make dir optional
-			Fatalf("checkDirAndCreate(): Error: dir setting '" + name + "' missing! Exiting!")
+			rt.Fatalf("checkDirAndCreate(): Error: dir setting '" + name + "' missing! Exiting!")
 		}
 	}
 	dir = normalizeDir(dir)
-	Debugf("Using as " + name + ": " + dir)
+	rt.Debugf("Using as " + name + ": " + dir)
 	return dir
 }
 
-func createOrPurgeDir(dir string, callingFunction string) {
-	if !dryRun {
+func (rt *Runtime) createOrPurgeDir(dir string, callingFunction string) {
+	if !rt.DryRun {
 		if !fileExists(dir) {
-			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
+			rt.Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
 			_ = os.MkdirAll(dir, 0777) // FIXME: error should be handled
 		} else {
-			Debugf("Trying to remove: " + dir + " called from " + callingFunction)
+			rt.Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 			if err := os.RemoveAll(dir); err != nil {
 				log.Print("createOrPurgeDir(): error: removing dir failed", err)
 			}
-			Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
+			rt.Debugf("Trying to create dir: " + dir + " called from " + callingFunction)
 			_ = os.MkdirAll(dir, 0777) // FIXME: error should be handled
 		}
 	}
 }
 
-func purgeDir(dir string, callingFunction string) {
+func (rt *Runtime) purgeDir(dir string, callingFunction string) {
 	if !fileExists(dir) {
-		Debugf("Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
+		rt.Debugf("Unnecessary to remove dir: " + dir + " it does not exist. Called from " + callingFunction)
 	} else {
-		Debugf("Trying to remove: " + dir + " called from " + callingFunction)
+		rt.Debugf("Trying to remove: " + dir + " called from " + callingFunction)
 		if err := os.RemoveAll(dir); err != nil {
 			log.Print("purgeDir(): os.RemoveAll() error: removing dir failed: ", err.Error())
 			if err = syscall.Unlink(dir); err != nil {
@@ -168,11 +169,11 @@ func purgeDir(dir string, callingFunction string) {
 	}
 }
 
-func executeCommand(command string, commandDir string, timeout int, allowFail bool, disableHttpProxy bool) ExecResult {
+func (rt *Runtime) executeCommand(command string, commandDir string, timeout int, allowFail bool, disableHttpProxy bool) ExecResult {
 	if len(commandDir) > 0 {
-		Debugf("Executing " + command + " in cwd " + commandDir)
+		rt.Debugf("Executing " + command + " in cwd " + commandDir)
 	} else {
-		Debugf("Executing " + command)
+		rt.Debugf("Executing " + command)
 	}
 	parts := strings.SplitN(command, " ", 2)
 	cmd := parts[0]
@@ -180,7 +181,7 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 	if len(parts) > 1 {
 		args, err := splitCommandLine(parts[1])
 		if err != nil {
-			Debugf("err: " + fmt.Sprint(err))
+			rt.Debugf("err: " + fmt.Sprint(err))
 		} else {
 			cmdArgs = args
 		}
@@ -192,7 +193,7 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 		execCommand.Dir = commandDir
 	}
 	if disableHttpProxy {
-		Debugf("found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for " + command)
+		rt.Debugf("found matching NO_PROXY URL, trying to disable http_proxy and https_proxy env variables for " + command)
 		// execCommand.Env = append(os.Environ(), "http_proxy=")
 		// execCommand.Env = append(os.Environ(), "https_proxy=")
 		_ = os.Unsetenv("http_proxy")  // FIXME: error should be handled
@@ -207,10 +208,10 @@ func executeCommand(command string, commandDir string, timeout int, allowFail bo
 	if msg, ok := err.(*exec.ExitError); ok { // there is error code
 		er.returnCode = msg.Sys().(syscall.WaitStatus).ExitStatus()
 	}
-	if (allowFail || config.UseCacheFallback) && err != nil {
-		Debugf("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	if (allowFail || rt.Config.UseCacheFallback) && err != nil {
+		rt.Debugf("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	} else {
-		Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+		rt.Verbosef("Executing " + command + " took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 	}
 	if err != nil {
 		er.returnCode = 1
@@ -303,54 +304,54 @@ func funcName() string {
 	return strings.Split(completeFuncname, ".")[len(strings.Split(completeFuncname, "."))-1]
 }
 
-func timeTrack(start time.Time, name string) {
+func (rt *Runtime) timeTrack(start time.Time, name string) {
 	duration := time.Since(start).Seconds()
 	switch name {
 	case "resolveForgeModules":
-		syncForgeTime = duration
+		rt.SyncForgeTime = duration
 	case "resolveGitRepositories":
-		syncGitTime = duration
+		rt.SyncGitTime = duration
 	}
-	Debugf(name + "() took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
+	rt.Debugf(name + "() took " + strconv.FormatFloat(duration, 'f', 5, 64) + "s")
 }
 
 // checkForAndExecutePostrunCommand check if a `postrun` command was specified in the g10k config and executes it
-func checkForAndExecutePostrunCommand() {
-	if len(config.PostRunCommand) > 0 {
-		postrunCommandString := strings.Join(config.PostRunCommand, " ")
-		postrunCommandString = strings.ReplaceAll(postrunCommandString, "$modifieddirs", strings.Join(needSyncDirs, " "))
+func (rt *Runtime) checkForAndExecutePostrunCommand() {
+	if len(rt.Config.PostRunCommand) > 0 {
+		postrunCommandString := strings.Join(rt.Config.PostRunCommand, " ")
+		postrunCommandString = strings.ReplaceAll(postrunCommandString, "$modifieddirs", strings.Join(rt.NeedSyncDirs, " "))
 
 		needSyncEnvText := ""
-		for needSyncEnv := range needSyncEnvs {
+		for needSyncEnv := range rt.NeedSyncEnvs {
 			needSyncEnvText += needSyncEnv + " "
 		}
 		postrunCommandString = strings.ReplaceAll(postrunCommandString, "$modifiedenvs", needSyncEnvText)
-		postrunCommandString = strings.ReplaceAll(postrunCommandString, "$branchparam", branchParam)
+		postrunCommandString = strings.ReplaceAll(postrunCommandString, "$branchparam", rt.Branch)
 
-		er := executeCommand(postrunCommandString, "", config.Timeout, false, false)
-		Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
+		er := rt.executeCommand(postrunCommandString, "", rt.Config.Timeout, false, false)
+		rt.Debugf("postrun command '" + postrunCommandString + "' terminated with exit code " + strconv.Itoa(er.returnCode))
 	}
 }
 
 // getSha256sumFile return the SHA256 hash sum of the given file
-func getSha256sumFile(file string) string {
+func (rt *Runtime) getSha256sumFile(file string) string {
 	// https://golang.org/pkg/crypto/sha256/#New
 	f, err := os.Open(file)
 	if err != nil {
-		Fatalf("failed to open file " + file + " to calculate SHA256 sum. Error: " + err.Error())
+		rt.Fatalf("failed to open file " + file + " to calculate SHA256 sum. Error: " + err.Error())
 	}
 	defer func() { _ = f.Close() }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
-		Fatalf("failed to calculate SHA256 sum of file " + file + " Error: " + err.Error())
+		rt.Fatalf("failed to calculate SHA256 sum of file " + file + " Error: " + err.Error())
 	}
 
 	return hex.EncodeToString(h.Sum(nil))
 }
 
 // moveFile uses io.Copy to create a copy of the given file https://stackoverflow.com/a/50741908/682847
-func moveFile(sourcePath, destPath string, deleteSourceFileToggle bool) error {
+func (rt *Runtime) moveFile(sourcePath, destPath string, deleteSourceFileToggle bool) error {
 	inputFile, err := os.Open(sourcePath)
 	if err != nil {
 		return fmt.Errorf("couldn't open source file: %s", err)
@@ -385,25 +386,25 @@ func stringSliceContains(slice []string, element string) bool {
 	return false
 }
 
-func writeStructJSONFile(file string, v interface{}) {
+func (rt *Runtime) writeStructJSONFile(file string, v interface{}) {
 	content, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		Warnf("Could not encode JSON file " + file + " " + err.Error())
+		rt.Warnf("Could not encode JSON file " + file + " " + err.Error())
 	}
 
 	err = os.WriteFile(file, content, 0644)
 	if err != nil {
-		Warnf("Could not write JSON file " + file + " " + err.Error())
+		rt.Warnf("Could not write JSON file " + file + " " + err.Error())
 	}
 
 }
 
-func readDeployResultFile(file string) DeployResult {
+func (rt *Runtime) readDeployResultFile(file string) DeployResult {
 	// Open our jsonFile
 	jsonFile, err := os.Open(file)
 	// if we os.Open returns an error then handle it
 	if err != nil {
-		Warnf("Could not open JSON file " + file + " " + err.Error())
+		rt.Warnf("Could not open JSON file " + file + " " + err.Error())
 	}
 	defer func() {
 		_ = jsonFile.Close()
@@ -411,7 +412,7 @@ func readDeployResultFile(file string) DeployResult {
 
 	byteValue, err := io.ReadAll(jsonFile)
 	if err != nil {
-		Warnf("Could not read JSON file " + file + " " + err.Error())
+		rt.Warnf("Could not read JSON file " + file + " " + err.Error())
 	}
 
 	var dr DeployResult
@@ -429,12 +430,12 @@ func stripComponent(component string, env string) string {
 	}
 }
 
-func matchGitRemoteURLNoProxy(url string) bool {
+func (rt *Runtime) matchGitRemoteURLNoProxy(url string) bool {
 	noProxy := os.Getenv("NO_PROXY")
 	for _, np := range strings.Split(noProxy, ",") {
 		if len(np) > 0 {
 			if strings.Contains(url, np) {
-				Debugf("found NO_PROXY setting: " + np + " matching  " + url)
+				rt.Debugf("found NO_PROXY setting: " + np + " matching  " + url)
 				return true
 			}
 		}
@@ -444,7 +445,7 @@ func matchGitRemoteURLNoProxy(url string) bool {
 	for _, np := range strings.Split(noProxyL, ",") {
 		if len(np) > 0 {
 			if strings.Contains(url, np) {
-				Debugf("found no_proxy setting: " + np + " matching  " + url)
+				rt.Debugf("found no_proxy setting: " + np + " matching  " + url)
 				return true
 			}
 		}
