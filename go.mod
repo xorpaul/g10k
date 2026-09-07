@@ -3,10 +3,10 @@ module github.com/xorpaul/g10k
 go 1.25.3
 
 require (
-	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/color v1.18.0
 	github.com/klauspost/pgzip v1.2.6
 	github.com/remeh/sizedwaitgroup v1.0.0
+	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/xorpaul/uiprogress v0.0.0-20201221143732-916122d4b58a
 	golang.org/x/sys v0.40.0
@@ -22,4 +22,5 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
